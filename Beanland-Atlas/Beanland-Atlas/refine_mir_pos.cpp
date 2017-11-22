@@ -8,7 +8,8 @@
 **Returns:
 **std::vector<cv::Vec3f>, Refined origin position and angle of each mirror line, in the same order as the input maxima
 */
-std::vector<cv::Vec3f> refine_mir_pos(cv::Mat amalg, std::vector<int> max_pos, size_t num_angles, int origin_x, int origin_y, int range) {
+std::vector<cv::Vec3f> refine_mir_pos(cv::Mat amalg, std::vector<int> max_pos, size_t num_angles, int origin_x, int origin_y, int range)
+{
 
 	//Vector to hold refined mirror lines
 	std::vector<cv::Vec3f> mirror_lines(max_pos.size());
@@ -284,8 +285,8 @@ std::vector<cv::Vec3f> refine_mir_pos(cv::Mat amalg, std::vector<int> max_pos, s
 **Returns:
 **cv::Vec2f, The average 2 ordinates of the centre of symmetry
 */
-cv::Vec2f avg_origin(std::vector<cv::Vec3f> lines) {
-
+cv::Vec2f avg_origin(std::vector<cv::Vec3f> lines)
+{
 	const int len = lines.size();
 
 	float x_avg = 0.0f, y_avg = 0.0f;
@@ -306,8 +307,8 @@ cv::Vec2f avg_origin(std::vector<cv::Vec3f> lines) {
 **Returns:
 **cv::Vec2f, The average 2 ordinates of intersection
 */
-cv::Vec2f average_intersection(std::vector<cv::Vec3f> lines) {
-
+cv::Vec2f average_intersection(std::vector<cv::Vec3f> lines) 
+{
 	const int len = lines.size();
 	
 	float x_avg = 0.0f, y_avg = 0.0f;

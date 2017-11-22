@@ -50,6 +50,11 @@ int main()
 	if (!ubound) {
 		ubound = std::min(mats_rows_af, mats_cols_af);
 	}
+
+	//Calculate size of 1st circle
 	
+
+	//Create higher circle depending on the size of the image
+
 	return 0;
 }

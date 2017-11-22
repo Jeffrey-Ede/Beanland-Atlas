@@ -30,9 +30,8 @@ int circ_size_ubound(std::vector<cv::Mat> &mats, int mats_rows_af, int mats_cols
 	af::array inputImage_af(mats_rows_af, mats_cols_af, (float*)(image32F.data));
 
 	//Fourier transform the image
-	af_array inputC = inputImage_af.get();
 	af_array fft2_af;
-	af_fft2_r2c(&fft2_af, inputC, 1.0f, mats_rows_af, mats_cols_af);
+	af_fft2_r2c(&fft2_af, inputImage_af.get(), 1.0f, mats_rows_af, mats_cols_af);
 
 	//Create extended Gaussian creating kernel
 	cl_kernel gauss_kernel = create_kernel(gauss_kernel_ext_source, gauss_kernel_ext_kernel, af_context, af_device_id);
@@ -54,26 +53,43 @@ int circ_size_ubound(std::vector<cv::Mat> &mats, int mats_rows_af, int mats_cols
 	int spectrum_size = std::max(mats_rows_af, mats_cols_af)/2;
 	float inv_height2 = 1.0f/(mats_rows_af*mats_rows_af);
 	float inv_width2 = 1.0f/(mats_cols_af*mats_cols_af);
-	af::array spectrum = freq_spectrum1D(af::abs(af::array(fft2_af)*af::array(gauss_fft2_af)), spectrum_size, 
+	/*af::array spectrum = freq_spectrum1D(af::abs(af::array(fft2_af)*af::array(gauss_fft2_af)), spectrum_size, 
 		mats_rows_af, mats_cols_af, reduced_height, inv_height2, inv_width2, freq_spectrum_kernel, af_queue);
+*/
+	//Assign memory to store spectrums on the host
+	std::vector<float> total_spectrum_host(spectrum_size); //Sum of all spectrums
+	std::vector<float> spectrum_host(spectrum_size); //Individual spectrum
 
-	//Transfer 1D Fourier spectrum back to the host while calculating spectrum for the next micrograph
-	std::vector<float> spectrum_host(spectrum_size);
+	
+	std::vector<float> spectrum_err(spectrum_size, 0);
+	std::vector<float> total_spectrum_err(spectrum_size);
 
-	//Additionally, calculate expected number of contributions to each element of frequency spectrum on CPU to avoid
-	//having to compile a 2nd kernel on the GPU as that kernel would only have 1 use
-	std::vector<int> spectrum_contrib(spectrum_size, 0);
-
-	int num_sections = NUM_THREADS >= 3 ? 3 : (NUM_THREADS == 2 ? 2 : 1);
-	#pragma omp parallel sections num_threads(num_sections)  
+	#pragma omp parallel sections num_threads(NUM_THREADS)  
     {  
-		//Transfer data to host
+		//Calculate spectrum of first image
         #pragma omp section
 		{
-			spectrum.host(&spectrum_host[0]);
+			freq_spectrum1D(af::abs(af::array(fft2_af)*af::array(gauss_fft2_af)), spectrum_size, mats_rows_af, mats_cols_af,
+				reduced_height, inv_height2, inv_width2, freq_spectrum_kernel, af_queue).host(&spectrum_host[0]);
 		}
 
-		//Calculate number of contributions to each frequency bin
+		//Calculate spectrum of 2nd image
+        #pragma omp section
+		{
+			//Load second image and take it's fft
+			mats[1].convertTo(image32F, CV_32FC1, 1);
+			inputImage_af = af::array(mats_rows_af, mats_cols_af, (float*)(image32F.data));
+
+			af_array fft2_af_new;
+			af_fft2_r2c(&fft2_af_new, inputImage_af.get(), 1.0f, mats_rows_af, mats_cols_af);
+
+			//Get the 1D frequency spectrum of that FFT
+			freq_spectrum1D(af::abs(af::array(fft2_af_new)*af::array(gauss_fft2_af)), spectrum_size, mats_rows_af, mats_cols_af,
+				reduced_height, inv_height2, inv_width2, freq_spectrum_kernel, af_queue).host(&total_spectrum_host[0]);
+		}
+
+		//calculate expected number of contributions to each element of the 1D frequency spectrum on CPU to avoid
+		//having to compile a 2nd kernel on the GPU as that kernel would only have 1 use
         #pragma omp section
 		{
 			int half_width = mats_cols_af/2;
@@ -90,24 +106,107 @@ int circ_size_ubound(std::vector<cv::Mat> &mats, int mats_rows_af, int mats_cols
 					x += 1;
 
 					//Increment contribution count each time a bin is indexed
-					int idx = (int)(std::sqrt(x*x*inv_width2 + y*y*inv_height2)*INV_ROOTOF2*spectrum_size);
-					if (idx < spectrum_size){
-						spectrum_contrib[idx] += 1;
+					int idx = (int)(std::sqrt(x*x*inv_width2 + y*y*inv_height2)*SQRT_OF_2*spectrum_size);
+					if (idx < spectrum_size)
+					{
+						spectrum_err[idx] += 1.0f;
 					}
 					else
 					{
-						spectrum_contrib[spectrum_size-1] += 1;
+						spectrum_err[spectrum_size-1] += 1.0f;
 					}
 				}
 			}
-		}
 
-		//Calculate spectrum of next image
-        #pragma omp section
-		{
-			printf_s("Hello from thread %d\n", omp_get_thread_num());
+			//Get relative size of errors for each of the bins. This is proportional to the sqrt of the number of contributions
+			for (int i = 0; i < spectrum_size; i++) {
+
+				spectrum_err[i] = std::sqrt( spectrum_err[i] );
+				total_spectrum_err[i] = SQRT_OF_2 * spectrum_err[i];
+			}
 		}
     }
+
+	//Use a lagged, weighted Pearson normalised product moment correlation coefficient to estimate the Durbin-Watson
+	//autocorrelation statistic
+	float spectrum_autocorr_prev, spectrum_autocorr;
+    #pragma omp parallel sections num_threads(NUM_THREADS)  
+	{  
+		//Calculate the autocorrelation of the first spectrum
+        #pragma omp section
+		{
+			spectrum_autocorr_prev = wighted_pearson_autocorr(spectrum_host, spectrum_err);
+		}
+
+		//Calculate the autocorrelation of the first and second spectrums combined
+        #pragma omp section
+		{
+			//Add the first 2 spectrums together
+			std::transform(total_spectrum_host.begin(), total_spectrum_host.end(), spectrum_host.begin(),
+				spectrum_host.begin(), std::plus<float>());
+
+			//Get the autocorrelation of the total spectrum
+			spectrum_autocorr = wighted_pearson_autocorr(total_spectrum_host, total_spectrum_err);
+		}
+
+		//Prepare third spectrum in case the autocorrelation of autocorrelation of the first 2 images is positive
+        #pragma omp section
+		{
+			//Load third image
+			mats[2].convertTo(image32F, CV_32FC1, 1);
+			af::array inputImage_af(mats_rows_af, mats_cols_af, (float*)(image32F.data));
+
+			//Take 2D FFT of image
+			af_fft2_r2c(&fft2_af, inputImage_af.get(), 1.0f, mats_rows_af, mats_cols_af);
+		}
+	}
+
+	//Check if autocorrelation is increasing
+	bool incr_autocorr;
+	if (spectrum_autocorr > spectrum_autocorr_prev) {
+		incr_autocorr = true;
+	}
+	else {
+		incr_autocorr = false;
+	}
+
+	//Keep adding data to the Fourier spectrum while autocorrelation is increasing
+	while (incr_autocorr){
+
+		#pragma omp parallel sections num_threads(NUM_THREADS)  
+		{
+			//Calculate spectrum of image and calculate its autocorrelation
+			#pragma omp section
+			{
+				//Get 1D frequency spectrum from 2D FFT
+				freq_spectrum1D(af::abs(af::array(fft2_af)*af::array(gauss_fft2_af)), spectrum_size, mats_rows_af, mats_cols_af,
+					reduced_height, inv_height2, inv_width2, freq_spectrum_kernel, af_queue).host(&spectrum_host[0]);
+
+				//Add it to the total spectrum
+				std::transform(total_spectrum_host.begin(), total_spectrum_host.end(), spectrum_host.begin(),
+					spectrum_host.begin(), std::plus<float>());
+
+				//Update the spectral errors
+				std::transform(total_spectrum_host.begin(), total_spectrum_host.end(), spectrum_host.begin(),
+					spectrum_host.begin(), std::plus<float>());
+
+				//Get the total spectrum's autocorrelation
+				spectrum_autocorr_prev = spectrum_autocorr;
+				spectrum_autocorr = wighted_pearson_autocorr(total_spectrum_host, total_spectrum_err);
+			}
+
+			//Prepare the next spectrum in case the autocorrelation of autocorrelation of the first 2 images is posit
+			#pragma omp section
+			{
+				//Load image
+				mats[2].convertTo(image32F, CV_32FC1, 1);
+				af::array inputImage_af(mats_rows_af, mats_cols_af, (float*)(image32F.data));
+
+				//Take 2D FFT of the image
+				af_fft2_r2c(&fft2_af, inputImage_af.get(), 1.0f, mats_rows_af, mats_cols_af);
+			}
+		}
+	}
 
 	////Calculate Durbin-Watson autocorrelation statistic
 	//float sum_diff_sqrd = 0.0f;
@@ -119,7 +218,24 @@ int circ_size_ubound(std::vector<cv::Mat> &mats, int mats_rows_af, int mats_cols
 	//	sum_sqrs += spectrum_host[i]*spectrum_host[i];
 	//}
 
-	af::print("sfsd", spectrum);
+	//float myints[] = {1,1,1, 1};
+	//std::vector<float> vector (myints, myints + sizeof(myints) / sizeof(float) );
+
+	//float myints2[] = {4.6, 324, 2234, 2324};
+	//std::vector<float> vector2 (myints2, myints2 + sizeof(myints2) / sizeof(float) );
+
+	//float myints3[] = {1,1};
+	//std::vector<float> vector3 (myints3, myints3 + sizeof(myints3) / sizeof(float) );
+
+	//float myints4[] = {1,11};
+	//std::vector<float> vector4 (myints4, myints4 + sizeof(myints4) / sizeof(float) );
+
+
+	//std::cout << "asdas " << vector[0] << std::endl;
+
+	//std::cout /*<< pearson_corr(vector3, vector4) << ", "*/ << wighted_pearson_autocorr(vector2, vector) << std::endl;
+
+	//af::print("sfsd", spectrum);
 
 	system("pause");
 
@@ -221,7 +337,7 @@ af::array freq_spectrum1D(af::array input_af, size_t length, int height, int wid
 
 	//Prepare additional arguments for kernel
 	int half_width = width/2;
-	float inv_max_freq = INV_ROOTOF2;
+	float inv_max_freq = SQRT_OF_2; //Half of 1 divided by sqrt(2) is sqrt(2)
 
 	//Pass arguments to kernel
 	clSetKernelArg(kernel, 0, sizeof(cl_mem), input_cl);

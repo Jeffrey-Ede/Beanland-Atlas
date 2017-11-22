@@ -31,7 +31,10 @@
 #define UBOUND_GAUSS_SIZE 3
 
 //1 divided by the square root of 2. This is the maximum frequency radius of a 2D Fourier transform
-#define INV_ROOTOF2 1.414213562
+#define INV_SQRT_OF_2 0.7071067812
+
+//Square root of 2. It's useful
+#define SQRT_OF_2 1.414213562
 
 //OpenCL
 #include <CL/cl.hpp>
@@ -222,6 +225,6 @@ cl_kernel create_kernel(const char* kernel_sourceFile, const char* kernel_name, 
 **data: std::vector<float>, One of the datasets to use in the calculation
 **Errors: std::vector<float>, Errors in dataset elements used in the calculation
 **Return:
-**float, Measure of the autocorrelation. 2-2*<return value> approximates the Durbin-Watson statistic
+**float, Measure of the autocorrelation. 2-2*<return value> approximates the Durbin-Watson statistic for large datasets
 */
-float wighted_pearson_autocorr(std::vector<float> data, std::vector<float> err)
+float wighted_pearson_autocorr(std::vector<float> data, std::vector<float> err);
