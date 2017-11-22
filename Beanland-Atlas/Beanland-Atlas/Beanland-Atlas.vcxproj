@@ -19,8 +19,10 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="approx_symmetry_axes.cpp" />
     <ClCompile Include="beanland_atlas.cpp" />
     <ClCompile Include="circ_size_upper_bound.cpp" />
+    <ClCompile Include="refine_mir_pos.cpp" />
     <ClCompile Include="utility.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -112,10 +114,13 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories>$(OPENCV_DIR)\include;D:\Program Files\ImageMagick-7.0.7-Q16\include;C:\Program Files (x86)\AMD APP SDK\3.0\include;D:\clFFT-Full-2.12.2-Windows-x64\clFFT-Full-2.12.2-Windows-x64\include;D:\fftw-3.3.5-dll64-1;D:\boost_compute\compute\include;D:\Program Files\ArrayFire\v3\include;D:\cv_main_diff_spot\cv_main_diff_spot\cv_main_diff_spot;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalLibraryDirectories>C:\Program Files (x86)\AMD APP SDK\3.0\lib\x86_64;$(OPENCV_DIR)\x64\vc14\lib\;D:\Program Files\ImageMagick-7.0.7-Q16\lib;D:\clFFT-Full-2.12.2-Windows-x64\clFFT-Full-2.12.2-Windows-x64\lib64\import;D:\fftw-3.3.5-dll64-1;D:\Program Files\ArrayFire\v3\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>opencv_world330.lib;opencv_world330d.lib;OpenCL.lib;clFFT.lib;StatTimer.lib;libfftw3-3.lib;libfftw3f-3.lib;libfftw3l-3.lib;afopencl.lib;af.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
