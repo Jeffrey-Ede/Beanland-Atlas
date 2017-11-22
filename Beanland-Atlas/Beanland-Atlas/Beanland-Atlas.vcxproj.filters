@@ -18,9 +18,15 @@
     <ClCompile Include="beanland_atlas.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="circ_size_upper_bound.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="utility.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\cv_main_diff_spot\cv_main_diff_spot\cv_main_diff_spot\beanland_atlas.h">
+    <ClInclude Include="beanland_atlas.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

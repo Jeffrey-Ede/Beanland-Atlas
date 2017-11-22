@@ -20,9 +20,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="beanland_atlas.cpp" />
+    <ClCompile Include="circ_size_upper_bound.cpp" />
+    <ClCompile Include="utility.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\cv_main_diff_spot\cv_main_diff_spot\cv_main_diff_spot\beanland_atlas.h" />
+    <ClInclude Include="beanland_atlas.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
