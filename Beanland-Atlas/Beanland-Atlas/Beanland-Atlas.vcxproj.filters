@@ -15,8 +15,8 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\cv_main_diff_spot\cv_main_diff_spot\cv_main_diff_spot\beanland_atlas.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
+    <ClCompile Include="beanland_atlas.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
