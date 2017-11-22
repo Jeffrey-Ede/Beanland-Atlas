@@ -21,6 +21,9 @@
   <ItemGroup>
     <ClCompile Include="beanland_atlas.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\cv_main_diff_spot\cv_main_diff_spot\cv_main_diff_spot\beanland_atlas.h" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
     <ProjectGuid>{C1F38DF8-2C31-45C3-B514-87798358B5E3}</ProjectGuid>
