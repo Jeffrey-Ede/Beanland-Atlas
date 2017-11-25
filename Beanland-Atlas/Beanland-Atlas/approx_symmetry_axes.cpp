@@ -9,7 +9,8 @@
 **target_size: int, Downsampling factor will be the largest power of 2 that doesn't make the image smaller than this
 **num_angles: int, Number of angles  to look for symmetry at
 **Returns:
-**
+**std::vector<float>, highest Pearson normalised product moment correlation coefficient for a symmetry lins drawn through 
+**a known axis of symmetry
 */
 std::vector<float> symmetry_axes(cv::Mat amalg, int origin_x, int origin_y, size_t num_angles, float target_size) {
 

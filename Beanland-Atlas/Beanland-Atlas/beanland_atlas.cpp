@@ -41,15 +41,12 @@ int main()
 	int mats_rows_af = mats[0].cols;
 
 	//Use Fourier analysis to place upper bound on the size of the circles
-	int ubound = circ_size_ubound(mats, mats_rows_af, mats_cols_af, MIN_CIRC_SIZE, AUTOCORR_REQ_CONV, 
+	int ubound = (int)circ_size_ubound(mats, mats_rows_af, mats_cols_af, MIN_CIRC_SIZE, AUTOCORR_REQ_CONV, 
 		std::max(num_imgs, MAX_AUTO_CONTRIB), 0.25*UBOUND_GAUSS_SIZE+0.75, af_context, af_device_id, af_queue,
 		NUM_THREADS);
 
-	//Get limits 
+	//Set lower bound, assuming that spots in data will have at least a few pixels diameter
 	int lbound = MIN_CIRC_SIZE;
-	if (!ubound) {
-		ubound = std::min(mats_rows_af, mats_cols_af);
-	}
 
 	//Calculate size of 1st circle
 	
