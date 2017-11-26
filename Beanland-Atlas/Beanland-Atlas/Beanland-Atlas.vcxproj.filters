@@ -30,6 +30,12 @@
     <ClCompile Include="refine_mir_pos.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="annulus_param.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="kernel_launchers.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="beanland_atlas.h">

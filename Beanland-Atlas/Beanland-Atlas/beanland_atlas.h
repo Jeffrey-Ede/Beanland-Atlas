@@ -15,17 +15,20 @@
 //if it is larger than this small value for a float 
 #define MIN_D_2 1e-8
 
-//Maximum number of exploratory moves in Pearson product moment correlation coefficient space, as a safeguard
-#define MAX_EXPL 50
+//Maximum number of exploratory moves in Pearson product moment correlation coefficient space as a safeguard against divergence
+#define MAX_EXPL 25
 
-//Minimum diameter of circles in pixels
+//Minimum diameter of circles in pixels. Assume any reasonable data will have spots of at least this size
 #define MIN_CIRC_SIZE 5
 
-//Add successive images to upper bound estimation until improvement in autocorrelation is less than this factor
-#define AUTOCORR_REQ_CONV 0.1
+//Maximum number of images to use in autocorrelation calculation when finding the circle size upper bound from their separation
+#define MAX_AUTO_CONTRIB 10
 
-//Maximum number of images to use in autocorrelation calculation
-#define MAX_AUTO_CONTRIB 50
+//Maximum number of images to use when performing convolutions to calculate the circle size
+#define MAX_SIZE_CONTRIB 10
+
+//Thickness of annulus when searching for circle size
+#define INIT_ANNULUS_THICKNESS 3
 
 //Size of Gaussian kernel used for circle size calculation when low pass filtering
 #define UBOUND_GAUSS_SIZE 3
@@ -86,7 +89,7 @@ static const std::array<int, 4> pos_mir_sym = {2, 3, 4, 6};
 static const char* inputImagePath = "D:/data/default2.tif";
 
 //Locations of kernels
-static const char* annulus_kernel = "D:/C_C++_C#/create_annulus.cl";
+static const char* annulus_source = "D:/C_C++_C#/create_annulus.cl";
 static const char* circle_kernel = "D:/C_C++_C#/circle_kernel.cl";
 static const char* gauss_kernel_ext_source = "D:/C_C++_C#/gauss_kernel_padded.cl";
 static const char* freq_spectrum1D_source = "D:/C_C++_C#/freq_spectrum1D.cl";
@@ -94,27 +97,30 @@ static const char* freq_spectrum1D_source = "D:/C_C++_C#/freq_spectrum1D.cl";
 //Names of kernels
 static const char* gauss_kernel_ext_kernel = "gauss_kernel_extended";
 static const char* freq_spectrum1D_kernel = "freq_spectrum1D";
+static const char* annulus_kernel = "create_annulus";
 
 /*Calculate upper bound for the size of circles in an image. This is done by convolving images with a gaussian low pass filter in the
 **Fourier domain. The amplitudes of freq radii are then caclulated for the processed image. These are rebinned to get a histogram with
 **equally spaced histogram bins. This process is repeated until the improvement in the autocorrelation of the bins no longer significantly
-**increases as additional images are processed. The maximum amplitude above a minimum threshold is then used to set an upper limit on
-**the size of the circles
+**increases as additional images are processed. The error-weighted centroid of the 1D spectrum is then used to generate an upper bound for
+**the separation of the circles
 **Inputs:
 **&mats: std::vector<cv::Mat>, Vector of input images
+**mats_rows_af: int, Rows in ArrayFire array containing an input image. ArrayFire arrays are transpositional to OpenCV mats
+**mats_cols_af: int, Rows in ArrayFire array containing an input image. ArrayFire arrays are transpositional to OpenCV mats
+**gauss: af::array, ArrayFire array containing Fourier transform of a gaussian blurring filter to reduce high frequency components of
+**the Fourier transforms of images with
 **min_circ_size: int, Minimum dimeter of circles, in px
-**autocorr_req_conv: float, Ratio of increased autocorrelation to previous must be at least this
-**max_num_imgs: int, If autocorrelations don't converge after this number of images, method has failed
-**sigma: float, standard deviation of Gaussian used to blur image
+**max_num_imgs: int, If autocorrelations don't converge after this number of images, uses the current total to estimate the size
 **af_context: cl_context, ArrayFire context
 **af_device_id: cl_device_id, ArrayFire device
 **af_queue: cl_command_queue, ArrayFire command queue
 **NUM_THREADS: const int, Number of threads supported for OpenMP
 **Returns:
-**int, Upper bound for circles size, 0 if upper bound can't be determined
+**int, Upper bound for circles size
 */
-int circ_size_ubound(std::vector<cv::Mat> &mats, int mats_rows_af, int mats_cols_af, int min_circ_size, float autocorr_req_conv,
-	int max_num_imgs, float sigma, cl_context af_context, cl_device_id af_device_id, cl_command_queue af_queue, const int NUM_THREADS);
+int circ_size_ubound(std::vector<cv::Mat> &mats, int mats_rows_af, int mats_cols_af, af::array &gauss, int min_circ_size,
+	int max_num_imgs, cl_context af_context, cl_device_id af_device_id, cl_command_queue af_queue, const int NUM_THREADS);
 
 /*Create extended Gaussian to blur images with to remove high frequency components. It
 **Inputs:
@@ -229,3 +235,45 @@ cl_kernel create_kernel(const char* kernel_sourceFile, const char* kernel_name, 
 **float, Measure of the autocorrelation. 2-2*<return value> approximates the Durbin-Watson statistic for large datasets
 */
 float wighted_pearson_autocorr(std::vector<float> data, std::vector<float> err);
+
+/*Convolve images with annulus with a range of radii and until the autocorrelation of product moment correlation of the
+**spectra decreases when adding additional images' contribution to the spectrum. The annulus radius that produces the best
+**fit is then refined from this spectrum, including the thickness of the annulus
+**Inputs:
+**mats: std::vector<cv::Mat> &, reference to a sequence of input images to use to refine the annulus parameters
+**min_rad: int, minimum radius of radius to create
+**max_rad: int, maximum radius of radius to create
+**init_thickness: int, Thickness to use when getting initial radius of annulus. The radii tested are separated by this value
+**max_contrib: int, Maximum number of images to use. If the autocorrelation of the autocorrelation of the cross correlation
+**still hasn't decreased after this many images, the parameters will be calculated from the images processed so far
+**mats_rows_af: int, Number of rows of ArrayFire array containing the images. This is transpositional to the OpenCV mat
+**mats_cols_af: int, Number of cols of ArrayFire array containing the images. This is transpositional to the OpenCV mat
+**gauss_fft_af: Fourier transform of Gaussian to blur annuluses with
+**af_context: cl_context, ArrayFire context
+**af_device_id: cl_device_id, ArrayFire device
+**af_queue: cl_command_queue, ArrayFire command queue
+**NUM_THREADS: const int, Number of threads supported for OpenMP
+**Returns:
+**std::vector<int>, Refined radius and thickness of annulus, in that order
+*/
+std::vector<int> get_annulus_param(std::vector<cv::Mat> &mats, int min_rad, int max_rad, int init_thickness, int max_contrib,
+	int mats_rows_af, int mats_cols_af, af::array gauss_fft_af, cl_kernel create_annulus_kernel, cl_command_queue af_queue, 
+	int NUM_THREADS);
+
+/*Create padded unblurred annulus with a given radius and thickness. Its inner radius is radius - thickness/2 and the outer radius
+** is radius + thickness/2
+**Inputs:
+**length: size_t, Number of pixels making up annulus
+**width: int, Width of padded annulus
+**half_width: int, Half the width of the padded annulus
+**height: int, Height of padded annulus
+**half_height: int, Half the height of the padded annulus
+**radius: int, radius of annulus, approximately halfway between its inner and outer radii
+**thickness: int, thickness of annulus. If even, thickness will be rounded up to the next odd integer
+**kernel: cl_kernel, OpenCL kernel that creates the 1D frequency spectrum
+**af_queue: cl_command_queue, ArrayFire command queue
+**Returns:
+**af::array, ArrayFire array containing unblurred annulus
+*/
+af::array create_annulus(size_t length, int width, int half_width, int height, int half_height, int radius, int thickness, 
+	cl_kernel kernel, cl_command_queue af_queue);

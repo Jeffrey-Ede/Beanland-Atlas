@@ -13,7 +13,6 @@ int main()
 	}
 
 	//Read in the image stack
-	cv::Mat image32F;
 	std::vector<cv::Mat> mats;
 	imreadmulti(inputImagePath, mats, CV_LOAD_IMAGE_UNCHANGED);
 
@@ -40,18 +39,43 @@ int main()
 	int mats_cols_af = mats[0].rows;
 	int mats_rows_af = mats[0].cols;
 
+	//Create extended Gaussian creating kernel
+	cl_kernel gauss_kernel = create_kernel(gauss_kernel_ext_source, gauss_kernel_ext_kernel, af_context, af_device_id);
+
+	//Create the extended Gaussian
+	af::array ext_gauss = extended_gauss(mats[0].rows, mats[0].cols, 0.25*UBOUND_GAUSS_SIZE+0.75, gauss_kernel, af_queue);
+	af_array ext_gaussC = ext_gauss.get();
+
+	//Fourier transform the Gaussian
+	af_array gauss_fft2_af;
+	af_fft2_r2c(&gauss_fft2_af, ext_gaussC, 1.0f, mats_rows_af, mats_cols_af);
+	af::array gauss = af::array(gauss_fft2_af);
+
+	std::cout << "gauss" << std::endl;
+
 	//Use Fourier analysis to place upper bound on the size of the circles
-	int ubound = (int)circ_size_ubound(mats, mats_rows_af, mats_cols_af, MIN_CIRC_SIZE, AUTOCORR_REQ_CONV, 
-		std::max(num_imgs, MAX_AUTO_CONTRIB), 0.25*UBOUND_GAUSS_SIZE+0.75, af_context, af_device_id, af_queue,
-		NUM_THREADS);
+	int ubound = circ_size_ubound(mats, mats_rows_af, mats_cols_af, gauss, MIN_CIRC_SIZE, std::min(num_imgs, MAX_AUTO_CONTRIB), 
+		af_context, af_device_id, af_queue, NUM_THREADS);
 
 	//Set lower bound, assuming that spots in data will have at least a few pixels diameter
 	int lbound = MIN_CIRC_SIZE;
 
-	//Calculate size of 1st circle
-	
+	//Create annulus making kernel
+	cl_kernel create_annulus_kernel = create_kernel(annulus_source, annulus_kernel, af_context, af_device_id);
+
+	//Calculate annulus radius and thickness that describe the gradiation of the spots best
+	std::vector<int> annulus_param = get_annulus_param(mats, lbound, ubound, INIT_ANNULUS_THICKNESS, MAX_SIZE_CONTRIB, 
+		mats_rows_af, mats_cols_af, gauss, create_annulus_kernel, af_queue, NUM_THREADS);
 
 	//Create higher circle depending on the size of the image
+
+	//Free OpenCL resources
+	clFlush(af_queue);	
+	clFinish(af_queue);
+	clReleaseKernel(gauss_kernel);
+	clReleaseKernel(create_annulus_kernel);
+	clReleaseCommandQueue(af_queue);
+	clReleaseContext(af_context);
 
 	return 0;
 }
