@@ -36,6 +36,9 @@
     <ClCompile Include="kernel_launchers.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="window_functions.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="beanland_atlas.h">

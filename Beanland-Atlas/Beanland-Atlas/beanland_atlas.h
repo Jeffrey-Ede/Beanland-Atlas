@@ -237,7 +237,7 @@ cl_kernel create_kernel(const char* kernel_sourceFile, const char* kernel_name, 
 **Return:
 **float, Measure of the autocorrelation. 2-2*<return value> approximates the Durbin-Watson statistic for large datasets
 */
-float wighted_pearson_autocorr(std::vector<float> data, std::vector<float> err);
+float wighted_pearson_autocorr(std::vector<float> data, std::vector<float> err, const int NUM_THREADS);
 
 /*Convolve images with annulus with a range of radii and until the autocorrelation of product moment correlation of the
 **spectra decreases when adding additional images' contribution to the spectrum. The annulus radius that produces the best
@@ -308,3 +308,23 @@ float sum_annulus_px(int rad, int thickness);
 */
 std::vector<int> refine_annulus_param(int rad, int range, size_t length, int mats_cols_af, int mats_rows_af, int half_width, 
 	int half_height, af::array gauss_fft_af, af::array fft, cl_kernel create_annulus_kernel, cl_command_queue af_queue);
+
+/*Calculates values of Hann window function so that they are ready for repeated application
+**Inputs:
+**mat_rows: int, Number of rows in window
+**mat_cols: int, Number of columns in windo
+**NUM_THREADS: const int, Number of threads to use for OpenMP CPU acceleration
+**Returns:
+**cv::Mat, Values of Hann window function at the pixels making up the 
+*/
+cv::Mat create_hann_window(int mat_rows, int mat_cols, const int NUM_THREADS);
+
+/*Calculates values of Hann window function so that they are ready for repeated application
+**Inputs:
+**mat: cv::Mat &, Image to apply window to
+**win: cv::Mat &, Window to apply
+**NUM_THREADS: const int, Number of threads to use for OpenMP CPU acceleration
+**Returns:
+**cv::Mat, Hanning windowed image
+*/
+cv::Mat apply_win_func(cv::Mat &mat, cv::Mat &win, const int NUM_THREADS);

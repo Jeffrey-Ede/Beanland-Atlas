@@ -65,9 +65,11 @@ int main()
 	std::vector<int> annulus_param = get_annulus_param(mats, lbound, ubound, INIT_ANNULUS_THICKNESS, MAX_SIZE_CONTRIB, 
 		mats_rows_af, mats_cols_af, gauss, create_annulus_kernel, af_queue, NUM_THREADS);
 
-	std::cout << annulus_param[0] << ", " << annulus_param[1] << std::endl;
+	//Precalculate the Hann window, ready for repeated application
+	cv::Mat hann_window_LUT = create_hann_window(mats[0].rows, mats[0].cols, NUM_THREADS);
 
 	//Create higher circle depending on the size of the image
+
 
 	//Free OpenCL resources
 	clFlush(af_queue);	
@@ -76,6 +78,8 @@ int main()
 	clReleaseKernel(create_annulus_kernel);
 	clReleaseCommandQueue(af_queue);
 	clReleaseContext(af_context);
+
+	cv::waitKey(0);
 
 	return 0;
 }

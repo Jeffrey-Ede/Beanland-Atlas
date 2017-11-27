@@ -83,7 +83,7 @@ cl_kernel create_kernel(const char* kernel_sourceFile, const char* kernel_name, 
 **Return:
 **float, Measure of the autocorrelation. 2-2*<return value> approximates the Durbin-Watson statistic for large datasets
 */
-float wighted_pearson_autocorr(std::vector<float> data, std::vector<float> err) 
+float wighted_pearson_autocorr(std::vector<float> data, std::vector<float> err, const int NUM_THREADS) 
 {
 	//sums for pearson product moment correlation coefficient
 	//x - data; e - error, 1 - lagged data, 2 - forward data
@@ -93,6 +93,7 @@ float wighted_pearson_autocorr(std::vector<float> data, std::vector<float> err)
 	float sum_x_err = 0.0f;
 
 	int size_minus1 = data.size()-1;
+    #pragma omp parallel for num_threads(NUM_THREADS)
 	for (int i = 1; i < size_minus1; i++) {
 
 		sum_x += data[i]/(err[i]*err[i]);
@@ -111,6 +112,7 @@ float wighted_pearson_autocorr(std::vector<float> data, std::vector<float> err)
 	float sum_x2_err2 = 0.0f;
 
 	int i;
+    #pragma omp parallel for num_threads(NUM_THREADS)
 	for (i = 1; i < size_minus1; i++) {
 
 		sum_xy += (data[i]-x2_mean)*(data[i-1]-x1_mean) / (std::abs(data[i]-x2_mean)*err[i-1] + std::abs(data[i-1]-x1_mean)*err[i]);
