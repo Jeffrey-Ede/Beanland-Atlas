@@ -51,8 +51,6 @@ int main()
 	af_fft2_r2c(&gauss_fft2_af, ext_gaussC, 1.0f, mats_rows_af, mats_cols_af);
 	af::array gauss = af::array(gauss_fft2_af);
 
-	std::cout << "gauss" << std::endl;
-
 	//Use Fourier analysis to place upper bound on the size of the circles
 	int ubound = circ_size_ubound(mats, mats_rows_af, mats_cols_af, gauss, MIN_CIRC_SIZE, std::min(num_imgs, MAX_AUTO_CONTRIB), 
 		af_context, af_device_id, af_queue, NUM_THREADS);
@@ -66,6 +64,8 @@ int main()
 	//Calculate annulus radius and thickness that describe the gradiation of the spots best
 	std::vector<int> annulus_param = get_annulus_param(mats, lbound, ubound, INIT_ANNULUS_THICKNESS, MAX_SIZE_CONTRIB, 
 		mats_rows_af, mats_cols_af, gauss, create_annulus_kernel, af_queue, NUM_THREADS);
+
+	std::cout << annulus_param[0] << ", " << annulus_param[1] << std::endl;
 
 	//Create higher circle depending on the size of the image
 

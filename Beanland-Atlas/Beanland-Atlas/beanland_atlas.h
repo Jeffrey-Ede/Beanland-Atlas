@@ -28,7 +28,7 @@
 #define MAX_SIZE_CONTRIB 10
 
 //Thickness of annulus when searching for circle size
-#define INIT_ANNULUS_THICKNESS 3
+#define INIT_ANNULUS_THICKNESS 2
 
 //Size of Gaussian kernel used for circle size calculation when low pass filtering
 #define UBOUND_GAUSS_SIZE 3
@@ -38,6 +38,9 @@
 
 //Square root of 2. It's useful
 #define SQRT_OF_2 1.414213562
+
+//Size of Sobel filter kernel
+#define SOBEL_SIZE 3
 
 //OpenCL
 #include <CL/cl.hpp>
@@ -257,7 +260,7 @@ float wighted_pearson_autocorr(std::vector<float> data, std::vector<float> err);
 **std::vector<int>, Refined radius and thickness of annulus, in that order
 */
 std::vector<int> get_annulus_param(std::vector<cv::Mat> &mats, int min_rad, int max_rad, int init_thickness, int max_contrib,
-	int mats_rows_af, int mats_cols_af, af::array gauss_fft_af, cl_kernel create_annulus_kernel, cl_command_queue af_queue, 
+	int mats_rows_af, int mats_cols_af, af::array &gauss_fft_af, cl_kernel create_annulus_kernel, cl_command_queue af_queue, 
 	int NUM_THREADS);
 
 /*Create padded unblurred annulus with a given radius and thickness. Its inner radius is radius - thickness/2 and the outer radius
@@ -277,3 +280,31 @@ std::vector<int> get_annulus_param(std::vector<cv::Mat> &mats, int min_rad, int 
 */
 af::array create_annulus(size_t length, int width, int half_width, int height, int half_height, int radius, int thickness, 
 	cl_kernel kernel, cl_command_queue af_queue);
+
+/*Calculates relative area of annulus to divide cross-correlations by so that they can be compared
+**Inputs:
+**rad: int, Average of annulus inner and outer radii
+**thickness: int, Thickness of annulus. 
+**Returns
+**float, Sum of values of pixels maxing up blurred annulus
+*/
+float sum_annulus_px(int rad, int thickness);
+
+/*Refines annulus radius and thickness estimate based on a radius estimate and p/m the accuracy that radius is known to
+**Inputs:
+**rad: int, Estimated spot radius
+**range: int, The refined radius estimate will be within this distance from the initial radius estimate.
+**length: size_t, Number of px making up padded annulus
+**mats_rows_af: int, Number of rows of ArrayFire array containing the images. This is transpositional to the OpenCV mat
+**mats_cols_af: int, Number of cols of ArrayFire array containing the images. This is transpositional to the OpenCV mat
+**half_width: int, Half the number of ArrayFire columns
+**half_height: int, Half the number of ArrayFire rows
+**gauss_fft_af: af::array, r2c ArrayFire FFT of Gaussian blurring kernel
+**fft: af::array, r2c ArrayFire FFT of input image
+**create_annulus_kernel: cl_kernel, OpenCL kernel that creates the padded annulus
+**af_queue: cl_command_queue, OpenCL command queue
+**Returns
+**std::vector<int>, Refined radius and thickness of annulus, in that order
+*/
+std::vector<int> refine_annulus_param(int rad, int range, size_t length, int mats_cols_af, int mats_rows_af, int half_width, 
+	int half_height, af::array gauss_fft_af, af::array fft, cl_kernel create_annulus_kernel, cl_command_queue af_queue);

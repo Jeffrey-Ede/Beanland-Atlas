@@ -93,7 +93,7 @@ af::array freq_spectrum1D(af::array input_af, size_t length, int height, int wid
 }
 
 /*Create padded unblurred annulus with a given radius and thickness. Its inner radius is radius - thickness/2 and the outer radius
-** is radius + thickness/2
+** is radius + thickness/2 + (thickness%2 ? 0 : 1)
 **Inputs:
 **length: size_t, Number of pixels making up annulus
 **width: int, Width of padded annulus
@@ -101,7 +101,7 @@ af::array freq_spectrum1D(af::array input_af, size_t length, int height, int wid
 **height: int, Height of padded annulus
 **half_height: int, Half the height of the padded annulus
 **radius: int, radius of annulus, approximately halfway between its inner and outer radii
-**thickness: int, thickness of annulus. If even, thickness will be rounded up to the next odd integer
+**thickness: int, thickness of annulus. If even, the outer radius will be increased by 1
 **kernel: cl_kernel, OpenCL kernel that creates the 1D frequency spectrum
 **af_queue: cl_command_queue, ArrayFire command queue
 **Returns:
@@ -116,7 +116,7 @@ af::array create_annulus(size_t length, int width, int half_width, int height, i
 
 	//Prepare additional arguments for kernel
 	int inner_rad2 = (radius - thickness/2)*(radius - thickness/2);
-	int outer_rad2 = (radius + thickness/2)*(radius + thickness/2);
+	int outer_rad2 = (radius + thickness/2 + (thickness%2 ? 0 : 1))*(radius + thickness/2 + (thickness%2 ? 0 : 1));
 
 	//Pass arguments to kernel
 	clSetKernelArg(kernel, 0, sizeof(cl_mem), output_cl);
