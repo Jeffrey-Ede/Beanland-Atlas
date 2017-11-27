@@ -23,4 +23,4 @@ The code is being built on the following libraries:
 
 A full list of dependencies can be found in the main project header.
 
-The Beanland Atlas project is in a pre-release state. Critical portions of the code are still in development and it has not been fully optimised.
+The Beanland Atlas project is in a pre-release state. Critical portions of the code are still in development and it has not been fully optimised. Nevertheless, the reposited code may be freely used; without restriction, as described by the MIT License.
