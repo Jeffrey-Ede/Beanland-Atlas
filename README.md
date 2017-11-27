@@ -21,4 +21,4 @@ Libraries and acceleration packages that the code is built upon include:
 
 A full list of dependencies can be found in the main [project header](https://github.com/Jeffrey-Ede/Beanland-Atlas/blob/master/Beanland-Atlas/Beanland-Atlas/beanland_atlas.h).
 
-The Beanland Atlas project is in a pre-release state: critical portions of the code are still in development and it has not been fully optimised. Nevertheless, the reposited code may be used without restriction, as described by the MIT License.
+The Beanland Atlas project is in a pre-release state: critical portions of the code are still in development and the reposited code has not been fully optimised. Nevertheless, the reposited code may be used without restriction, as described by the MIT license.
