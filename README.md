@@ -9,7 +9,7 @@ This repository will house code that:
 * Identifies and makes use of atlas diffraction pattern symmetries
 * Quantifies material structure, including the individual contributions of atomic orbitals to material bonds
 
-Beanland's procedure is being automated in a statistically robust way that requires minimal user intervention, allowing his procedure to be used as a "black box" routine by other scientists. The procedure is extremely complex and currently relies on supercomputational support. Parallelisable portions of the procedure are therefore being optimised to run on GPUs or over multiple CPUs.
+Beanland's procedure is being automated in a statistically robust way that requires minimal user intervention, allowing his procedure to be used as a "black box" routine by other scientists. The procedure is extremely intensive and currently relies on supercomputational support. Parallelisable portions of the procedure are therefore being optimised to run on GPUs or over multiple CPUs.
 
 Libraries and acceleration packages that the code is built upon include:
 
