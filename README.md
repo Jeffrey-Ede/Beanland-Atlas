@@ -11,7 +11,7 @@ This repository is being built to make this vision a reality. It will house code
 
 Beanland's procedure is being automated in a statistically robust way that requires minimal user intervention, allowing his procedure to be used as a "black box" routine by other scientists. 
 
-Beanland's procedure is extremely complex and currently relies on supercomputational support. Parallelisable portions of the code are therefore being optimised to run on GPUs or over multiple CPUs so that in the future the full procedure will be implementable in less than a minute on most desktop computors. 
+The procedure is extremely complex and currently relies on supercomputational support. Parallelisable portions of the code are therefore being optimised to run on GPUs or over multiple CPUs. It is hoped that in the future the full procedure will be implementable in less than 30s on most desktop computors. 
 
 The code is being built on the following libraries:
 
