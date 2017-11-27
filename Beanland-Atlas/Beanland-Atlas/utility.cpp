@@ -136,3 +136,9 @@ float wighted_pearson_autocorr(std::vector<float> data, std::vector<float> err, 
 
 	return ( sum_xy/(data.size()*sum_xy_err) ) / ( std::sqrt( x1 ) * std::sqrt( x2 ) );
 }
+
+//Returns factorial of input integer
+long unsigned int factorial(long unsigned int n)
+{
+	return (n == 1 || n == 0) ? 1 : factorial(n - 1) * n;
+}

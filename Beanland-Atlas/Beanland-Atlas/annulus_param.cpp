@@ -20,7 +20,7 @@
 **Returns:
 **std::vector<int>, Refined radius and thickness of annulus, in that order
 */
-std::vector<int> get_annulus_param(std::vector<cv::Mat> &mats, int min_rad, int max_rad, int init_thickness, int max_contrib,
+std::vector<int> get_annulus_param(cv::Mat &mat, int min_rad, int max_rad, int init_thickness, int max_contrib,
 	int mats_rows_af, int mats_cols_af, af::array &gauss_fft_af, cl_kernel create_annulus_kernel, cl_command_queue af_queue, 
 	int NUM_THREADS)
 {
@@ -37,7 +37,7 @@ std::vector<int> get_annulus_param(std::vector<cv::Mat> &mats, int min_rad, int 
 
 	//Load image
 	cv::Mat image32F;
-	mats[0].convertTo(image32F, CV_32FC1, 1);
+	mat.convertTo(image32F, CV_32FC1, 1);
 	af::array inputImage_af(mats_rows_af, mats_cols_af, (float*)(image32F.data));
 
 	//Fourier transform the Sobel filtrate
@@ -90,11 +90,6 @@ std::vector<int> get_annulus_param(std::vector<cv::Mat> &mats, int min_rad, int 
 		//Divide by radius of annulus to normalise results
 		spectrum[i] /= sum_annulus_px(r, init_thickness);
 	}
-
-	/*for (int i = 0; i < spectrum_size; i++)
-	{
-		std::cout << spectrum[i] << std::endl;
-	}*/
 
 	//Use peak in spectrum to estimate the spot radius
 	int rad = min_rad + std::distance(spectrum.begin(), std::max_element(spectrum.begin(), spectrum.end()))*init_thickness;

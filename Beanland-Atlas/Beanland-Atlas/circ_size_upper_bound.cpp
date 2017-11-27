@@ -79,7 +79,6 @@ int circ_size_ubound(std::vector<cv::Mat> &mats, int mats_rows_af, int mats_cols
 	freq_spectrum1D(af::abs(af::array(fft2_af)*gauss), spectrum_size, mats_rows_af, mats_cols_af,
 		reduced_height, inv_height2, inv_width2, freq_spectrum_kernel, af_queue).host(&spectrum_host[0]);
 
-
 	//Use a lagged, weighted Pearson normalised product moment correlation coefficient as a proxy for the Durbin-Watson
 	//autocorrelation statistic, which is approx 2*(1-r_p)
 	float spectrum_autocorr = wighted_pearson_autocorr(spectrum_host, spectrum_err, NUM_THREADS);

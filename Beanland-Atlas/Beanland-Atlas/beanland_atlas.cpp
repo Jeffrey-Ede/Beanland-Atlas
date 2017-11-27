@@ -12,11 +12,12 @@ int main()
 		NUM_THREADS = 1; //OpenMP will use 1 thread
 	}
 
+	omp_set_num_threads(NUM_THREADS);
+	omp_set_nested(1); //Enable nested parallelism
+
 	//Read in the image stack
 	std::vector<cv::Mat> mats;
 	imreadmulti(inputImagePath, mats, CV_LOAD_IMAGE_UNCHANGED);
-
-	const int num_imgs = mats.size();
 	
 	//Create OpenCL context and queue for GPU acceleration 
 	cl::Context context(CL_DEVICE_TYPE_GPU);
@@ -52,7 +53,7 @@ int main()
 	af::array gauss = af::array(gauss_fft2_af);
 
 	//Use Fourier analysis to place upper bound on the size of the circles
-	int ubound = circ_size_ubound(mats, mats_rows_af, mats_cols_af, gauss, MIN_CIRC_SIZE, std::min(num_imgs, MAX_AUTO_CONTRIB), 
+	int ubound = circ_size_ubound(mats, mats_rows_af, mats_cols_af, gauss, MIN_CIRC_SIZE, std::min((int)mats.size(), MAX_AUTO_CONTRIB), 
 		af_context, af_device_id, af_queue, NUM_THREADS);
 
 	//Set lower bound, assuming that spots in data will have at least a few pixels diameter
@@ -62,13 +63,21 @@ int main()
 	cl_kernel create_annulus_kernel = create_kernel(annulus_source, annulus_kernel, af_context, af_device_id);
 
 	//Calculate annulus radius and thickness that describe the gradiation of the spots best
-	std::vector<int> annulus_param = get_annulus_param(mats, lbound, ubound, INIT_ANNULUS_THICKNESS, MAX_SIZE_CONTRIB, 
+	std::vector<int> annulus_param = get_annulus_param(mats[0], lbound, ubound, INIT_ANNULUS_THICKNESS, MAX_SIZE_CONTRIB, 
 		mats_rows_af, mats_cols_af, gauss, create_annulus_kernel, af_queue, NUM_THREADS);
+
+	//Use best annulus parameters to create the annulus to perform cross correlations with
+	af::array best_annulus = create_annulus(mats_cols_af*mats_rows_af, mats_cols_af, mats_cols_af/2, mats_rows_af, mats_rows_af/2, 
+		annulus_param[0], annulus_param[1], create_annulus_kernel, af_queue);
 
 	//Precalculate the Hann window, ready for repeated application
 	cv::Mat hann_window_LUT = create_hann_window(mats[0].rows, mats[0].cols, NUM_THREADS);
 
-	//Create higher circle depending on the size of the image
+	//Number of times to recursively cross correlate
+	int order = std::max(ubound/(2*annulus_param[0]), 1); //Take max for special case of overlapping Bragg peaks
+
+	//Find alignment of successive images
+	std::vector<cv::Vec3f> rel_pos = img_rel_pos(mats, hann_window_LUT, best_annulus, gauss, order, NUM_THREADS);
 
 
 	//Free OpenCL resources

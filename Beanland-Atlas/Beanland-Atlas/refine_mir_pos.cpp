@@ -332,9 +332,3 @@ cv::Vec2f average_intersection(std::vector<cv::Vec3f> lines)
 
 	return cv::Vec2f(x_avg/combinations, y_avg/combinations);
 }
-
-//Returns factorial of input integer
-long unsigned int factorial(long unsigned int n)
-{
-	return (n == 1 || n == 0) ? 1 : factorial(n - 1) * n;
-}

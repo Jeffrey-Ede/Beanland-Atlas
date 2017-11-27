@@ -259,7 +259,7 @@ float wighted_pearson_autocorr(std::vector<float> data, std::vector<float> err, 
 **Returns:
 **std::vector<int>, Refined radius and thickness of annulus, in that order
 */
-std::vector<int> get_annulus_param(std::vector<cv::Mat> &mats, int min_rad, int max_rad, int init_thickness, int max_contrib,
+std::vector<int> get_annulus_param(cv::Mat &mat, int min_rad, int max_rad, int init_thickness, int max_contrib,
 	int mats_rows_af, int mats_cols_af, af::array &gauss_fft_af, cl_kernel create_annulus_kernel, cl_command_queue af_queue, 
 	int NUM_THREADS);
 
@@ -328,3 +328,40 @@ cv::Mat create_hann_window(int mat_rows, int mat_cols, const int NUM_THREADS);
 **cv::Mat, Hanning windowed image
 */
 cv::Mat apply_win_func(cv::Mat &mat, cv::Mat &win, const int NUM_THREADS);
+
+/*Calculate the relative positions between images needed to align them.
+**Inputs:
+**mats: cv::Mat &, Images
+**hann_LUT: cv::Mat &, Precalculated look up table to apply Hann window function with
+**annulus: af::array &, Annulus to convolve gradiated image with
+**gauss_fft: af::array &, Fourier transform of Gaussian used to blur the annulus to remove high frequency components
+**order: int, Number of times to recursively convolve the blurred annulus with itself
+**mats_rows_af: int, Number of rows of ArrayFire array containing the images. This is transpositional to the OpenCV mat
+**mats_cols_af: int, Number of cols of ArrayFire array containing the images. This is transpositional to the OpenCV mat
+**NUM_THREADS: const int, Number of threads to use for OpenMP CPU acceleration
+**Return:
+**std::vector<cv::Vec3f>, Positions of each image relative to the first. The third element of the cv::Vec3f holds the value
+**of the maximum phase correlation between successive images
+*/
+std::vector<cv::Vec3f> img_rel_pos(std::vector<cv::Mat> &mats, cv::Mat &hann_LUT, af::array &annulus, af::array &gauss_fft, int order,
+	int mats_rows_af, int mats_cols_af, const int NUM_THREADS);
+
+/*Use the convolution theorem to create a filter that performs the recursive convolution of a convolution filter with itself
+**Inputs:
+**filter: af::array &, Filter to recursively convolved with its own convolution
+**n: int, The number of times the filter is recursively convolved with itself
+**Return:
+**af::array, Fourier domain matrix that can be elemtwise with another fft to recursively convolute it with a filter n times
+*/
+af::array recur_conv(af::array &filter, int n);
+
+/*Create Fourier domain matrix to multiply the Fourier transformed images with before phase correlating
+**Inputs:
+**annulus: af::array &, Annulus to perform cross correlation with
+**order: int, Number of times to recursively cross correlate the annulus with itself
+**gauss_fft: af::array &, Fourier transform of Gaussian used to blur the annuluses
+**Return:
+**af::array, Fourier domain matrix to multiply FFTs of images with to prime them for phase correlation
+*/
+af::array create_xcorr_primer(af::array &annulus, int order, af::array &gauss_fft, int mats_rows_af, int mats_cols_af);
+
