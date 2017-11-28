@@ -134,3 +134,43 @@ af::array create_annulus(size_t length, int width, int half_width, int height, i
 
 	return af::moddims(output_af, width, height);
 }
+
+/*Create padded unblurred circle with a specified radius
+**Inputs:
+**length: size_t, Number of pixels making up annulus
+**width: int, Width of padded annulus
+**half_width: int, Half the width of the padded annulus
+**height: int, Height of padded annulus
+**half_height: int, Half the height of the padded annulus
+**radius: int, radius of annulus, approximately halfway between its inner and outer radii
+**kernel: cl_kernel, OpenCL kernel that creates the 1D frequency spectrum
+**af_queue: cl_command_queue, ArrayFire command queue
+**Returns:
+**af::array, ArrayFire array containing unblurred circle
+*/
+af::array create_circle(size_t length, int width, int half_width, int height, int half_height, int radius,
+	cl_kernel kernel, cl_command_queue af_queue)
+{
+	//Create ArrayFire memory to hold spectrum and transfer it to OpenCL
+	af::array output_af = af::constant(0, length, f32);
+	cl_mem * output_cl = output_af.device<cl_mem>();
+
+	//Prepare additional arguments for kernel
+	int radius_squared = radius*radius;
+
+	//Pass arguments to kernel
+	clSetKernelArg(kernel, 0, sizeof(cl_mem), output_cl);
+	clSetKernelArg(kernel, 1, sizeof(int), &radius_squared);
+	clSetKernelArg(kernel, 2, sizeof(int), &half_width);
+	clSetKernelArg(kernel, 3, sizeof(int), &half_height);
+	clSetKernelArg(kernel, 4, sizeof(int), &width);
+
+	//Execute kernel
+	clEnqueueNDRangeKernel(af_queue, kernel, 1, NULL, &length, NULL, 0, NULL, NULL);
+
+	//Transfer OpenCL memory back to ArrayFire
+	output_af.unlock();
+
+	return af::moddims(output_af, width, height);
+}
+

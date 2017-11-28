@@ -32,6 +32,12 @@
   <ItemGroup>
     <ClInclude Include="beanland_atlas.h" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="create_annulus.cl" />
+    <None Include="create_circle.cl" />
+    <None Include="freq_spectrum1D.cl" />
+    <None Include="gauss_kernel_padded.cl" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
     <ProjectGuid>{C1F38DF8-2C31-45C3-B514-87798358B5E3}</ProjectGuid>

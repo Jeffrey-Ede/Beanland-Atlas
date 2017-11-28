@@ -31,34 +31,25 @@ cv::Mat create_hann_window(int mat_rows, int mat_cols, const int NUM_THREADS)
 	return lut;
 }
 
-/*Calculates values of Hann window function so that they are ready for repeated application
+/*Applies Hann window to an image
 **Inputs:
 **mat: cv::Mat &, Image to apply window to
 **win: cv::Mat &, Window to apply
 **NUM_THREADS: const int, Number of threads to use for OpenMP CPU acceleration
-**Returns:
-**cv::Mat, Hanning windowed image
 */
-cv::Mat apply_win_func(cv::Mat &mat, cv::Mat &win, const int NUM_THREADS)
+void apply_win_func(cv::Mat &mat, cv::Mat &win, const int NUM_THREADS)
 {
-	//Create OpenCV matrix to store data
-	cv::Mat windowed_img;
-	windowed_img.create(mat.rows, mat.cols, CV_32FC1);
-
 	//Apply Hanning window along rows
-	float *p, *q, *r;
+	float *p, *q;
     #pragma omp parallel for num_threads(NUM_THREADS)
 	for (int i = 0; i < mat.rows; i++) 
 	{
 		//Apply Hanning window along columns
 		p = mat.ptr<float>(i);
 		q = win.ptr<float>(i);
-		r = windowed_img.ptr<float>(i);
 		for (int j = 0; j < mat.cols; j++) 
 		{
-			r[j] = p[j] * q[j];
+			p[j] *= q[j];
 		}
 	}
-
-	return windowed_img;
 }

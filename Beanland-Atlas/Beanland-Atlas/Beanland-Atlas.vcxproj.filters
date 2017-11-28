@@ -13,6 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="kernels">
+      <UniqueIdentifier>{b0d770fe-6d5d-47cd-a430-7bd16e418994}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="beanland_atlas.cpp">
@@ -47,5 +50,19 @@
     <ClInclude Include="beanland_atlas.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="create_annulus.cl">
+      <Filter>kernels</Filter>
+    </None>
+    <None Include="create_circle.cl">
+      <Filter>kernels</Filter>
+    </None>
+    <None Include="freq_spectrum1D.cl">
+      <Filter>kernels</Filter>
+    </None>
+    <None Include="gauss_kernel_padded.cl">
+      <Filter>kernels</Filter>
+    </None>
   </ItemGroup>
 </Project>

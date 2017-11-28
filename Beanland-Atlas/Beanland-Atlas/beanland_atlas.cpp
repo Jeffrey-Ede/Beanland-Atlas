@@ -45,11 +45,10 @@ int main()
 
 	//Create the extended Gaussian
 	af::array ext_gauss = extended_gauss(mats[0].rows, mats[0].cols, 0.25*UBOUND_GAUSS_SIZE+0.75, gauss_kernel, af_queue);
-	af_array ext_gaussC = ext_gauss.get();
 
 	//Fourier transform the Gaussian
 	af_array gauss_fft2_af;
-	af_fft2_r2c(&gauss_fft2_af, ext_gaussC, 1.0f, mats_rows_af, mats_cols_af);
+	af_fft2_r2c(&gauss_fft2_af, ext_gauss.get(), 1.0f, mats_rows_af, mats_cols_af);
 	af::array gauss = af::array(gauss_fft2_af);
 
 	//Use Fourier analysis to place upper bound on the size of the circles
@@ -76,9 +75,22 @@ int main()
 	//Number of times to recursively cross correlate
 	int order = std::max(ubound/(2*annulus_param[0]), 1); //Take max for special case of overlapping Bragg peaks
 
-	//Find alignment of successive images
-	std::vector<cv::Vec3f> rel_pos = img_rel_pos(mats, hann_window_LUT, best_annulus, gauss, order, NUM_THREADS);
+	//Create circle creating kernel
+	cl_kernel circle_creator = create_kernel(circle_source, circle_kernel, af_context, af_device_id);
 
+	//Create circle
+	af::array circle = create_circle(mats_cols_af*mats_rows_af, mats_cols_af, mats_cols_af/2, mats_rows_af, mats_rows_af/2, 
+		annulus_param[0], create_annulus_kernel, af_queue);
+
+	//Create Gaussian to blur 
+	af::array impulsed_xcorr_blurer = extended_gauss(mats[0].rows, mats[0].cols, 0.25*IMPULSE_BLUR*annulus_param[0]+0.75, 
+		gauss_kernel, af_queue);
+	af_array xcorr_blurer_fft;
+	af_fft2_r2c(&xcorr_blurer_fft, impulsed_xcorr_blurer.get(), 1.0f, mats_rows_af, mats_cols_af);
+
+	//Find alignment of successive images
+	std::vector<cv::Vec3f> rel_pos = img_rel_pos(mats, hann_window_LUT, best_annulus, circle, gauss, af::array(xcorr_blurer_fft),
+		order, mats_rows_af, mats_cols_af, NUM_THREADS);
 
 	//Free OpenCL resources
 	clFlush(af_queue);	
@@ -87,8 +99,6 @@ int main()
 	clReleaseKernel(create_annulus_kernel);
 	clReleaseCommandQueue(af_queue);
 	clReleaseContext(af_context);
-
-	cv::waitKey(0);
 
 	return 0;
 }

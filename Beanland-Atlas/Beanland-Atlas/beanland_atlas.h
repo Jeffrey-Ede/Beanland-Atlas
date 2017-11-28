@@ -42,6 +42,10 @@
 //Size of Sobel filter kernel
 #define SOBEL_SIZE 3
 
+//Gaussian blurring filter size as a fraction of circle radius when blurring the cross correlation of an image's Sobel filtrate with
+//an annulus after it has been scaled by the image's cross correlation with a circle
+#define IMPULSE_BLUR 0.2
+
 //OpenCL
 #include <CL/cl.hpp>
 
@@ -91,16 +95,17 @@ static const std::array<int, 4> pos_mir_sym = {2, 3, 4, 6};
 //Input data location
 static const char* inputImagePath = "D:/data/default2.tif";
 
-//Locations of kernels
-static const char* annulus_source = "D:/C_C++_C#/create_annulus.cl";
-static const char* circle_kernel = "D:/C_C++_C#/circle_kernel.cl";
-static const char* gauss_kernel_ext_source = "D:/C_C++_C#/gauss_kernel_padded.cl";
-static const char* freq_spectrum1D_source = "D:/C_C++_C#/freq_spectrum1D.cl";
+//Locations of kernels. Note: will update these to use an environmental variable based on where the user installs the software
+static const char* annulus_source = "D:/Beanland-Atlas/Beanland-Atlas/Beanland-Atlas/create_annulus.cl"; //Create padded annulus
+static const char* gauss_kernel_ext_source = "D:/Beanland-Atlas/Beanland-Atlas/Beanland-Atlas/gauss_kernel_padded.cl"; //Create padded gaussian blurring kernel
+static const char* freq_spectrum1D_source = "D:/Beanland-Atlas/Beanland-Atlas/Beanland-Atlas/freq_spectrum1D.cl"; //Convert 2D r2c Fourier spectrum into 1D spetrum
+static const char* circle_source = "D:/Beanland-Atlas/Beanland-Atlas/Beanland-Atlas/create_circle.cl"; //Create padded circle
 
 //Names of kernels
-static const char* gauss_kernel_ext_kernel = "gauss_kernel_extended";
-static const char* freq_spectrum1D_kernel = "freq_spectrum1D";
-static const char* annulus_kernel = "create_annulus";
+static const char* gauss_kernel_ext_kernel = "gauss_kernel_extended"; //Create padded annulus
+static const char* freq_spectrum1D_kernel = "freq_spectrum1D"; //Create padded gaussian blurring kernel
+static const char* annulus_kernel = "create_annulus"; //Convert 2D r2c Fourier spectrum into 1D spetrum
+static const char* circle_kernel = "create_circle"; //Create padded circle
 
 /*Calculate upper bound for the size of circles in an image. This is done by convolving images with a gaussian low pass filter in the
 **Fourier domain. The amplitudes of freq radii are then caclulated for the processed image. These are rebinned to get a histogram with
@@ -319,15 +324,13 @@ std::vector<int> refine_annulus_param(int rad, int range, size_t length, int mat
 */
 cv::Mat create_hann_window(int mat_rows, int mat_cols, const int NUM_THREADS);
 
-/*Calculates values of Hann window function so that they are ready for repeated application
+/*Applies Hann window to an image
 **Inputs:
 **mat: cv::Mat &, Image to apply window to
 **win: cv::Mat &, Window to apply
 **NUM_THREADS: const int, Number of threads to use for OpenMP CPU acceleration
-**Returns:
-**cv::Mat, Hanning windowed image
 */
-cv::Mat apply_win_func(cv::Mat &mat, cv::Mat &win, const int NUM_THREADS);
+void apply_win_func(cv::Mat &mat, cv::Mat &win, const int NUM_THREADS);
 
 /*Calculate the relative positions between images needed to align them.
 **Inputs:
@@ -343,8 +346,8 @@ cv::Mat apply_win_func(cv::Mat &mat, cv::Mat &win, const int NUM_THREADS);
 **std::vector<cv::Vec3f>, Positions of each image relative to the first. The third element of the cv::Vec3f holds the value
 **of the maximum phase correlation between successive images
 */
-std::vector<cv::Vec3f> img_rel_pos(std::vector<cv::Mat> &mats, cv::Mat &hann_LUT, af::array &annulus, af::array &gauss_fft, int order,
-	int mats_rows_af, int mats_cols_af, const int NUM_THREADS);
+std::vector<cv::Vec3f> img_rel_pos(std::vector<cv::Mat> &mats, cv::Mat &hann_LUT, af::array &annulus, af::array &circle, 
+	af::array &gauss_fft, af::array impulsed_xcorr_blurer, int order, int mats_rows_af, int mats_cols_af, const int NUM_THREADS);
 
 /*Use the convolution theorem to create a filter that performs the recursive convolution of a convolution filter with itself
 **Inputs:
@@ -365,3 +368,44 @@ af::array recur_conv(af::array &filter, int n);
 */
 af::array create_xcorr_primer(af::array &annulus, int order, af::array &gauss_fft, int mats_rows_af, int mats_cols_af);
 
+/*Finds the position of max phase correlation of 2 images from their Fourier transforms
+**fft1: af::array &, One of the 2 Fourier transforms
+**fft2: af::array &, Second of the 2 Fourier transforms
+**Return:
+**cv::Vec3f, The relative position of the 2 images. The 3rd index is the value of the phase correlation
+*/
+cv::Vec3f max_phase_corr(af::array &fft1, af::array &fft2);
+
+/*Create padded unblurred circle with a specified radius
+**Inputs:
+**length: size_t, Number of pixels making up annulus
+**width: int, Width of padded annulus
+**half_width: int, Half the width of the padded annulus
+**height: int, Height of padded annulus
+**half_height: int, Half the height of the padded annulus
+**radius: int, radius of annulus, approximately halfway between its inner and outer radii
+**kernel: cl_kernel, OpenCL kernel that creates the 1D frequency spectrum
+**af_queue: cl_command_queue, ArrayFire command queue
+**Returns:
+**af::array, ArrayFire array containing unblurred circle
+*/
+af::array create_circle(size_t length, int width, int half_width, int height, int half_height, int radius,
+	cl_kernel kernel, cl_command_queue af_queue);
+
+/*Primes images for alignment. The primed images are the Gaussian blurred cross correlation of their Hann windowed Sobel filtrate
+**with an annulus after it has been scaled by the cross correlation of the Hann windowed image with a circle
+**img: cv::Mat &, Image to prime for alignment
+**hann_af: af::array &, Hanning window function look up table
+**xcorr_primer: af::array &, Fourier transform of the convolution of a Gaussian and an annulus
+**impulser: af::array &, Fourier transform of the convolution of a Gaussian and a circle
+**impulsed_xcorr_blurer: af::array &, Fourier transform of a Gaussian designed to blur the impulsed annular cross correlation
+**mats_rows_af: int, Number of rows of ArrayFire array containing the images. This is transpositional to the OpenCV mat
+**mats_cols_af: int, Number of cols of ArrayFire array containing the images. This is transpositional to the OpenCV mat
+**Return:
+**af::array, Image primed for alignment
+*/
+af::array prime_img(cv::Mat &img, af::array &hann_af, af::array &xcorr_primer, af::array &impulser, af::array &impulsed_xcorr_blurer,
+	int mats_rows_af, int mats_cols_af)
+
+//Temporary: for cross correlation priming convolution prototype
+cv::Vec3f ssd(af::array &W0, af::array &I0, af::array &S0, af::array &W1, af::array &I1, af::array &S1);
