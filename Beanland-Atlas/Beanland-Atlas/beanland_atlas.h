@@ -2,8 +2,6 @@
 #define CL_USE_DEPRECATED_OPENCL_2_0_APIS
 #define __CL_ENABLE_EXCEPTIONS
 
-#define TEST 1 //Used to turn testing on and off
-
 //Mathematical constant PI
 #define PI 3.141592654
 
@@ -49,9 +47,13 @@
 //OpenCL
 #include <CL/cl.hpp>
 
+//Input and output
 #include <fstream>
 #include <iostream>
+
+//Data containers
 #include <vector>
+#include <array>
 
 #include "opencv2/highgui/highgui.hpp" //Loading images
 #include <opencv2/imgproc/imgproc.hpp> //Convert RGB to greyscale
@@ -81,9 +83,6 @@
 
 //CPU Parallelism
 #include <omp.h>
-
-//Array containers
-#include <array>
 
 //Accelerated CPU-based FFT
 #include <complex.h>
@@ -337,18 +336,18 @@ void apply_win_func(cv::Mat &mat, cv::Mat &win, const int NUM_THREADS);
 **mats: cv::Mat &, Images
 **hann_LUT: cv::Mat &, Precalculated look up table to apply Hann window function with
 **annulus: af::array &, Annulus to convolve gradiated image with
+**circle: af::array &, Circle to convolve gradiated image with. Will remove annular cross correlation halo
 **gauss_fft: af::array &, Fourier transform of Gaussian used to blur the annulus to remove high frequency components
 **impulsed_xcorr_blurer: af::array &, Fourier transform of a Gaussian designed to blur the impulsed annular cross correlation
 **order: int, Number of times to recursively convolve the blurred annulus with itself
 **mats_rows_af: int, Number of rows of ArrayFire array containing the images. This is transpositional to the OpenCV mat
 **mats_cols_af: int, Number of cols of ArrayFire array containing the images. This is transpositional to the OpenCV mat
-**NUM_THREADS: const int, Number of threads to use for OpenMP CPU acceleration
 **Return:
-**std::vector<cv::Vec3f>, Positions of each image relative to the first. The third element of the cv::Vec3f holds the value
+**std::vector<std::array<float, 5>>, Positions of each image relative to the first. The third element of the cv::Vec3f holds the value
 **of the maximum phase correlation between successive images
 */
-std::vector<cv::Vec3f> img_rel_pos(std::vector<cv::Mat> &mats, cv::Mat &hann_LUT, af::array &annulus, af::array &circle, 
-	af::array &gauss_fft, int order, int mats_rows_af, int mats_cols_af, const int NUM_THREADS);
+std::vector<std::array<float, 5>> img_rel_pos(std::vector<cv::Mat> &mats, cv::Mat &hann_LUT, af::array &annulus, af::array &circle, 
+	af::array &gauss_fft, int order, int mats_rows_af, int mats_cols_af);
 
 /*Use the convolution theorem to create a filter that performs the recursive convolution of a convolution filter with itself
 **Inputs:
@@ -372,10 +371,13 @@ af::array create_xcorr_primer(af::array &annulus, int order, af::array &gauss_ff
 /*Finds the position of max phase correlation of 2 images from their Fourier transforms
 **fft1: af::array &, One of the 2 Fourier transforms
 **fft2: af::array &, Second of the 2 Fourier transforms
+**img_idx1: int, index of the image used to create the first of the 2 Fourier transforms
+**img_idx2: int, index of the image used to create the second of the 2 Fourier transforms
 **Return:
-**cv::Vec3f, The relative position of the 2 images. The 3rd index is the value of the phase correlation
+**std::array<float, 5>, The 0th and 1st indices are the relative positions of images, the 2nd index is the value of the phase correlation
+**and the 3rd and 4th indices hold the indices of the images being compared in the OpenCV mats container 
 */
-cv::Vec3f max_phase_corr(af::array &fft1, af::array &fft2);
+std::array<float, 5> max_phase_corr(af::array &fft1, af::array &fft2, int img_idx1, int img_idx2);
 
 /*Create padded unblurred circle with a specified radius
 **Inputs:
@@ -407,5 +409,19 @@ af::array create_circle(size_t length, int width, int half_width, int height, in
 */
 af::array prime_img(cv::Mat &img, af::array &hann_af, af::array &xcorr_primer, af::array &impulser, int mats_rows_af, int mats_cols_af);
 
-//Temporary: for cross correlation priming convolution prototype
-cv::Vec3f ssd(af::array &W0, af::array &I0, af::array &S0, af::array &W1, af::array &I1, af::array &S1);
+/*Align the diffraction patterns using their known relative positions and average over the aligned px
+**mats: std::vector<cv::Mat> &, Diffraction patterns to average over the aligned pixels of
+**positions: std::vector<cv::Vec3f> &, Relative positions of the images
+**Return:
+**std::vector<cv::Mat>, The first OpenCV mat is the average of the aligned diffraction patterns, the 2nd is the number of OpenCV mats
+**that contributed to each pixel
+*/
+std::vector<cv::Mat> align_and_avg(std::vector<cv::Mat> &mats, std::vector<std::array<float, 5>> &positions);
+
+/*Refine the relative positions of the images using all the known relative positions
+**positions: std::vector<cv::Vec2f>, Relative image positions and their weightings
+**Return:
+**std::vector<std::vector<int>>, Relative positions of the images, including the first image, to the first image in the same order as the
+**images in the image stack
+*/
+std::vector<std::vector<int>> refine_rel_pos(std::vector<std::array<float, 5>> &positions);

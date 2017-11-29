@@ -83,8 +83,15 @@ int main()
 		annulus_param[0], circle_creator, af_queue);
 
 	//Find alignment of successive images
-	std::vector<cv::Vec3f> rel_pos = img_rel_pos(mats, hann_window_LUT, best_annulus, circle, gauss, order,
-		mats_rows_af, mats_cols_af, NUM_THREADS);
+	std::vector<std::array<float, 5>> rel_pos = img_rel_pos(mats, hann_window_LUT, best_annulus, circle, gauss, order,
+		mats_rows_af, mats_cols_af);
+
+	//Align the diffraction patterns to create average diffraction pattern
+	std::vector<cv::Mat> aligned_avg = align_and_avg(mats, rel_pos);
+
+	imshow("cv", aligned_avg[0]/1000);
+
+	cv::waitKey(0);
 
 	//Free OpenCL resources
 	clFlush(af_queue);	

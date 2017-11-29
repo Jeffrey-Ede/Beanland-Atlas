@@ -45,6 +45,9 @@
     <ClCompile Include="img_rel_pos.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="align_and_avg.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="beanland_atlas.h">

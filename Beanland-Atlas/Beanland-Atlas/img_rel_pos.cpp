@@ -11,16 +11,19 @@
 **order: int, Number of times to recursively convolve the blurred annulus with itself
 **mats_rows_af: int, Number of rows of ArrayFire array containing the images. This is transpositional to the OpenCV mat
 **mats_cols_af: int, Number of cols of ArrayFire array containing the images. This is transpositional to the OpenCV mat
-**NUM_THREADS: const int, Number of threads to use for OpenMP CPU acceleration
 **Return:
-**std::vector<cv::Vec3f>, Positions of each image relative to the first. The third element of the cv::Vec3f holds the value
+**std::vector<std::array<float, 5>>, Positions of each image relative to the first. The third element of the cv::Vec3f holds the value
 **of the maximum phase correlation between successive images
 */
-std::vector<cv::Vec3f> img_rel_pos(std::vector<cv::Mat> &mats, cv::Mat &hann_LUT, af::array &annulus, af::array &circle, 
-	af::array &gauss_fft, int order, int mats_rows_af, int mats_cols_af, const int NUM_THREADS)
+std::vector<std::array<float, 5>> img_rel_pos(std::vector<cv::Mat> &mats, cv::Mat &hann_LUT, af::array &annulus, af::array &circle, 
+	af::array &gauss_fft, int order, int mats_rows_af, int mats_cols_af)
 {
 	//Assign memory to store relative image positions and their phase correlation weightings
-	std::vector<cv::Vec3f> positions(mats.size()-1);
+	std::vector<std::array<float, 5>> positions(mats.size());
+
+	//In this preliminary version of the function, image positions are measured relative to the first image. Set first index parameters
+	//A more advanced method will be implemented later
+	positions[0] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 
 	//Create Fourier domain matrix to multiply the Fourier transformed images with before phase correlating
 	af::array xcorr_primer = create_xcorr_primer(annulus, order, gauss_fft, mats_rows_af, mats_cols_af);
@@ -43,7 +46,7 @@ std::vector<cv::Vec3f> img_rel_pos(std::vector<cv::Mat> &mats, cv::Mat &hann_LUT
 		af::array primed_fft = prime_img(mats[i], hann_af, xcorr_primer, impulser, mats_rows_af, mats_cols_af);
 
 		//Find the position of the maximum phase correlation and its unnormalised value
-		positions[i-1] = max_phase_corr(primed_fft, primed_fft_prev);
+		positions[i] = max_phase_corr(primed_fft, primed_fft_prev, i, 0);
 
 		if (positions[i-1][0] >= 128)
 		{
@@ -93,17 +96,20 @@ af::array recur_conv(af::array &filter, int n)
 /*Finds the position of max phase correlation of 2 images from their Fourier transforms
 **fft1: af::array &, One of the 2 Fourier transforms
 **fft2: af::array &, Second of the 2 Fourier transforms
+**img_idx1: int, index of the image used to create the first of the 2 Fourier transforms
+**img_idx2: int, index of the image used to create the second of the 2 Fourier transforms
 **Return:
-**cv::Vec3f, The relative position of the 2 images. The 3rd index is the value of the phase correlation
+**std::array<float, 5>, The 0th and 1st indices are the relative positions of images, the 2nd index is the value of the phase correlation
+**and the 3rd and 4th indices hold the indices of the images being compared in the OpenCV mats container 
 */
-cv::Vec3f max_phase_corr(af::array &fft1, af::array &fft2)
+std::array<float, 5> max_phase_corr(af::array &fft1, af::array &fft2, int img_idx1, int img_idx2)
 {
-	//Create vector to store relative position and value of the phase correlation
-	cv::Vec3f position;
+	//Create array to store relative position, value of the phase correlation and the identities of the images being compared
+	std::array<float, 5> position;
 
 	//Fourier transform the element-wise normalised cross-power spectrum
 	af_array phase_corr;
-	af_fft2_c2r(&phase_corr, (fft1*af::conjg(fft2)/(af::abs(fft1*af::conjg(fft2)) + 1)).get(), 1.0f, false);
+	af_fft2_c2r(&phase_corr, (fft1*af::conjg(fft2)/(af::abs(fft1*af::conjg(fft2)) + 1)).get(), 1.0f, false); // +1 to avoid divide by 0 errors
 
 	//Get position of maximum correlation
 	af::array max1, idx1;
@@ -116,29 +122,9 @@ cv::Vec3f max_phase_corr(af::array &fft1, af::array &fft2)
 	idx1(idx).as(f32).host(&position[1]);
 	max.host(&position[2]);
 
-	return position;
-}
-
-//Temporary: for convolution primer prototype
-cv::Vec3f ssd(af::array &W0, af::array &I0, af::array &S0, af::array &W1, af::array &I1, af::array &S1)
-{
-	//Create vector to store relative position and value of the phase correlation
-	cv::Vec3f position;
-
-	//Fourier transform the element-wise normalised cross-power spectrum
-	af_array ssd;
-	af_fft2_c2r(&ssd, (W0*af::conjg(S1) + S0*af::conjg(W1) - 2*I0*af::conjg(I1)).get(), 1.0f, false);
-
-	//Get position of maximum correlation
-	af::array max1, idx1;
-	af::array max, idx;
-	af::min(max1, idx1, af::abs(af::array(ssd)), 1);
-	af::min(max, idx, max1, 0);
-
-	//Transfer results back to the host
-	idx.as(f32).host(&position[0]);
-	idx1(idx).as(f32).host(&position[1]);
-	max.host(&position[2]);
+	//Record identities of images being compared
+	position[3] = img_idx1;
+	position[4] = img_idx2;
 
 	return position;
 }

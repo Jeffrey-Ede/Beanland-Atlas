@@ -62,7 +62,7 @@ std::vector<cv::Vec3f> refine_mir_pos(cv::Mat amalg, std::vector<int> max_pos, s
 							std::vector<float> pearson_corr(num_sweep_angles);
 		
 							{
-								float angle; int sweep_count;
+								float angle; int sweep_count; //Loop variables are explicitely contained in their own lexical scope
 								for (sweep_count = 0, angle = starting_angle; angle < max_pos[m] * idx_to_rad + idx_to_rad;
 									angle += sweep_res, sweep_count++) {
 
@@ -80,6 +80,7 @@ std::vector<cv::Vec3f> refine_mir_pos(cv::Mat amalg, std::vector<int> max_pos, s
 									float sum_y2 = 0.0f;
 
 									//Reflect points across mirror line and compare them to the nearest pixel
+                                    #pragma omp parallel for
 									for (int i = 0; i < amalg.cols; i++) {
 										for (int j = 0; j < amalg.rows; j++) {
 
@@ -130,10 +131,6 @@ std::vector<cv::Vec3f> refine_mir_pos(cv::Mat amalg, std::vector<int> max_pos, s
 				else {
 					continue;
 				}
-			}
-
-			for (int y = 0; y < num_test_pos; y++) {
-				std::cout << coefficients[y] << std::endl;
 			}
 
 			//Find the position of the maximum

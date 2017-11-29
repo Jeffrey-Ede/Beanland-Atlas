@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="align_and_avg.cpp" />
     <ClCompile Include="annulus_param.cpp" />
     <ClCompile Include="approx_symmetry_axes.cpp" />
     <ClCompile Include="beanland_atlas.cpp" />
