@@ -80,17 +80,11 @@ int main()
 
 	//Create circle
 	af::array circle = create_circle(mats_cols_af*mats_rows_af, mats_cols_af, mats_cols_af/2, mats_rows_af, mats_rows_af/2, 
-		annulus_param[0], create_annulus_kernel, af_queue);
-
-	//Create Gaussian to blur 
-	af::array impulsed_xcorr_blurer = extended_gauss(mats[0].rows, mats[0].cols, 0.25*IMPULSE_BLUR*annulus_param[0]+0.75, 
-		gauss_kernel, af_queue);
-	af_array xcorr_blurer_fft;
-	af_fft2_r2c(&xcorr_blurer_fft, impulsed_xcorr_blurer.get(), 1.0f, mats_rows_af, mats_cols_af);
+		annulus_param[0], circle_creator, af_queue);
 
 	//Find alignment of successive images
-	std::vector<cv::Vec3f> rel_pos = img_rel_pos(mats, hann_window_LUT, best_annulus, circle, gauss, af::array(xcorr_blurer_fft),
-		order, mats_rows_af, mats_cols_af, NUM_THREADS);
+	std::vector<cv::Vec3f> rel_pos = img_rel_pos(mats, hann_window_LUT, best_annulus, circle, gauss, order,
+		mats_rows_af, mats_cols_af, NUM_THREADS);
 
 	//Free OpenCL resources
 	clFlush(af_queue);	

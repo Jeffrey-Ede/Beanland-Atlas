@@ -1,5 +1,5 @@
 __kernel
-void create_annulus(
+void create_circle(
     __global float* outputImage,
     int rad_squared,
     int half_width,

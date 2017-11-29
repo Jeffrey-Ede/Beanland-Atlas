@@ -338,6 +338,7 @@ void apply_win_func(cv::Mat &mat, cv::Mat &win, const int NUM_THREADS);
 **hann_LUT: cv::Mat &, Precalculated look up table to apply Hann window function with
 **annulus: af::array &, Annulus to convolve gradiated image with
 **gauss_fft: af::array &, Fourier transform of Gaussian used to blur the annulus to remove high frequency components
+**impulsed_xcorr_blurer: af::array &, Fourier transform of a Gaussian designed to blur the impulsed annular cross correlation
 **order: int, Number of times to recursively convolve the blurred annulus with itself
 **mats_rows_af: int, Number of rows of ArrayFire array containing the images. This is transpositional to the OpenCV mat
 **mats_cols_af: int, Number of cols of ArrayFire array containing the images. This is transpositional to the OpenCV mat
@@ -347,7 +348,7 @@ void apply_win_func(cv::Mat &mat, cv::Mat &win, const int NUM_THREADS);
 **of the maximum phase correlation between successive images
 */
 std::vector<cv::Vec3f> img_rel_pos(std::vector<cv::Mat> &mats, cv::Mat &hann_LUT, af::array &annulus, af::array &circle, 
-	af::array &gauss_fft, af::array impulsed_xcorr_blurer, int order, int mats_rows_af, int mats_cols_af, const int NUM_THREADS);
+	af::array &gauss_fft, int order, int mats_rows_af, int mats_cols_af, const int NUM_THREADS);
 
 /*Use the convolution theorem to create a filter that performs the recursive convolution of a convolution filter with itself
 **Inputs:
@@ -404,8 +405,7 @@ af::array create_circle(size_t length, int width, int half_width, int height, in
 **Return:
 **af::array, Image primed for alignment
 */
-af::array prime_img(cv::Mat &img, af::array &hann_af, af::array &xcorr_primer, af::array &impulser, af::array &impulsed_xcorr_blurer,
-	int mats_rows_af, int mats_cols_af)
+af::array prime_img(cv::Mat &img, af::array &hann_af, af::array &xcorr_primer, af::array &impulser, int mats_rows_af, int mats_cols_af);
 
 //Temporary: for cross correlation priming convolution prototype
 cv::Vec3f ssd(af::array &W0, af::array &I0, af::array &S0, af::array &W1, af::array &I1, af::array &S1);

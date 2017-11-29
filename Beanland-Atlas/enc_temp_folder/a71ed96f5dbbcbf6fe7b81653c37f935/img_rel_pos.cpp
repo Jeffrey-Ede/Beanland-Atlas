@@ -50,11 +50,15 @@ std::vector<cv::Vec3f> img_rel_pos(std::vector<cv::Mat> &mats, cv::Mat &hann_LUT
 			positions[i-1][0] -= 255;
 		}
 
-		if (positions[i-1][1] >= 128)
-		{
-			positions[i-1][1] -= 255;
-		}
+		
+
+		std::cout << positions[i-1][0] + 128 /* << ", " << positions[i-1][1] << ", " << positions[i-1][2]*/ << std::endl;
+
+		//primed_fft_prev = primed_fft;
 	}
+
+	//std::cout << positions[0][0] << ", " << positions[0][1] << ", " << positions[0][2] << std::endl;
+	system("pause");
 
 	return positions;
 }
@@ -111,6 +115,15 @@ cv::Vec3f max_phase_corr(af::array &fft1, af::array &fft2)
 	af::max(max1, idx1, af::abs(af::array(phase_corr)), 1);
 	af::max(max, idx, max1, 0);
 
+	//if(TEST){
+
+	//	//const static int width = size, height = size;
+	//	af::Window window(512, 512, "2D plot");
+	//	do{
+	//		window.image(af::abs(af::array(phase_corr)).as(f32)/(5e3));
+	//	} while( !window.close() );
+	//}
+
 	//Transfer results back to the host
 	idx.as(f32).host(&position[0]);
 	idx1(idx).as(f32).host(&position[1]);
@@ -128,6 +141,15 @@ cv::Vec3f ssd(af::array &W0, af::array &I0, af::array &S0, af::array &W1, af::ar
 	//Fourier transform the element-wise normalised cross-power spectrum
 	af_array ssd;
 	af_fft2_c2r(&ssd, (W0*af::conjg(S1) + S0*af::conjg(W1) - 2*I0*af::conjg(I1)).get(), 1.0f, false);
+
+	//if(TEST){
+
+	//	//const static int width = size, height = size;
+	//	af::Window window(512, 512, "2D plot");
+	//	do{
+	//		window.image(af::abs(af::array(ssd)).as(f32)/(2e14));
+	//	} while( !window.close() );
+	//}
 
 	//Get position of maximum correlation
 	af::array max1, idx1;
@@ -168,6 +190,8 @@ af::array prime_img(cv::Mat &img, af::array &hann_af, af::array &xcorr_primer, a
 	af_array sobel_filtrate;
 	af_fft2_r2c(&sobel_filtrate, (/*hann_af**/af::sobel(img_af, SOBEL_SIZE, false)).get(), 1.0f, mats_rows_af, mats_cols_af);
 
+	//////////////////////////////////////////////////////
+
 	//Cross correlate the the Sobel filtrate with the Gaussian blurred annulus in the Fourier domain
 	af_array annular_xcorr;
 	af_fft2_c2r(&annular_xcorr, (1e-10 * xcorr_primer*af::array(sobel_filtrate)).get(), 1.0f, false);
@@ -182,5 +206,12 @@ af::array prime_img(cv::Mat &img, af::array &hann_af, af::array &xcorr_primer, a
 	af_array primed_img;
 	af_fft2_r2c(&primed_img, (/*hann_af**/af::array(annular_xcorr)*af::array(circle_xcorr)).get(), 1.0f, mats_rows_af, mats_cols_af);
 
+	//af::print("af", af::array(primed_img));
+
+
 	return af::array(primed_img);
+
+	//////////////////////////////////////////////////////
+
+	//return xcorr_primer*af::array(sobel_filtrate);
 }
