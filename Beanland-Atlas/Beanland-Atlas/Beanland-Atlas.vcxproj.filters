@@ -48,6 +48,12 @@
     <ClCompile Include="align_and_avg.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="get_spot_positions.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="repeating_max_loc.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="beanland_atlas.h">

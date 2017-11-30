@@ -24,9 +24,11 @@
     <ClCompile Include="approx_symmetry_axes.cpp" />
     <ClCompile Include="beanland_atlas.cpp" />
     <ClCompile Include="circ_size_upper_bound.cpp" />
+    <ClCompile Include="get_spot_positions.cpp" />
     <ClCompile Include="img_rel_pos.cpp" />
     <ClCompile Include="kernel_launchers.cpp" />
     <ClCompile Include="refine_mir_pos.cpp" />
+    <ClCompile Include="repeating_max_loc.cpp" />
     <ClCompile Include="utility.cpp" />
     <ClCompile Include="window_functions.cpp" />
   </ItemGroup>

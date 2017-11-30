@@ -164,13 +164,15 @@ af::array freq_spectrum1D(af::array input_af, size_t length, int height, int wid
 /*Downsamples amalgamation of aligned diffraction patterns, then finds approximate axes of symmetry
 **Inputs:
 **amalg: cv::Mat, OpenCV mat containing a diffraction pattern to find the axes of symmetry of
-**af_context: cl_context, ArrayFire context
-**af_device_id: cl_device_id, ArrayFire device id
-**af_queue: cl_command_queue, ArrayFire command queue
-**target_size: int, Downsampling factor will be the largest power of 2 that doesn't make the image smaller than this
+**origin_x: int, Position of origin accross the OpenCV mat
+**origin_y: int, Position of origin down the OpenCV mat
 **num_angles: int, Number of angles  to look for symmetry at
+**target_size: int, Downsampling factor will be the largest power of 2 that doesn't make the image smaller than this
+**Returns:
+**std::vector<float>, highest Pearson normalised product moment correlation coefficient for a symmetry lins drawn through 
+**a known axis of symmetry
 */
-std::vector<float> symmetry_axes(cv::Mat amalg, int origin_x, int origin_y, size_t num_angles = 120, float target_size = 0);
+std::vector<float> symmetry_axes(cv::Mat &amalg, int origin_x, int origin_y, size_t num_angles = 120, float target_size = 0);
 
 /*Calculate Pearson normalised product moment correlation coefficient between 2 vectors of floats
 **Inputs:
@@ -335,19 +337,17 @@ void apply_win_func(cv::Mat &mat, cv::Mat &win, const int NUM_THREADS);
 **Inputs:
 **mats: cv::Mat &, Images
 **hann_LUT: cv::Mat &, Precalculated look up table to apply Hann window function with
-**annulus: af::array &, Annulus to convolve gradiated image with
-**circle: af::array &, Circle to convolve gradiated image with. Will remove annular cross correlation halo
-**gauss_fft: af::array &, Fourier transform of Gaussian used to blur the annulus to remove high frequency components
-**impulsed_xcorr_blurer: af::array &, Fourier transform of a Gaussian designed to blur the impulsed annular cross correlation
-**order: int, Number of times to recursively convolve the blurred annulus with itself
+**annulus_fft: af::array &, Fourier transform of Gaussian blurred annulus that has been recursively convolved with itself to convolve the gradiated
+**image with
+**circle_fft: af::array &, Fourier transform of Gaussian blurred circle to convolve gradiated image with to remove the annular cross correlation halo
 **mats_rows_af: int, Number of rows of ArrayFire array containing the images. This is transpositional to the OpenCV mat
 **mats_cols_af: int, Number of cols of ArrayFire array containing the images. This is transpositional to the OpenCV mat
 **Return:
 **std::vector<std::array<float, 5>>, Positions of each image relative to the first. The third element of the cv::Vec3f holds the value
 **of the maximum phase correlation between successive images
 */
-std::vector<std::array<float, 5>> img_rel_pos(std::vector<cv::Mat> &mats, cv::Mat &hann_LUT, af::array &annulus, af::array &circle, 
-	af::array &gauss_fft, int order, int mats_rows_af, int mats_cols_af);
+std::vector<std::array<float, 5>> img_rel_pos(std::vector<cv::Mat> &mats, cv::Mat &hann_LUT, af::array &annulus_fft, af::array &circle_fft,
+	int mats_rows_af, int mats_cols_af);
 
 /*Use the convolution theorem to create a filter that performs the recursive convolution of a convolution filter with itself
 **Inputs:
@@ -357,16 +357,6 @@ std::vector<std::array<float, 5>> img_rel_pos(std::vector<cv::Mat> &mats, cv::Ma
 **af::array, Fourier domain matrix that can be elemtwise with another fft to recursively convolute it with a filter n times
 */
 af::array recur_conv(af::array &filter, int n);
-
-/*Create Fourier domain matrix to multiply the Fourier transformed images with before phase correlating
-**Inputs:
-**annulus: af::array &, Annulus to perform cross correlation with
-**order: int, Number of times to recursively cross correlate the annulus with itself
-**gauss_fft: af::array &, Fourier transform of Gaussian used to blur the annuluses
-**Return:
-**af::array, Fourier domain matrix to multiply FFTs of images with to prime them for phase correlation
-*/
-af::array create_xcorr_primer(af::array &annulus, int order, af::array &gauss_fft, int mats_rows_af, int mats_cols_af);
 
 /*Finds the position of max phase correlation of 2 images from their Fourier transforms
 **fft1: af::array &, One of the 2 Fourier transforms
@@ -398,25 +388,27 @@ af::array create_circle(size_t length, int width, int half_width, int height, in
 /*Primes images for alignment. The primed images are the Gaussian blurred cross correlation of their Hann windowed Sobel filtrate
 **with an annulus after it has been scaled by the cross correlation of the Hann windowed image with a circle
 **img: cv::Mat &, Image to prime for alignment
-**hann_af: af::array &, Hanning window function look up table
-**xcorr_primer: af::array &, Fourier transform of the convolution of a Gaussian and an annulus
-**impulser: af::array &, Fourier transform of the convolution of a Gaussian and a circle
-**impulsed_xcorr_blurer: af::array &, Fourier transform of a Gaussian designed to blur the impulsed annular cross correlation
+**annulus_fft: af::array &, Fourier transform of the convolution of a Gaussian and an annulus
+**circle_fft: af::array &, Fourier transform of the convolution of a Gaussian and a circle
 **mats_rows_af: int, Number of rows of ArrayFire array containing the images. This is transpositional to the OpenCV mat
 **mats_cols_af: int, Number of cols of ArrayFire array containing the images. This is transpositional to the OpenCV mat
 **Return:
 **af::array, Image primed for alignment
 */
-af::array prime_img(cv::Mat &img, af::array &hann_af, af::array &xcorr_primer, af::array &impulser, int mats_rows_af, int mats_cols_af);
+af::array prime_img(cv::Mat &img, af::array &annulus_fft, af::array &circle_fft, int mats_rows_af, int mats_cols_af);
 
 /*Align the diffraction patterns using their known relative positions and average over the aligned px
 **mats: std::vector<cv::Mat> &, Diffraction patterns to average over the aligned pixels of
 **positions: std::vector<cv::Vec3f> &, Relative positions of the images
 **Return:
-**std::vector<cv::Mat>, The first OpenCV mat is the average of the aligned diffraction patterns, the 2nd is the number of OpenCV mats
+**struct align_avg_mats, The first OpenCV mat is the average of the aligned diffraction patterns, the 2nd is the number of OpenCV mats
 **that contributed to each pixel
 */
-std::vector<cv::Mat> align_and_avg(std::vector<cv::Mat> &mats, std::vector<std::array<float, 5>> &positions);
+struct align_avg_mats {
+	cv::Mat acc;
+	cv::Mat num_overlap;
+};
+struct align_avg_mats align_and_avg(std::vector<cv::Mat> &mats, std::vector<std::array<float, 5>> &positions);
 
 /*Refine the relative positions of the images using all the known relative positions
 **positions: std::vector<cv::Vec2f>, Relative image positions and their weightings
@@ -425,3 +417,33 @@ std::vector<cv::Mat> align_and_avg(std::vector<cv::Mat> &mats, std::vector<std::
 **images in the image stack
 */
 std::vector<std::vector<int>> refine_rel_pos(std::vector<std::array<float, 5>> &positions);
+
+/*Find the positions of the spots in the aligned image average pattern. Most of these spots are made from the contributions of many images
+**so it can be assumed that they are relatively featureless
+**align_avg: cv::Mat &, Average values of px in aligned diffraction patterns
+**radius: int, Radius of spots
+**thickness: int, Thickness of annulus to convolve with spots
+**annulus_creator: cl_kernel, OpenCL kernel to create padded unblurred annulus to cross correlate the aligned image average pattern Sobel
+**filtrate with
+**circle_creator: cl_kernel, OpenCL kernel to create padded unblurred circle to cross correlate he aligned image average pattern with
+**gauss_creator: cl_kernel, OpenCL kernel to create padded Gaussian to blur the annulus and circle with
+**af_queue: cl_command_queue, ArrayFire command queue
+**align_avg_cols: int, Number of columns in the aligned image average pattern OpenCV mat. ArrayFire arrays are transpositional
+**align_avg_rows: int, Number of rows in the aligned image average pattern OpenCV mat. ArrayFire arrays are transpositional
+**Return:
+std::vector<std::array<int, 2>> Positions of spots in the aligned image average pattern
+*/
+std::vector<std::array<int, 2>> get_spot_pos(cv::Mat &align_avg, int radius, int thickness, cl_kernel annulus_creator, cl_kernel circle_creator, 
+	cl_kernel gauss_creator, cl_command_queue af_queue, int align_avg_cols, int align_avg_rows);
+
+/**Calculates the positions of repeating maxima in noisy data. A peak if the data's Fourier power spectrum is used to 
+**find the number of times the pattern repeats, assumung that the data only contains an integer number of repeats.
+**This number of maxima are then searched for.
+**Inputs:
+**corr: std::vector<float>, Noisy data to look for repeatis in
+**num_angles: int, Number of elements in data
+**pos_mir_sym: std::array<int, 4>, Numbers of maxima to look for. Will choose the one with the highest power spectrum value
+**Returns:
+**std::vector<int>, Idices of the maxima in the array. The number of maxima is the size of the array
+*/
+std::vector<int> repeating_max_loc(std::vector<float> corr, int num_angles, std::array<int, 4> pos_mir_sym);

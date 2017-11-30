@@ -28,7 +28,7 @@ int main()
 	//Instruct ArrayFire to use the OpenCL. First, create a device from the current OpenCL device + context + queue
 	afcl::addDevice(device(), context(), queue());
 	
-	//Next switch ArrayFire to the device using the device and context as identifiers:
+	//Switch ArrayFire to the device using the device and context as identifiers:
 	afcl::setDevice(device(), context());
 
 	//Get ArrayFire device, context and command queue
@@ -49,10 +49,10 @@ int main()
 	//Fourier transform the Gaussian
 	af_array gauss_fft2_af;
 	af_fft2_r2c(&gauss_fft2_af, ext_gauss.get(), 1.0f, mats_rows_af, mats_cols_af);
-	af::array gauss = af::array(gauss_fft2_af);
+	af::array gauss_fft = af::array(gauss_fft2_af);
 
 	//Use Fourier analysis to place upper bound on the size of the circles
-	int ubound = circ_size_ubound(mats, mats_rows_af, mats_cols_af, gauss, MIN_CIRC_SIZE, std::min((int)mats.size(), MAX_AUTO_CONTRIB), 
+	int ubound = circ_size_ubound(mats, mats_rows_af, mats_cols_af, gauss_fft, MIN_CIRC_SIZE, std::min((int)mats.size(), MAX_AUTO_CONTRIB), 
 		af_context, af_device_id, af_queue, NUM_THREADS);
 
 	//Set lower bound, assuming that spots in data will have at least a few pixels diameter
@@ -63,17 +63,22 @@ int main()
 
 	//Calculate annulus radius and thickness that describe the gradiation of the spots best
 	std::vector<int> annulus_param = get_annulus_param(mats[0], lbound, ubound, INIT_ANNULUS_THICKNESS, MAX_SIZE_CONTRIB, 
-		mats_rows_af, mats_cols_af, gauss, create_annulus_kernel, af_queue, NUM_THREADS);
+		mats_rows_af, mats_cols_af, gauss_fft, create_annulus_kernel, af_queue, NUM_THREADS);
+
+	//Number of times to recursively cross correlate annulus with itself
+	int order = ubound/(2*annulus_param[0]);
 
 	//Use best annulus parameters to create the annulus to perform cross correlations with
 	af::array best_annulus = create_annulus(mats_cols_af*mats_rows_af, mats_cols_af, mats_cols_af/2, mats_rows_af, mats_rows_af/2, 
 		annulus_param[0], annulus_param[1], create_annulus_kernel, af_queue);
 
+	//Gaussian blur the annulus in the Fourier domain
+	af_array annulus_fft_c;
+	af_fft2_r2c(&annulus_fft_c, best_annulus.get(), 1.0f, mats_rows_af, mats_cols_af);
+	af::array annulus_fft = recur_conv(gauss_fft*af::array(annulus_fft_c), order);
+
 	//Precalculate the Hann window, ready for repeated application
 	cv::Mat hann_window_LUT = create_hann_window(mats[0].rows, mats[0].cols, NUM_THREADS);
-
-	//Number of times to recursively cross correlate
-	int order = std::max(ubound/(2*annulus_param[0]), 1); //Take max for special case of overlapping Bragg peaks
 
 	//Create circle creating kernel
 	cl_kernel circle_creator = create_kernel(circle_source, circle_kernel, af_context, af_device_id);
@@ -82,22 +87,35 @@ int main()
 	af::array circle = create_circle(mats_cols_af*mats_rows_af, mats_cols_af, mats_cols_af/2, mats_rows_af, mats_rows_af/2, 
 		annulus_param[0], circle_creator, af_queue);
 
+	//Gaussian blur the circle in the Fourier domain
+	af_array circle_c;
+	af_fft2_r2c(&circle_c, circle.get(), 1.0f, mats_rows_af, mats_cols_af);
+	af::array circle_fft = gauss_fft*af::array(circle_c);
+
 	//Find alignment of successive images
-	std::vector<std::array<float, 5>> rel_pos = img_rel_pos(mats, hann_window_LUT, best_annulus, circle, gauss, order,
-		mats_rows_af, mats_cols_af);
+	std::vector<std::array<float, 5>> rel_pos = img_rel_pos(mats, hann_window_LUT, annulus_fft, circle_fft, mats_rows_af, mats_cols_af);
 
 	//Align the diffraction patterns to create average diffraction pattern
-	std::vector<cv::Mat> aligned_avg = align_and_avg(mats, rel_pos);
+	struct align_avg_mats aligned_avg = align_and_avg(mats, rel_pos);
 
-	imshow("cv", aligned_avg[0]/1000);
+	/*circle.unlock();
+	annulus_fft.unlock();
+	ext_gauss.unlock();*/
 
-	cv::waitKey(0);
+	//Get the positions of the spots in the aligned images average
+	std::vector<std::array<int, 2>> spot_pos = get_spot_pos(aligned_avg.acc, annulus_param[0], annulus_param[0], create_annulus_kernel, 
+		circle_creator, gauss_kernel, af_queue, aligned_avg.acc.cols, aligned_avg.acc.rows);
+
+	//imshow("af", aligned_avg[0]/1000);
+
+	//cv::waitKey(0);
 
 	//Free OpenCL resources
 	clFlush(af_queue);	
 	clFinish(af_queue);
 	clReleaseKernel(gauss_kernel);
 	clReleaseKernel(create_annulus_kernel);
+	clReleaseKernel(circle_creator);
 	clReleaseCommandQueue(af_queue);
 	clReleaseContext(af_context);
 

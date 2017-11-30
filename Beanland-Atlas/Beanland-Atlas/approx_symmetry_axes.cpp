@@ -2,17 +2,16 @@
 
 /*Downsamples amalgamation of aligned diffraction patterns, then finds approximate axes of symmetry
 **Inputs:
-**amalg: cv::Mat, OpenCV mat containing a diffraction pattern to find the axes of symmetry of
-**af_context: cl_context, ArrayFire context
-**af_device_id: cl_device_id, ArrayFire device id
-**af_queue: cl_command_queue, ArrayFire command queue
-**target_size: int, Downsampling factor will be the largest power of 2 that doesn't make the image smaller than this
+**amalg: cv::Mat &, OpenCV mat containing a diffraction pattern to find the axes of symmetry of
+**origin_x: int, Position of origin accross the OpenCV mat
+**origin_y: int, Position of origin down the OpenCV mat
 **num_angles: int, Number of angles  to look for symmetry at
+**target_size: int, Downsampling factor will be the largest power of 2 that doesn't make the image smaller than this
 **Returns:
 **std::vector<float>, highest Pearson normalised product moment correlation coefficient for a symmetry lins drawn through 
 **a known axis of symmetry
 */
-std::vector<float> symmetry_axes(cv::Mat amalg, int origin_x, int origin_y, size_t num_angles, float target_size) {
+std::vector<float> symmetry_axes(cv::Mat &amalg, int origin_x, int origin_y, size_t num_angles, float target_size) {
 
 	float inv_num_angles = 1.0f/num_angles;
 
@@ -35,6 +34,7 @@ std::vector<float> symmetry_axes(cv::Mat amalg, int origin_x, int origin_y, size
 	std::vector<float> pearson_corr(num_angles);
 
 	//For each angle
+    #pragma omp parallel for 
 	for (int k = 0; k < num_angles; k++){
 
 		//Gradients for reflection

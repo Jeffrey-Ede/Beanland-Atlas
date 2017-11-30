@@ -4,13 +4,13 @@
 **mats: std::vector<cv::Mat> &, Diffraction patterns to average over the aligned pixels of
 **positions: std::vector<cv::Vec3f> &, Relative positions of the images
 **Return:
-**std::vector<cv::Mat>, The first OpenCV mat is the average of the aligned diffraction patterns, the 2nd is the number of OpenCV mats
+**struct align_avg_mats, The first OpenCV mat is the average of the aligned diffraction patterns, the 2nd is the number of OpenCV mats
 **that contributed to each pixel
 */
-std::vector<cv::Mat> align_and_avg(std::vector<cv::Mat> &mats, std::vector<std::array<float, 5>> &positions)
+struct align_avg_mats align_and_avg(std::vector<cv::Mat> &mats, std::vector<std::array<float, 5>> &positions)
 {
 	//Assign memory to store the average of the aligned images and to store the number of contributions to each of its elements
-	std::vector<cv::Mat> aligned_avg(2);
+	struct align_avg_mats aligned_avg;
 
 	//Refine the relative position combinations to get the positions relative to the first image
 	//Index 0 - rows, Index 1 - cols
@@ -61,8 +61,8 @@ std::vector<cv::Mat> align_and_avg(std::vector<cv::Mat> &mats, std::vector<std::
 	}
 
 	//Contain the average of the aligned images and the number of images contributing to each of its elements so that they can be returned
-	aligned_avg[0] = acc;
-	aligned_avg[1] = num_overlap;
+	aligned_avg.acc = acc;
+	aligned_avg.num_overlap = num_overlap;
 
 	return aligned_avg;
 }
