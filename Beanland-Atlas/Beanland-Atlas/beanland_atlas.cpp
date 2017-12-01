@@ -98,12 +98,8 @@ int main()
 	//Align the diffraction patterns to create average diffraction pattern
 	struct align_avg_mats aligned_avg = align_and_avg(mats, rel_pos);
 
-	/*circle.unlock();
-	annulus_fft.unlock();
-	ext_gauss.unlock();*/
-
 	//Get the positions of the spots in the aligned images average
-	std::vector<std::array<int, 2>> spot_pos = get_spot_pos(aligned_avg.acc, annulus_param[0], annulus_param[0], create_annulus_kernel, 
+	std::vector<cv::Point> spot_pos = get_spot_pos(aligned_avg.acc, annulus_param[0], annulus_param[0], create_annulus_kernel, 
 		circle_creator, gauss_kernel, af_queue, aligned_avg.acc.cols, aligned_avg.acc.rows);
 
 	//imshow("af", aligned_avg[0]/1000);

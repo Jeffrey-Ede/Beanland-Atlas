@@ -137,8 +137,25 @@ float wighted_pearson_autocorr(std::vector<float> data, std::vector<float> err, 
 	return ( sum_xy/(data.size()*sum_xy_err) ) / ( std::sqrt( x1 ) * std::sqrt( x2 ) );
 }
 
-//Returns factorial of input integer
+/*Calculates the factorial of a small integer
+**Input:
+**n: long unsigned int, Number to find factorial of
+**Return:
+**long unsigned int, Reciprocal of input
+*/
 long unsigned int factorial(long unsigned int n)
 {
 	return (n == 1 || n == 0) ? 1 : factorial(n - 1) * n;
+}
+
+/*Calculates the power of 2 greater than or equal to the supplied number
+**Inputs:
+**n: int, Number to find the first positive power of 2 greater than or equal to
+**ceil: int, This parameter should not be inputted. It is used to recursively find the power of 2 greater than or equal to the supplied number
+**Return:
+**int, Power of 2 greater than or equal to the input
+*/
+int ceil_power_2(int n, int ceil)
+{
+	return n <= ceil ? ceil : ceil_power_2(n, 2*ceil);
 }

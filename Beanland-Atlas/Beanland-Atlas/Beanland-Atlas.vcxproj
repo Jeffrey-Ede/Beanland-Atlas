@@ -24,6 +24,7 @@
     <ClCompile Include="approx_symmetry_axes.cpp" />
     <ClCompile Include="beanland_atlas.cpp" />
     <ClCompile Include="circ_size_upper_bound.cpp" />
+    <ClCompile Include="developer_helper_func.cpp" />
     <ClCompile Include="get_spot_positions.cpp" />
     <ClCompile Include="img_rel_pos.cpp" />
     <ClCompile Include="kernel_launchers.cpp" />

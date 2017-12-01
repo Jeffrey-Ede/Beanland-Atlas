@@ -44,6 +44,9 @@
 //an annulus after it has been scaled by the image's cross correlation with a circle
 #define IMPULSE_BLUR 0.2
 
+//Proportion of distance between spots to blackout around each spot each time a maximum is found
+#define BLACKOUT_PROP 0.75
+
 //OpenCL
 #include <CL/cl.hpp>
 
@@ -89,7 +92,7 @@
 #include <fftw3.h>
 
 //Possible mirror symmetries
-static const std::array<int, 4> pos_mir_sym = {2, 3, 4, 6};
+static const std::array<int, 4> pos_mir_sym = {2, 3, 4, 6}; //Add to this - see Richard's paper on seabed atlas symmetry
 
 //Input data location
 static const char* inputImagePath = "D:/data/default2.tif";
@@ -222,7 +225,12 @@ cv::Vec2f avg_origin(std::vector<cv::Vec3f> lines);
 */
 cv::Vec2f average_intersection(std::vector<cv::Vec3f> lines);
 
-//Returns factorial of input integer
+/*Calculates the factorial of a small integer
+**Input:
+**n: long unsigned int, Number to find factorial of
+**Return:
+**long unsigned int, Reciprocal of input
+*/
 long unsigned int factorial(long unsigned int n);
 
 /*Utility function that builds a named kernel from source code. Will print errors if there are problems compiling it
@@ -359,6 +367,7 @@ std::vector<std::array<float, 5>> img_rel_pos(std::vector<cv::Mat> &mats, cv::Ma
 af::array recur_conv(af::array &filter, int n);
 
 /*Finds the position of max phase correlation of 2 images from their Fourier transforms
+**Inputs:
 **fft1: af::array &, One of the 2 Fourier transforms
 **fft2: af::array &, Second of the 2 Fourier transforms
 **img_idx1: int, index of the image used to create the first of the 2 Fourier transforms
@@ -398,6 +407,7 @@ af::array create_circle(size_t length, int width, int half_width, int height, in
 af::array prime_img(cv::Mat &img, af::array &annulus_fft, af::array &circle_fft, int mats_rows_af, int mats_cols_af);
 
 /*Align the diffraction patterns using their known relative positions and average over the aligned px
+**Inputs:
 **mats: std::vector<cv::Mat> &, Diffraction patterns to average over the aligned pixels of
 **positions: std::vector<cv::Vec3f> &, Relative positions of the images
 **Return:
@@ -411,6 +421,7 @@ struct align_avg_mats {
 struct align_avg_mats align_and_avg(std::vector<cv::Mat> &mats, std::vector<std::array<float, 5>> &positions);
 
 /*Refine the relative positions of the images using all the known relative positions
+**Inputs:
 **positions: std::vector<cv::Vec2f>, Relative image positions and their weightings
 **Return:
 **std::vector<std::vector<int>>, Relative positions of the images, including the first image, to the first image in the same order as the
@@ -420,6 +431,7 @@ std::vector<std::vector<int>> refine_rel_pos(std::vector<std::array<float, 5>> &
 
 /*Find the positions of the spots in the aligned image average pattern. Most of these spots are made from the contributions of many images
 **so it can be assumed that they are relatively featureless
+**Inputs:
 **align_avg: cv::Mat &, Average values of px in aligned diffraction patterns
 **radius: int, Radius of spots
 **thickness: int, Thickness of annulus to convolve with spots
@@ -431,9 +443,9 @@ std::vector<std::vector<int>> refine_rel_pos(std::vector<std::array<float, 5>> &
 **align_avg_cols: int, Number of columns in the aligned image average pattern OpenCV mat. ArrayFire arrays are transpositional
 **align_avg_rows: int, Number of rows in the aligned image average pattern OpenCV mat. ArrayFire arrays are transpositional
 **Return:
-std::vector<std::array<int, 2>> Positions of spots in the aligned image average pattern
+std::vector<cv::Point> Positions of spots in the aligned image average pattern
 */
-std::vector<std::array<int, 2>> get_spot_pos(cv::Mat &align_avg, int radius, int thickness, cl_kernel annulus_creator, cl_kernel circle_creator, 
+std::vector<cv::Point>  get_spot_pos(cv::Mat &align_avg, int radius, int thickness, cl_kernel annulus_creator, cl_kernel circle_creator, 
 	cl_kernel gauss_creator, cl_command_queue af_queue, int align_avg_cols, int align_avg_rows);
 
 /**Calculates the positions of repeating maxima in noisy data. A peak if the data's Fourier power spectrum is used to 
@@ -447,3 +459,61 @@ std::vector<std::array<int, 2>> get_spot_pos(cv::Mat &align_avg, int radius, int
 **std::vector<int>, Idices of the maxima in the array. The number of maxima is the size of the array
 */
 std::vector<int> repeating_max_loc(std::vector<float> corr, int num_angles, std::array<int, 4> pos_mir_sym);
+
+/*Calculates the power of 2 greater than or equal to the supplied number
+**Inputs:
+**n: int, Number to find the first positive power of 2 greater than or equal to
+**ceil: int, This parameter should not be inputted. It is used to recursively find the power of 2 greater than or equal to the supplied number
+**Return:
+**int, Power of 2 greater than or equal to the input
+*/
+int ceil_power_2(int n, int ceil = 1);
+
+/*Blackens the circle of pixels within a certain radius of a point in a floating point OpenCV mat
+**Inputs:
+**mat: cv::Mat &, Reference to a floating point OpenCV mat to blacken a circle on
+**col: const int, column of circle origin
+**row: const int, row of circle origin
+**rad: const int, radius of the circle to blacken
+*/
+void blacken_circle(cv::Mat &mat, const int col, const int row, const int rad);
+
+/*Display C++ API ArrayFire array
+**Inputs:
+**arr: af::array &, ArrayFire C++ API array to display
+**scale: float, Multiply the array elements by this value before displaying
+**plt_name: char *, Optional name for plot
+**dim0: int, Optional image side size
+**dim1: int, Optional image side size
+*/
+void display_AF(af::array &arr, float scale = 1.0f, char * plt_name = "AF C++ API 2D Plot", int dim0 = 512, int dim1 = 512);
+
+/*Display C API ArrayFire array
+**Inputs:
+**arr: af_array &, ArrayFire C API array to display
+**scale: float, Multiply the array elements by this value before displaying
+**plt_name: char *, Optional name for plot
+**dim0: int, Optional image side size
+**dim1: int, Optional image side size
+*/
+void display_AF(af_array &arr, float scale = 1.0f, char * plt_name = "AF C API 2D Plot", int dim0 = 512, int dim1 = 512);
+
+/*Display OpenCV mat
+**Inputs:
+**mat: cv::Mat &, OpenCV mat to display
+**scale: float, Multiply the mat elements by this value before displaying
+**plt_name: char *, Optional name for plot
+*/
+void display_CV(cv::Mat &mat, float scale = 1.0f, char * plt_name = "OpenCV 2D Plot");
+
+/*Print the size of the first 2 dimensions of a C++ API ArrayFire array
+**Input:
+**arr: af::array &, Arrayfire C++ API array
+*/
+void print_AF_dims(af::array &arr);
+
+/*Print the size of the first 2 dimensions of a C API ArrayFire array
+**Input:
+**arr: af_array &, Arrayfire C API array
+*/
+void print_AF_dims(af_array &arr);
