@@ -4,19 +4,15 @@ namespace ba
 {
 	/*Align the diffraction patterns using their known relative positions and average over the aligned px
 	**mats: std::vector<cv::Mat> &, Diffraction patterns to average over the aligned pixels of
-	**positions: std::vector<cv::Vec3f> &, Relative positions of the images
+	**redined_pos: std::vector<std::vector<int>> &, Relative positions of the images
 	**Return:
 	**struct align_avg_mats, The first OpenCV mat is the average of the aligned diffraction patterns, the 2nd is the number of OpenCV mats
 	**that contributed to each pixel
 	*/
-	struct align_avg_mats align_and_avg(std::vector<cv::Mat> &mats, std::vector<std::array<float, 5>> &positions)
+	struct align_avg_mats align_and_avg(std::vector<cv::Mat> &mats, std::vector<std::vector<int>> &refined_pos)
 	{
 		//Assign memory to store the average of the aligned images and to store the number of contributions to each of its elements
 		struct align_avg_mats aligned_avg;
-
-		//Refine the relative position combinations to get the positions relative to the first image
-		//Index 0 - rows, Index 1 - cols
-		std::vector<std::vector<int>> refined_pos = refine_rel_pos(positions);
 
 		//Get the minimum and maximum relative positions of rows and columns
 		int row_min = refined_pos[0][std::distance(refined_pos[0].begin(), std::min_element(refined_pos[0].begin(), refined_pos[0].end()))];

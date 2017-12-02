@@ -12,5 +12,5 @@
 //Developer utility functions
 #include <developer_utility.h>
 
-//Raw atlas construction
+//Atlas construction
 #include <atlas_construction.h>

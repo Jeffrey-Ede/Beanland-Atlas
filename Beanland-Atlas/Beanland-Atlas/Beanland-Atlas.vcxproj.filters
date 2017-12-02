@@ -57,6 +57,9 @@
     <ClCompile Include="developer_helper_func.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="spot_extraction.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="beanland_atlas.h">

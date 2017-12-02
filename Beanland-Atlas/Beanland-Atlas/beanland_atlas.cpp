@@ -98,12 +98,19 @@ int main()
 	//Find alignment of successive images
 	std::vector<std::array<float, 5>> rel_pos = img_rel_pos(mats, hann_window_LUT, annulus_fft, circle_fft, mats_rows_af, mats_cols_af);
 
+	//Refine the relative position combinations to get the positions relative to the first image
+	//Index 0 - rows, Index 1 - cols
+	std::vector<std::vector<int>> refined_pos = refine_rel_pos(rel_pos);
+
 	//Align the diffraction patterns to create average diffraction pattern
-	struct align_avg_mats aligned_avg = align_and_avg(mats, rel_pos);
+	struct align_avg_mats aligned_avg = align_and_avg(mats, refined_pos);
 
 	//Get the positions of the spots in the aligned images average
 	std::vector<cv::Point> spot_pos = get_spot_pos(aligned_avg.acc, annulus_param[0], annulus_param[0], create_annulus_kernel, 
 		circle_creator, gauss_kernel, af_queue, aligned_avg.acc.cols, aligned_avg.acc.rows);
+
+	//Combine compendiums of each of the spot positions to 
+	std::vector<cv::Mat> map_compendiums = create_spot_maps(mats, spot_pos, refined_pos, 0.8*annulus_param[0]);
 
 	//Free OpenCL resources
 	clFlush(af_queue);	

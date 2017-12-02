@@ -99,8 +99,6 @@ namespace ba
 			//Blacken the brightest spot and find the next brightest
 			blacken_circle(contig_align_avg, maxLoc.x, maxLoc.y, ubound/2);
 
-			ba::display_CV(contig_align_avg, 1e-3);
-
 			//Load the blackened image onto the GPU
 			af::array blackened_af(cols, rows, (float*)contig_align_avg.data);
 
@@ -134,13 +132,12 @@ namespace ba
 		//Extract the lattice vectors
 		std::vector<cv::Vec2i> lattice_vectors = get_lattice_vectors(positions);
 
+		std::cout << lattice_vectors[0][0] << ", " <<  lattice_vectors[0][1] << ", " <<  lattice_vectors[1][0] << ", " <<  lattice_vectors[1][1] << std::endl;
+
 		//Use the lattice vectors to find additional spots in the aligned images average px values pattern
 		find_other_spots(xcorr, positions, lattice_vectors, align_avg_cols, align_avg_rows, radius);
 
-		//Remove or correct any outlier spots
-		check_spot_pos(positions);
-
-		for (int i = 0; i <= search_num; i++)
+		/*for (int i = 0; i <= search_num; i++)
 		{
 			std::cout << positions[i] << std::endl;
 		}
@@ -152,7 +149,18 @@ namespace ba
 			std::cout << positions[i] << std::endl;
 		}
 
-		std::getchar();
+		std::getchar();*/
+
+		//Remove or correct any outlier spots
+		check_spot_pos(positions);
+
+		//Rescale the spot positions to the origninal dimensions of the aligned average image
+        #pragma omp parallel for
+		for (int i = 0; i < positions.size(); i++)
+		{
+			positions[i].x = (positions[i].x * align_avg_cols) / cols;
+			positions[i].y = (positions[i].y * align_avg_rows) / rows;
+		}
 
 		//Free memory
 		free(xcorr_data);
@@ -212,7 +220,6 @@ namespace ba
 		int min_pair_dy;
 
 		//Get the relative positions of all the spots
-		#pragma omp parallel for
 		for (int i = 0; i < positions.size(); i++)
 		{
 			for (int j = i+1; j < positions.size(); j++)
@@ -222,16 +229,11 @@ namespace ba
 				int dy = positions[i].y - positions[j].y;
 
 				//If this is the minimum separation so far, record its parameters
-				#pragma omp flush(min_pair_sep)
 				if (std::sqrt(dx*dx + dy*dy) < min_pair_sep)
 				{
-					#pragma omp critical
-					if (std::sqrt(dx*dx + dy*dy) < min_pair_sep)
-					{
-						min_pair_sep = std::sqrt(dx*dx + dy*dy);
-						min_pair_dx = dx;
-						min_pair_dy = dy;
-					}
+					min_pair_sep = std::sqrt(dx*dx + dy*dy);
+					min_pair_dx = dx;
+					min_pair_dy = dy;
 				}
 			}
 		}
@@ -246,7 +248,6 @@ namespace ba
 		min_pair_sep = INT_MAX; //A very large value so that first comparison will be stored as the minimum separation
 
 		//Get the relative positions of all the spots
-		#pragma omp parallel for
 		for (int i = 0; i < positions.size(); i++)
 		{
 			for (int j = i+1; j < positions.size(); j++)
@@ -259,23 +260,16 @@ namespace ba
 				float sep = std::sqrt(dx*dx + dy*dy);
 
 				//Consider recording if this is the minimum separation so far
-				#pragma omp flush(min_pair_sep)
 				if (sep < min_pair_sep)
 				{
-					#pragma omp critical
-					{
-						if (sep < min_pair_sep)
-						{
-							float angle2 = std::acos(dx / sep);
+					float angle2 = std::acos(dx / sep);
 				
-							//If the angle of this lattice vector is sufficiently different to the previous, record it
-							if (std::abs(angle2 - angle) > LATTICE_VECT_DIR_DIFF)
-							{
-								min_pair_sep = std::sqrt(dx*dx + dy*dy);
-								min_pair_dx = dx;
-								min_pair_dy = dy;
-							}
-						}
+					//If the angle of this lattice vector is sufficiently different to the previous, record it
+					if (std::abs(angle2 - angle) > LATTICE_VECT_DIR_DIFF)
+					{
+						min_pair_sep = std::sqrt(dx*dx + dy*dy);
+						min_pair_dx = dx;
+						min_pair_dy = dy;
 					}
 				}
 			}
@@ -311,12 +305,15 @@ namespace ba
 		int max_vect2 = 1;
 		int min_vect2 = -1;
 
+		std::cout << positions[0].x << ", " << positions[0].y << ", " << std::endl;
+
 		#pragma omp parallel sections
 		{
 			#pragma omp section
 			{
 				//Calculate the maximum multiple of the first lattice vector from the central spot that is in range
-				while (max_vect1*lattice_vectors[0][0] + positions[0].x < cols && max_vect1*lattice_vectors[0][1] + positions[0].y < rows)
+				while (max_vect1*lattice_vectors[0][0] + positions[0].x < cols && max_vect1*lattice_vectors[0][1] + positions[0].y < rows &&
+					max_vect1*lattice_vectors[0][0] + positions[0].x >= 0 && max_vect1*lattice_vectors[0][1] + positions[0].y >= 0)
 				{
 					max_vect1++;
 				}
@@ -325,7 +322,8 @@ namespace ba
 			#pragma omp section
 			{
 				//Calculate the minimum multiple of the first lattice vector from the central spot that is in range
-				while ( min_vect1*lattice_vectors[0][0] + positions[0].x > 0 && min_vect1*lattice_vectors[0][1] + positions[0].y > 0)
+				while (min_vect1*lattice_vectors[0][0] + positions[0].x < cols && min_vect1*lattice_vectors[0][1] + positions[0].y < rows &&
+					min_vect1*lattice_vectors[0][0] + positions[0].x >= 0 && min_vect1*lattice_vectors[0][1] + positions[0].y >= 0)
 				{
 					min_vect1--;
 				}
@@ -334,7 +332,8 @@ namespace ba
 			#pragma omp section
 			{
 				//Calculate the maximum multiple of the second lattice vector from the central spot that is in range
-				while (max_vect2*lattice_vectors[1][0] + positions[0].x < cols && max_vect2*lattice_vectors[1][1] + positions[0].y < rows) 
+				while (max_vect2*lattice_vectors[1][0] + positions[0].x < cols && max_vect2*lattice_vectors[1][1] + positions[0].y < rows && 
+					max_vect2*lattice_vectors[1][0] + positions[0].x >= 0 && max_vect2*lattice_vectors[1][1] + positions[0].y >= 0) 
 				{
 					max_vect2++;
 				}
@@ -343,15 +342,18 @@ namespace ba
 			#pragma omp section
 			{
 				//Calculate the minimum multiple of the second lattice vector from the central spot that is in range
-				while (min_vect2*lattice_vectors[1][0] + positions[0].x > 0 && min_vect2*lattice_vectors[1][1] + positions[0].y > 0) 
+				while (min_vect2*lattice_vectors[1][0] + positions[0].x < cols && min_vect2*lattice_vectors[1][1] + positions[0].y < rows && 
+					min_vect2*lattice_vectors[1][0] + positions[0].x >= 0 && min_vect2*lattice_vectors[1][1] + positions[0].y >= 0) 
 				{
 					min_vect2--;
 				}
 			}
 		}
 
+		std::cout << min_vect1 << ", " << min_vect2 << ", " << max_vect1 << ", " << max_vect2 << std::endl;
+		std::cout << lattice_vectors[0][0] << ", " << lattice_vectors[0][1] << ", " << lattice_vectors[1][0] << ", " << lattice_vectors[1][1] << std::endl;
+
 		//Iterate across multiples of the first lattice vector
-		#pragma omp parallel for
 		for (int i = min_vect1; i <= max_vect1; i++)
 		{
 			//Iterate across multiples of the second lattice vector
@@ -363,7 +365,7 @@ namespace ba
 
 				//Check that a spot has not already been located in in the region
 				bool pos_not_loc = true;
-				for (int k = 0; k < init_num_pos; k++)
+				for (int k = 0; k < positions.size(); k++)
 				{
 					if (std::sqrt((col - positions[k].x)*(col - positions[k].x) + (row - positions[k].y)*(row - positions[k].y)) <= search_radius)
 					{
@@ -411,7 +413,6 @@ namespace ba
 					}
 
 					//Store the position of the maximum
-					#pragma omp critical
 					positions.push_back(cv::Point(max_idx_row, max_idx_col));
 				}
 			}

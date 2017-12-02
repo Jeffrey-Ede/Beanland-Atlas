@@ -38,14 +38,14 @@ namespace ba
 			positions[i] = max_phase_corr(primed_fft, primed_fft_prev, i, 0);
 
 			//Correct coordinates: phase correlation in the negative direction shows up in the second half of the image
-			if (positions[i-1][0] >= 128)
+			if (positions[i][0] >= 128)
 			{
-				positions[i-1][0] -= 255;
+				positions[i][0] -= 255;
 			}
 
-			if (positions[i-1][1] >= 128)
+			if (positions[i][1] >= 128)
 			{
-				positions[i-1][1] -= 255;
+				positions[i][1] -= 255;
 			}
 		}
 
@@ -57,7 +57,7 @@ namespace ba
 	**filter: af::array &, Filter to recursively convolved with its own convolution
 	**n: int, The number of times the filter is recursively convolved with itself
 	**Return:
-	**af::array, Fourier domain matrix that can be elemtwise with another fft to recursively convolute it with a filter n times
+	**af::array, Fourier domain matrix that can be elementwise with another fft to recursively convolute it with a filter n times
 	*/
 	af::array recur_conv(af::array &filter, int n)
 	{

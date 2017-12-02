@@ -300,9 +300,8 @@ namespace ba
 	af::array prime_img(cv::Mat &img, af::array &annulus_fft, af::array &circle_fft, int mats_rows_af, int mats_cols_af);
 
 	/*Align the diffraction patterns using their known relative positions and average over the aligned px
-	**Inputs:
 	**mats: std::vector<cv::Mat> &, Diffraction patterns to average over the aligned pixels of
-	**positions: std::vector<cv::Vec3f> &, Relative positions of the images
+	**redined_pos: std::vector<std::vector<int>> &, Relative positions of the images to the first image
 	**Return:
 	**struct align_avg_mats, The first OpenCV mat is the average of the aligned diffraction patterns, the 2nd is the number of OpenCV mats
 	**that contributed to each pixel
@@ -311,7 +310,7 @@ namespace ba
 		cv::Mat acc;
 		cv::Mat num_overlap;
 	};
-	struct align_avg_mats align_and_avg(std::vector<cv::Mat> &mats, std::vector<std::array<float, 5>> &positions);
+	struct align_avg_mats align_and_avg(std::vector<cv::Mat> &mats, std::vector<std::vector<int>> &refined_pos);
 
 	/*Refine the relative positions of the images using all the known relative positions
 	**Inputs:
@@ -396,4 +395,18 @@ namespace ba
 	**positions: std::vector<cv::Point>, Positions of located spots
 	*/
 	void check_spot_pos(std::vector<cv::Point> &positions);
+
+	/*Combine the k spaces mapped out by spots in each of the images create maps of the whole k space navigated by that spot.
+	**Individual maps are summed together. The total map is then divided by the number of spot k space maps contributing to 
+	**each px in the total map.
+	**Inputs:
+	**mats: std::vector<cv::Mat> &, Individual images to extract spots from
+	**spot_pos: std::vector<cv::Point>, Positions of located spots in aligned diffraction pattern
+	**rel_pos: std::vector<std::array<int, 2>> &, Relative positions of images
+	**radius: const int, Radius about the spot locations to extract pixels from
+	**Returns:
+	**std::vector<cv::Mat>, k space mapped out by each spot
+	*/
+	std::vector<cv::Mat> create_spot_maps(std::vector<cv::Mat> &mats, std::vector<cv::Point> &spot_pos,
+		std::vector<std::vector<int>> &rel_pos, const int radius);
 }
