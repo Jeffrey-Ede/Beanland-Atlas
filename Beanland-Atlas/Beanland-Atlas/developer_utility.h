@@ -1,4 +1,4 @@
-#include <beanland_atlas.h>
+#pragma once
 
 namespace ba
 {
@@ -10,14 +10,7 @@ namespace ba
 	**dim0: int, Optional image side size
 	**dim1: int, Optional image side size
 	*/
-	void display_AF(af::array &arr, float scale, char * plt_name, int dim0, int dim1)
-	{
-		af::Window window(dim0, dim1, plt_name);
-		do
-		{
-			window.image(arr.as(f32)*scale);
-		} while( !window.close() );
-	}
+	void display_AF(af::array &arr, float scale = 1.0f, char * plt_name = "AF C++ API 2D Plot", int dim0 = 512, int dim1 = 512);
 
 	/*Display C API ArrayFire array
 	**Inputs:
@@ -27,14 +20,7 @@ namespace ba
 	**dim0: int, Optional image side size
 	**dim1: int, Optional image side size
 	*/
-	void display_AF(af_array &arr, float scale, char * plt_name, int dim0, int dim1)
-	{
-		af::Window window(dim0, dim1, plt_name);
-		do
-		{
-			window.image(af::array(arr).as(f32)*scale);
-		} while( !window.close() );
-	}
+	void display_AF(af_array &arr, float scale = 1.0f, char * plt_name = "AF C API 2D Plot", int dim0 = 512, int dim1 = 512);
 
 	/*Display OpenCV mat
 	**Inputs:
@@ -42,31 +28,17 @@ namespace ba
 	**scale: float, Multiply the mat elements by this value before displaying
 	**plt_name: char *, Optional name for plot
 	*/
-	void display_CV(cv::Mat &mat, float scale, char * plt_name)
-	{
-		//Set up the window to be resizable while keeping its aspect ratio
-		cv::namedWindow( plt_name, cv::WINDOW_NORMAL | cv::WINDOW_KEEPRATIO );
-
-		//Show the OpenCV mat
-		cv::imshow( plt_name, mat*scale );
-		cv::waitKey(0);
-	}
+	void display_CV(cv::Mat &mat, float scale = 1.0f, char * plt_name = "OpenCV 2D Plot");
 
 	/*Print the size of the first 2 dimensions of a C++ API ArrayFire array
 	**Input:
 	**arr: af::array &, Arrayfire C++ API array
 	*/
-	void print_AF_dims(af::array &arr)
-	{
-		printf("dims = [%lld %lld]\n", arr.dims(0), arr.dims(1));
-	}
+	void print_AF_dims(af::array &arr);
 
 	/*Print the size of the first 2 dimensions of a C API ArrayFire array
 	**Input:
 	**arr: af_array &, Arrayfire C API array
 	*/
-	void print_AF_dims(af_array &arr)
-	{
-		printf("dims = [%lld %lld]\n", af::array(arr).dims(0), af::array(arr).dims(1));
-	}
+	void print_AF_dims(af_array &arr);
 }

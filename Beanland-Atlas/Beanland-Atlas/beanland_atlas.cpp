@@ -1,5 +1,8 @@
 #include <beanland_atlas.h>
 
+//Use Beanland Atlas library functions
+using namespace ba;
+
 int main()
 {
 	//Get number of concurrent processors. Use same number of threads
@@ -101,10 +104,6 @@ int main()
 	//Get the positions of the spots in the aligned images average
 	std::vector<cv::Point> spot_pos = get_spot_pos(aligned_avg.acc, annulus_param[0], annulus_param[0], create_annulus_kernel, 
 		circle_creator, gauss_kernel, af_queue, aligned_avg.acc.cols, aligned_avg.acc.rows);
-
-	//imshow("af", aligned_avg[0]/1000);
-
-	//cv::waitKey(0);
 
 	//Free OpenCL resources
 	clFlush(af_queue);	
