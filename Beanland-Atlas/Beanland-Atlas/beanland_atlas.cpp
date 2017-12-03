@@ -21,7 +21,10 @@ int main()
 	//Read in the image stack
 	std::vector<cv::Mat> mats;
 	imreadmulti(inputImagePath, mats, CV_LOAD_IMAGE_UNCHANGED);
-	
+
+	//Preprocess the image stack. At the moment, this just involves median filtering and resizing the images
+	//preprocess(mats, PREPROC_MED_FILT_SIZE);
+
 	//Create OpenCL context and queue for GPU acceleration 
 	cl::Context context(CL_DEVICE_TYPE_GPU);
 	std::vector<cl::Device> devices = context.getInfo<CL_CONTEXT_DEVICES>();
@@ -111,9 +114,9 @@ int main()
 
 	//Combine the compendiums of maps mapped out by each spot to create maps showing the whole k spaces surveyed by each of the spots,
 	//then combine these surveys into an atlas to show the whole k space mapped out
-	cv::Mat raw_atlas = create_spot_maps(mats, spot_pos, refined_pos, 0.8*annulus_param[0]);
+	cv::Mat raw_atlas = create_spot_maps(mats, spot_pos, refined_pos, 0.8*annulus_param[0], annulus_param[0]+2*annulus_param[1]);
 
-	display_CV(raw_atlas, 1e3);
+	display_CV(raw_atlas, 1e-3);
 
 	//Free OpenCL resources
 	clFlush(af_queue);	

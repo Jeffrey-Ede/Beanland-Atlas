@@ -10,11 +10,12 @@ namespace ba
 	**spot_pos: std::vector<cv::Point>, Positions of located spots in aligned diffraction pattern
 	**rel_pos: std::vector<std::vector<int>> &, Relative positions of images
 	**radius: const int, Radius about the spot locations to extract pixels from
+	**ns_radius: const int, Radius to Navier-Stokes infill when removing the diffuse background
 	**Returns:
 	**cv::Mat, Atlas showing the k space surveyed by each of the spots
 	*/
 	cv::Mat create_spot_maps(std::vector<cv::Mat> &mats, std::vector<cv::Point> &spot_pos, std::vector<std::vector<int>> &rel_pos,
-		const int radius)
+		const int radius, const int ns_radius)
 	{
 		//Initialise vectors of OpenCV mats to hold individual paths and number of contributions to those paths
 		std::vector<cv::Mat> indv_maps(spot_pos.size());
@@ -66,15 +67,37 @@ namespace ba
 		}
 
 		//Find position of spots in each micrograph;
-        #pragma omp parallel for
+        //#pragma omp parallel for
 		for (int j = 0; j < mats.size(); j++) {
+
+			///Mask to mark the positions of all the spots to be Navier-Stokes infilled on the micrograph
+			cv::Mat ns_mask = cv::Mat::zeros(mats[j].size(), CV_8UC1);
 		
-			//For each spot
-			for (int k = 0; k < spot_pos.size(); k++) {
-		
+			//Use Navier-Stokes infilling to remove the diffuse background from the micrographs
+			//Start by creating a mask that marks out the regions to infill
+			for (int k = 0; k < spot_pos.size(); k++) 
+			{
 				if (spot_pos[k].y >= row_max-rel_pos[1][j] && spot_pos[k].y < row_max-rel_pos[1][j]+mats[j].rows &&
-					spot_pos[k].x >= col_max-rel_pos[0][j] && spot_pos[k].x < col_max-rel_pos[0][j]+mats[j].cols) {
-		
+					spot_pos[k].x >= col_max-rel_pos[0][j] && spot_pos[k].x < col_max-rel_pos[0][j]+mats[j].cols) 
+				{
+					//Draw circle at the position of the spot on the mask
+					cv::Point circleCenter(spot_pos[k].x-col_max+rel_pos[0][j], spot_pos[k].y-row_max+rel_pos[1][j]);
+					cv::circle(ns_mask, circleCenter, ns_radius, cv::Scalar(1), -1, 8, 0);
+				}
+			}
+
+			//Create Navier-Stokes inpainted diffraction pattern
+			cv::Mat ns_inpainted = cv::Mat::zeros(mats[j].size(), CV_32FC1);
+			cv::inpaint(mats[j], ns_mask, ns_inpainted, 3, cv::INPAINT_NS);
+
+			cv::Mat ns_subtracted = mats[j] - ns_inpainted;
+
+			//For each spot
+			for (int k = 0; k < spot_pos.size(); k++)
+			{		
+				if (spot_pos[k].y >= row_max-rel_pos[1][j] && spot_pos[k].y < row_max-rel_pos[1][j]+mats[j].rows &&
+					spot_pos[k].x >= col_max-rel_pos[0][j] && spot_pos[k].x < col_max-rel_pos[0][j]+mats[j].cols)
+				{
 					///Mask to extract spot from micrograph
 					cv::Mat circ_mask = cv::Mat::zeros(mats[j].size(), CV_8UC1);
 		
@@ -84,21 +107,21 @@ namespace ba
 		
 					//Copy the part of the micrograph containing the spot
 					cv::Mat imagePart = cv::Mat::zeros(mats[j].size(), mats[j].type());
-					mats[j].copyTo(imagePart, circ_mask);
+					ns_subtracted.copyTo(imagePart, circ_mask);
 		
 					//Compend spot to map
 					float *r;
 					ushort *s;
 					ushort *t;
 					byte *u;
-					for (int m = 0; m < indv_num_mappers[k].rows; m++) {
-		
+					for (int m = 0; m < indv_num_mappers[k].rows; m++) 
+					{
 						r = indv_maps[k].ptr<float>(m);
 						s = indv_num_mappers[k].ptr<ushort>(m);
 						t = imagePart.ptr<ushort>(m);
 						u = circ_mask.ptr<byte>(m);
-						for (int n = 0; n < indv_num_mappers[k].cols; n++) {
-		
+						for (int n = 0; n < indv_num_mappers[k].cols; n++) 
+						{
 							//Add contributing pixels to maps
 							r[n] += t[n];
 							s[n] += u[n];
@@ -115,12 +138,12 @@ namespace ba
 			//Divide non-zero accumulator matrix pixel values by number of overlapping contributing micrographs
 			float *r;
 			ushort *s;
-			for (int m = 0; m < indv_num_mappers[k].rows; m++) {
-		
+			for (int m = 0; m < indv_num_mappers[k].rows; m++) 
+			{
 				r = indv_maps[k].ptr<float>(m);
 				s = indv_num_mappers[k].ptr<ushort>(m);
-				for (int n = 0; n < indv_num_mappers[k].cols; n++) {
-		
+				for (int n = 0; n < indv_num_mappers[k].cols; n++) 
+				{
 					//Divide pixels contributed to by the number of contributing pixels
 					if (s[n]) {
 						r[n] /= s[n];
@@ -265,8 +288,6 @@ namespace ba
 			//Calculate where to position the survey
 			int row = (int)(pos_scaler*(spot_pos[k].y - row_min));
 			int col = (int)(pos_scaler*(spot_pos[k].x - col_min));
-
-			std::cout << spot_pos[k].y << ", " << row_min << ", " << spot_pos[k].x << ", " << col_min << std::endl;
 		
 			//Compend the survey in the atlas
 			cv::Rect roi = cv::Rect(col, row, 2*radius+rows_diff, 2*radius+cols_diff);		

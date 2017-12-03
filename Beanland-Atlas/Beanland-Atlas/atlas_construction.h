@@ -404,11 +404,12 @@ namespace ba
 	**spot_pos: std::vector<cv::Point>, Positions of located spots in aligned diffraction pattern
 	**rel_pos: std::vector<std::vector<int>> &, Relative positions of images
 	**radius: const int, Radius about the spot locations to extract pixels from
+	**ns_radius: const int, Radius to Navier-Stokes infill when removing the diffuse background
 	**Returns:
 	**cv::Mat, Atlas showing the k space surveyed by each of the spots
 	*/
 	cv::Mat create_spot_maps(std::vector<cv::Mat> &mats, std::vector<cv::Point> &spot_pos, std::vector<std::vector<int>> &rel_pos,
-		const int radius);
+		const int radius, const int ns_radius);
 
 	/*Combines individual spots' surveys of k space into a single atlas. Surveys are positioned proportionally to their spot's position in 
 	**the aligned average px values pattern
@@ -422,4 +423,11 @@ namespace ba
 	cv::Mat, Atlas of the k space surveyed by the diffraction spots
 	*/
 	cv::Mat create_raw_atlas(std::vector<cv::Mat> &surveys, std::vector<cv::Point> &spot_pos, int radius, int cols_diff, int rows_diff);
+
+	///*Preprocess each of the images by applying a bilateral filter and resizing them
+	//**Inputs:
+	//**mats: std::vector<cv::Mat> &, Individual images to preprocess
+	//**med_filt_size: int, Size of median filter
+	//*/
+	//void preprocess(std::vector<cv::Mat> &mats, int med_filt_size);
 }
