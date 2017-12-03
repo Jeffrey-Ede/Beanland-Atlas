@@ -132,24 +132,8 @@ namespace ba
 		//Extract the lattice vectors
 		std::vector<cv::Vec2i> lattice_vectors = get_lattice_vectors(positions);
 
-		std::cout << lattice_vectors[0][0] << ", " <<  lattice_vectors[0][1] << ", " <<  lattice_vectors[1][0] << ", " <<  lattice_vectors[1][1] << std::endl;
-
 		//Use the lattice vectors to find additional spots in the aligned images average px values pattern
-		find_other_spots(xcorr, positions, lattice_vectors, align_avg_cols, align_avg_rows, radius);
-
-		/*for (int i = 0; i <= search_num; i++)
-		{
-			std::cout << positions[i] << std::endl;
-		}
-
-		std::cout << "---------------------------------" << std::endl;
-
-		for (int i = search_num+1; i < positions.size(); i++)
-		{
-			std::cout << positions[i] << std::endl;
-		}
-
-		std::getchar();*/
+		//find_other_spots(xcorr, positions, lattice_vectors, align_avg_cols, align_avg_rows, radius);
 
 		//Remove or correct any outlier spots
 		check_spot_pos(positions);
@@ -305,8 +289,6 @@ namespace ba
 		int max_vect2 = 1;
 		int min_vect2 = -1;
 
-		std::cout << positions[0].x << ", " << positions[0].y << ", " << std::endl;
-
 		#pragma omp parallel sections
 		{
 			#pragma omp section
@@ -350,9 +332,6 @@ namespace ba
 			}
 		}
 
-		std::cout << min_vect1 << ", " << min_vect2 << ", " << max_vect1 << ", " << max_vect2 << std::endl;
-		std::cout << lattice_vectors[0][0] << ", " << lattice_vectors[0][1] << ", " << lattice_vectors[1][0] << ", " << lattice_vectors[1][1] << std::endl;
-
 		//Iterate across multiples of the first lattice vector
 		for (int i = min_vect1; i <= max_vect1; i++)
 		{
@@ -377,43 +356,8 @@ namespace ba
 				//If the lattice point is in the image
 				if (pos_not_loc && row >= 0 && row < rows && col >= 0 && col < cols)
 				{
-					//Look for maximum value within a specified radius of the point
-					int min_col = std::max(0, col-search_radius);
-					int max_col = std::min(xcorr.cols-1, col+search_radius);
-					int min_row = std::max(0, row-search_radius);
-					int max_row = std::min(xcorr.rows-1, row+search_radius);
-
-					//Prepare to store information about the maximum
-					float max_val = 0.0f;
-					int max_idx_row;
-					int max_idx_col;
-
-					//Iterate accross the circle rows
-					float *p;
-					for (int m = min_row, rel_row = -search_radius; m <= max_row; m++, rel_row++)
-					{
-						//Create C style pointer to interate across the circle with
-						p = xcorr.ptr<float>(m);
-
-						//Get columns to iterate between
-						int c = (int)std::sqrt(search_radius*search_radius-rel_row*rel_row);
-						int min = std::max(min_col, col-c);
-						int max = std::min(max_col, col+c);
-
-						//Iterate across the circle columns
-						for (int n = min; n <= max; n++)
-						{
-							if (p[j] > max_val)
-							{
-								max_val = p[j];
-								max_idx_row = m;
-								max_idx_col = n;
-							}
-						}
-					}
-
-					//Store the position of the maximum
-					positions.push_back(cv::Point(max_idx_row, max_idx_col));
+					//Store the position
+					positions.push_back(cv::Point(row, col));
 				}
 			}
 		}

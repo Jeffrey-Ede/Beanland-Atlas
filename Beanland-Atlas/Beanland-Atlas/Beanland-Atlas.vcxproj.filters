@@ -65,13 +65,7 @@
     <ClInclude Include="beanland_atlas.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="definitions.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="includes.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="static_declarations.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="developer_utility.h">

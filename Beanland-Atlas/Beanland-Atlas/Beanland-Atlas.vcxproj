@@ -37,10 +37,8 @@
   <ItemGroup>
     <ClInclude Include="atlas_construction.h" />
     <ClInclude Include="beanland_atlas.h" />
-    <ClInclude Include="definitions.h" />
     <ClInclude Include="developer_utility.h" />
     <ClInclude Include="includes.h" />
-    <ClInclude Include="static_declarations.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="create_annulus.cl" />

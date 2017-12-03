@@ -30,7 +30,6 @@ namespace ba
 		cv::Rect roi;
 
 		//Accumulate each image
-		#pragma omp parallel for
 		for (int i = 0; i < mats.size(); i++) {
 			
 			//Position of image in larger image

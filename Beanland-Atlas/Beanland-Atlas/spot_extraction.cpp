@@ -4,16 +4,16 @@ namespace ba
 {
 	/*Combine the k spaces mapped out by spots in each of the images create maps of the whole k space navigated by that spot.
 	**Individual maps are summed together. The total map is then divided by the number of spot k space maps contributing to 
-	**each px in the total map.
+	**each px in the total map. These maps are then combined into an atlas
 	**Inputs:
 	**mats: std::vector<cv::Mat> &, Individual images to extract spots from
 	**spot_pos: std::vector<cv::Point>, Positions of located spots in aligned diffraction pattern
 	**rel_pos: std::vector<std::vector<int>> &, Relative positions of images
 	**radius: const int, Radius about the spot locations to extract pixels from
 	**Returns:
-	**std::vector<cv::Mat>, k space mapped out by each spot
+	**cv::Mat, Atlas showing the k space surveyed by each of the spots
 	*/
-	std::vector<cv::Mat> create_spot_maps(std::vector<cv::Mat> &mats, std::vector<cv::Point> &spot_pos, std::vector<std::vector<int>> &rel_pos,
+	cv::Mat create_spot_maps(std::vector<cv::Mat> &mats, std::vector<cv::Point> &spot_pos, std::vector<std::vector<int>> &rel_pos,
 		const int radius)
 	{
 		//Initialise vectors of OpenCV mats to hold individual paths and number of contributions to those paths
@@ -21,32 +21,32 @@ namespace ba
 		std::vector<cv::Mat> indv_num_mappers(spot_pos.size());
 	
 		//Get the maximum relative rows and columns and the difference between the maximum and minimum rows and columns
-		int col_max = 0, row_max = 0, col_min = 0, row_min = 0;
+		int col_max = 0, row_max = 0, col_min = INT_MAX, row_min = INT_MAX;
         #pragma omp parallel for reduction(max:col_max), reduction(max:row_max), reduction(min:col_min), reduction(min:row_min)
 		for (int i = 0; i < rel_pos[0].size(); i++)
 		{
-			//Minimum column
+			//Minimum relitive position column
 			if (rel_pos[0][i] < col_min)
 			{
 				col_min = rel_pos[0][i];
 			}
 			else
 			{
-				//Maximum column
+				//Maximum relative position column
 				if (rel_pos[0][i] > col_max)
 				{
 					col_max = rel_pos[0][i];
 				}
 			}
 
-			//Minimum row
+			//Minimum relative position row
 			if (rel_pos[1][i] < row_min)
 			{
 				row_min = rel_pos[1][i];
 			}
 			else
 			{
-				//Maximum row
+				//Maximum relaive position row
 				if (rel_pos[1][i] > row_max)
 				{
 					row_max = rel_pos[1][i];
@@ -71,9 +71,6 @@ namespace ba
 		
 			//For each spot
 			for (int k = 0; k < spot_pos.size(); k++) {
-
-				/*std::cout << spot_pos[k].y << ", " << row_max << ", " << rel_pos[1][j] << ", " << mats[j].rows << std::endl;
-				std::cout << spot_pos[k].x << ", " << col_max << ", " << rel_pos[0][j] << ", " << mats[j].cols << std::endl;*/
 		
 				if (spot_pos[k].y >= row_max-rel_pos[1][j] && spot_pos[k].y < row_max-rel_pos[1][j]+mats[j].rows &&
 					spot_pos[k].x >= col_max-rel_pos[0][j] && spot_pos[k].x < col_max-rel_pos[0][j]+mats[j].cols) {
@@ -133,7 +130,7 @@ namespace ba
 		}
 		
 		//Crop maps so that they only contain the paths mapped out by the spots
-		std::vector<cv::Mat> cropped_maps(spot_pos.size());
+		std::vector<cv::Mat> surveys(spot_pos.size());
         #pragma omp parallel for
 		for (int k = 0; k < spot_pos.size(); k++) {
 				
@@ -184,20 +181,98 @@ namespace ba
 			cv::Rect roi_crop = cv::Rect(x_pad, y_pad, x_2-x, y_2-y);
 		
 			//Cropped map
-			cropped_maps[k] = cv::Mat(cols_diff+2*radius, rows_diff+2*radius, CV_32FC1, cv::Scalar(0.0));
-			indv_maps[k](roi_map).copyTo(cropped_maps[k](roi_crop));
+			surveys[k] = cv::Mat(cols_diff+2*radius, rows_diff+2*radius, CV_32FC1, cv::Scalar(0.0));
+			indv_maps[k](roi_map).copyTo(surveys[k](roi_crop));
 		}
 
-		for (int i = 0; i < cropped_maps.size(); i++)
+		return create_raw_atlas(surveys, spot_pos, radius, cols_diff, rows_diff);
+	}
+
+	/*Combines individual spots' surveys of k space into a single atlas. Surveys are positioned proportionally to their spot's position in 
+	**the aligned average px values pattern
+	**Inputs:
+	**surveys: std::vector<cv::Mat> &, Surveys of k space made by each spot
+	**spot_pos: std::vector<cv::Point> &, Positions of spots in aligned average image
+	**radius: int, Radius of the spots being used
+	**cols_diff: int, Difference between the minimum and maximum spot columns
+	**rows_diff: int, Difference between the minimum and maximum spot rows
+	**Return:
+	cv::Mat, Atlas of the k space surveyed by the diffraction spots
+	*/
+	cv::Mat create_raw_atlas(std::vector<cv::Mat> &surveys, std::vector<cv::Point> &spot_pos, int radius, int cols_diff, int rows_diff)
+	{
+		//Find spots with minimum value for the maximum value of their row or column separations
+		float min_sep = INT_MAX;
+	    #pragma omp parallel for reduction(min:min_sep)
+		for (int m = 0; m < spot_pos.size(); m++) {
+			for (int n = m+1; n < spot_pos.size(); n++) {
+					
+				//Check if the maximum row or column value is smaller than the minimum
+				float new_min = std::max(std::abs(spot_pos[m].y - spot_pos[n].y), std::abs(spot_pos[m].x - spot_pos[n].x));
+				if (new_min < min_sep) {
+					min_sep = new_min;
+				}
+			}
+		}
+
+		//Get the maximum rows and columns of the spots in the aligned average image
+		int col_max = 0, row_max = 0, col_min = INT_MAX, row_min = INT_MAX;
+        #pragma omp parallel for reduction(max:col_max), reduction(max:row_max), reduction(min:col_min), reduction(min:row_min)
+		for (int i = 0; i < spot_pos.size(); i++)
 		{
-			double max;
-			cv::minMaxLoc(cropped_maps[i], NULL, &max, NULL, NULL);
+			//Minimum spot position column
+			if (spot_pos[i].x < col_min)
+			{
+				col_min = spot_pos[i].x;
+			}
+			else
+			{
+				//Maximum spot position column
+				if (spot_pos[i].x > col_max)
+				{
+					col_max = spot_pos[i].x;
+				}
+			}
 
-			std::cout << max << std::endl;
-
-			display_CV(cropped_maps[i], 2e-3);
+			//Minimum spot position row
+			if (spot_pos[i].y < row_min)
+			{
+				row_min = spot_pos[i].y;
+			}
+			else
+			{
+				//Maximum spot position row
+				if (spot_pos[i].y > row_max)
+				{
+					row_max = spot_pos[i].y;
+				}
+			}
 		}
 
-		return cropped_maps;
+		//Factor to scale positions by so that individual surveys will be positions proportionally their spot's position in the aligned pattern
+		float pos_scaler = (2*radius + std::max(rows_diff, cols_diff)) / min_sep;
+		
+		//Use maximum separation of spots to find size of final image
+		int maps_cols = std::ceil(pos_scaler*(row_max - row_min)) + 2*radius + cols_diff;
+		int maps_rows = std::ceil(pos_scaler*(col_max - col_min)) + 2*radius + rows_diff;
+		
+		//Create atlas
+		cv::Mat raw_atlas = cv::Mat(maps_cols, maps_rows, CV_32FC1, cv::Scalar(0.0));
+		
+		//Position each survey proportionally to its spot position in the amalgamation
+		for (int k = 0; k < spot_pos.size(); k++) {
+		
+			//Calculate where to position the survey
+			int row = (int)(pos_scaler*(spot_pos[k].y - row_min));
+			int col = (int)(pos_scaler*(spot_pos[k].x - col_min));
+
+			std::cout << spot_pos[k].y << ", " << row_min << ", " << spot_pos[k].x << ", " << col_min << std::endl;
+		
+			//Compend the survey in the atlas
+			cv::Rect roi = cv::Rect(col, row, 2*radius+rows_diff, 2*radius+cols_diff);		
+			surveys[k].copyTo(raw_atlas(roi));
+		}
+
+		return raw_atlas;
 	}
 }
