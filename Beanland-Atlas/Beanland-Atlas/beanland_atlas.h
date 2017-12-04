@@ -51,6 +51,12 @@
 //Size of bilateral filter used to preprocess images
 #define PREPROC_MED_FILT_SIZE 3
 
+//Threshold when determining equidistant spots for atlas symmetry calculation
+#define EQUIDST_THRESH 0.2
+
+//Factor to convert radians to degrees
+#define RAD_TO_DEG 57.29577951
+
 //External libraries
 #include <includes.h>
 

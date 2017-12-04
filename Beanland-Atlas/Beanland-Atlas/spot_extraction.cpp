@@ -11,11 +11,12 @@ namespace ba
 	**rel_pos: std::vector<std::vector<int>> &, Relative positions of images
 	**radius: const int, Radius about the spot locations to extract pixels from
 	**ns_radius: const int, Radius to Navier-Stokes infill when removing the diffuse background
+	**inpainting_method: Method to inpaint the Bragg peak regions in the diffraction pattern. Defaults to the Navier-Stokes method
 	**Returns:
 	**cv::Mat, Atlas showing the k space surveyed by each of the spots
 	*/
 	cv::Mat create_spot_maps(std::vector<cv::Mat> &mats, std::vector<cv::Point> &spot_pos, std::vector<std::vector<int>> &rel_pos,
-		const int radius, const int ns_radius)
+		const int radius, const int ns_radius, const int inpainting_method)
 	{
 		//Initialise vectors of OpenCV mats to hold individual paths and number of contributions to those paths
 		std::vector<cv::Mat> indv_maps(spot_pos.size());
@@ -67,30 +68,42 @@ namespace ba
 		}
 
 		//Find position of spots in each micrograph;
-        //#pragma omp parallel for
-		for (int j = 0; j < mats.size(); j++) {
+        #pragma omp parallel for
+		for (int j = 0; j < mats.size(); j++) 
+		{
+			//Image to extract spots from - after inpainting correction or otherwise
+			cv::Mat inpaint_corrected;
 
-			///Mask to mark the positions of all the spots to be Navier-Stokes infilled on the micrograph
-			cv::Mat ns_mask = cv::Mat::zeros(mats[j].size(), CV_8UC1);
-		
-			//Use Navier-Stokes infilling to remove the diffuse background from the micrographs
-			//Start by creating a mask that marks out the regions to infill
-			for (int k = 0; k < spot_pos.size(); k++) 
+			//If the user wants to use inpainting to remove the diffuse background
+			if(inpainting_method != -1)
 			{
-				if (spot_pos[k].y >= row_max-rel_pos[1][j] && spot_pos[k].y < row_max-rel_pos[1][j]+mats[j].rows &&
-					spot_pos[k].x >= col_max-rel_pos[0][j] && spot_pos[k].x < col_max-rel_pos[0][j]+mats[j].cols) 
+				///Mask to mark the positions of all the spots to be Navier-Stokes infilled on the micrograph
+				cv::Mat ns_mask = cv::Mat::zeros(mats[j].size(), CV_8UC1);
+		
+				//Use Navier-Stokes infilling to remove the diffuse background from the micrographs
+				//Start by creating a mask that marks out the regions to infill
+				for (int k = 0; k < spot_pos.size(); k++) 
 				{
-					//Draw circle at the position of the spot on the mask
-					cv::Point circleCenter(spot_pos[k].x-col_max+rel_pos[0][j], spot_pos[k].y-row_max+rel_pos[1][j]);
-					cv::circle(ns_mask, circleCenter, ns_radius, cv::Scalar(1), -1, 8, 0);
+					if (spot_pos[k].y >= row_max-rel_pos[1][j] && spot_pos[k].y < row_max-rel_pos[1][j]+mats[j].rows &&
+						spot_pos[k].x >= col_max-rel_pos[0][j] && spot_pos[k].x < col_max-rel_pos[0][j]+mats[j].cols) 
+					{
+						//Draw circle at the position of the spot on the mask
+						cv::Point circleCenter(spot_pos[k].x-col_max+rel_pos[0][j], spot_pos[k].y-row_max+rel_pos[1][j]);
+						cv::circle(ns_mask, circleCenter, ns_radius, cv::Scalar(1), -1, 8, 0);
+					}
 				}
+
+				//Create Navier-Stokes inpainted diffraction pattern
+				cv::Mat inpainted = cv::Mat::zeros(mats[j].size(), CV_32FC1);
+				cv::inpaint(mats[j], ns_mask, inpainted, 10, inpainting_method);
+
+				inpaint_corrected = mats[j] - inpainted;
 			}
-
-			//Create Navier-Stokes inpainted diffraction pattern
-			cv::Mat ns_inpainted = cv::Mat::zeros(mats[j].size(), CV_32FC1);
-			cv::inpaint(mats[j], ns_mask, ns_inpainted, 3, cv::INPAINT_NS);
-
-			cv::Mat ns_subtracted = mats[j] - ns_inpainted;
+			//If the user does not want to remove the diffuse background
+			else
+			{
+				inpaint_corrected = mats[j];
+			}
 
 			//For each spot
 			for (int k = 0; k < spot_pos.size(); k++)
@@ -107,7 +120,7 @@ namespace ba
 		
 					//Copy the part of the micrograph containing the spot
 					cv::Mat imagePart = cv::Mat::zeros(mats[j].size(), mats[j].type());
-					ns_subtracted.copyTo(imagePart, circ_mask);
+					inpaint_corrected.copyTo(imagePart, circ_mask);
 		
 					//Compend spot to map
 					float *r;
@@ -207,6 +220,12 @@ namespace ba
 			surveys[k] = cv::Mat(cols_diff+2*radius, rows_diff+2*radius, CV_32FC1, cv::Scalar(0.0));
 			indv_maps[k](roi_map).copyTo(surveys[k](roi_crop));
 		}
+
+		//Find the spots closest to and equidistant to the central spot
+		struct equidst_surveys survey_param = equidistant_surveys(spot_pos, EQUIDST_THRESH);
+
+		//Identify the symmetry
+		int a = identify_symmetry(surveys, survey_param.angles, survey_param.indices)
 
 		return create_raw_atlas(surveys, spot_pos, radius, cols_diff, rows_diff);
 	}

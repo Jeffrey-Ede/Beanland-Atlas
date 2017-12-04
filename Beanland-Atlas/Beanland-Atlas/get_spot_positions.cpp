@@ -132,11 +132,14 @@ namespace ba
 		//Extract the lattice vectors
 		std::vector<cv::Vec2i> lattice_vectors = get_lattice_vectors(positions);
 
-		//Use the lattice vectors to find additional spots in the aligned images average px values pattern
-		//find_other_spots(xcorr, positions, lattice_vectors, align_avg_cols, align_avg_rows, radius);
+		////Remove or correct any outlier spots
+		//check_spot_pos(positions, lattice_vectors);
 
-		//Remove or correct any outlier spots
-		check_spot_pos(positions);
+		////Refine the lattice vectors
+		//refine_lattice_vectors(lattice_vectors);
+
+		//Use the lattice vectors to find additional spots in the aligned images average px values pattern
+		find_other_spots(xcorr, positions, lattice_vectors, align_avg_cols, align_avg_rows, radius);
 
 		//Rescale the spot positions to the origninal dimensions of the aligned average image
         #pragma omp parallel for
@@ -203,22 +206,19 @@ namespace ba
 		int min_pair_dx;
 		int min_pair_dy;
 
-		//Get the relative positions of all the spots
-		for (int i = 0; i < positions.size(); i++)
+		//Get the relative positions of all the spots relative to the brightest and find te minimum
+		for (int i = 1; i < positions.size(); i++)
 		{
-			for (int j = i+1; j < positions.size(); j++)
-			{
-				//Get differences in position
-				int dx = positions[i].x - positions[j].x;
-				int dy = positions[i].y - positions[j].y;
+			//Get differences in position
+			int dx = positions[i].x - positions[0].x;
+			int dy = positions[i].y - positions[0].y;
 
-				//If this is the minimum separation so far, record its parameters
-				if (std::sqrt(dx*dx + dy*dy) < min_pair_sep)
-				{
-					min_pair_sep = std::sqrt(dx*dx + dy*dy);
-					min_pair_dx = dx;
-					min_pair_dy = dy;
-				}
+			//If this is the minimum separation so far, record its parameters
+			if (std::sqrt(dx*dx + dy*dy) < min_pair_sep)
+			{
+				min_pair_sep = std::sqrt(dx*dx + dy*dy);
+				min_pair_dx = dx;
+				min_pair_dy = dy;
 			}
 		}
 
@@ -231,33 +231,31 @@ namespace ba
 		//Look for the minimum vector that is pointing in a significantly different direction
 		min_pair_sep = INT_MAX; //A very large value so that first comparison will be stored as the minimum separation
 
-		//Get the relative positions of all the spots
-		for (int i = 0; i < positions.size(); i++)
+		//Get the relative positions of all the spots relative to the brightest and find the minimum that is at least some angle different
+		//from the first lattice vector found
+		for (int i = 1; i < positions.size(); i++)
 		{
-			for (int j = i+1; j < positions.size(); j++)
+			//Get differences in position
+			int dx = positions[i].x - positions[0].x;
+			int dy = positions[i].y - positions[0].y;
+
+			//Separation
+			float sep = std::sqrt(dx*dx + dy*dy);
+
+			//Consider recording if this is the minimum separation so far
+			if (sep < min_pair_sep)
 			{
-				//Get differences in position
-				int dx = positions[i].x - positions[j].x;
-				int dy = positions[i].y - positions[j].y;
-
-				//Separation
-				float sep = std::sqrt(dx*dx + dy*dy);
-
-				//Consider recording if this is the minimum separation so far
-				if (sep < min_pair_sep)
-				{
-					float angle2 = std::acos(dx / sep);
+				float angle2 = std::acos(dx / sep);
 				
-					//If the angle of this lattice vector is sufficiently different to the previous, record it
-					if (std::abs(angle2 - angle) > LATTICE_VECT_DIR_DIFF)
-					{
-						min_pair_sep = std::sqrt(dx*dx + dy*dy);
-						min_pair_dx = dx;
-						min_pair_dy = dy;
-					}
+				//If the angle of this lattice vector is sufficiently different to the previous, record it
+				if (std::abs(angle2 - angle) > LATTICE_VECT_DIR_DIFF)
+				{
+					min_pair_sep = std::sqrt(dx*dx + dy*dy);
+					min_pair_dx = dx;
+					min_pair_dy = dy;
 				}
 			}
-		}
+	}
 
 		//Store the second lattice vector
 		lattice_vectors[1] = cv::Vec2i(min_pair_dx, min_pair_dy);
@@ -367,10 +365,22 @@ namespace ba
 	/*Remove or correct any spot positions that do not fit on the spot lattice very well
 	**Input:
 	**positions: std::vector<cv::Point>, Positions of located spots
+	**latt_vect: std::vector<cv::Vec2i> &, Approximate values for lattice vectors
 	*/
-	void check_spot_pos(std::vector<cv::Point> &positions)
+	void check_spot_pos(std::vector<cv::Point> &positions, std::vector<cv::Vec2i> &latt_vect)
 	{
 		//This functionality may be added later
-		//It will depend on another function that will refine the lattice vectors after aberration correction
+		//It may depend on another function that will refine the lattice vectors after aberration correction
+	}
+
+	/*Refine the lattice vectors
+	**Input:
+	**positions: std::vector<cv::Point>, Positions of located spots. Outlier positions have been removed
+	**latt_vect: std::vector<cv::Vec2i> &, Approximate values for lattice vectors
+	*/
+	void refine_lattice_vectors(std::vector<cv::Point> &positions, std::vector<cv::Vec2i> &latt_vect)
+	{
+		//This functionality may be added later
+		//It may depend on another function that will refine the lattice vectors after aberration correction
 	}
 }

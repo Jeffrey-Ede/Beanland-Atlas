@@ -393,8 +393,9 @@ namespace ba
 	/*Remove or correct any spot positions that do not fit on the spot lattice very well
 	**Input:
 	**positions: std::vector<cv::Point>, Positions of located spots
+	**latt_vect: std::vector<cv::Vec2i> &, Approximate values for lattice vectors
 	*/
-	void check_spot_pos(std::vector<cv::Point> &positions);
+	void check_spot_pos(std::vector<cv::Point> &positions, std::vector<cv::Vec2i> &latt_vect);
 
 	/*Combine the k spaces mapped out by spots in each of the images create maps of the whole k space navigated by that spot.
 	**Individual maps are summed together. The total map is then divided by the number of spot k space maps contributing to 
@@ -405,11 +406,12 @@ namespace ba
 	**rel_pos: std::vector<std::vector<int>> &, Relative positions of images
 	**radius: const int, Radius about the spot locations to extract pixels from
 	**ns_radius: const int, Radius to Navier-Stokes infill when removing the diffuse background
+	**inpainting_method: Method to inpaint the Bragg peak regions in the diffraction pattern. Defaults to the Navier-Stokes method
 	**Returns:
 	**cv::Mat, Atlas showing the k space surveyed by each of the spots
 	*/
 	cv::Mat create_spot_maps(std::vector<cv::Mat> &mats, std::vector<cv::Point> &spot_pos, std::vector<std::vector<int>> &rel_pos,
-		const int radius, const int ns_radius);
+		const int radius, const int ns_radius, const int inpainting_method = cv::INPAINT_NS);
 
 	/*Combines individual spots' surveys of k space into a single atlas. Surveys are positioned proportionally to their spot's position in 
 	**the aligned average px values pattern
@@ -430,4 +432,55 @@ namespace ba
 	//**med_filt_size: int, Size of median filter
 	//*/
 	//void preprocess(std::vector<cv::Mat> &mats, int med_filt_size);
+
+	/*Identifies the symmetry of the Beanland Atlas using Fourier analysis and Pearson normalised product moment correlation
+	**Inputs:
+	**surveys: std::vector<cv::Mat> &, Surveys of k space made by individual spots, some of which will be compared to identify the symmetry 
+	**group
+	**angles: std::vector<float> &, Angles of spots used to create surveys relative to a horizontal line drawn through the brightest spot
+	**indices: std::vector<int> &, Indices of the surveys to compare to identify the atlas symmetry
+	**Returns:
+	**int, Number between 0 and 30 representing the type of symmetry
+	*/
+	int identify_symmetry(std::vector<cv::Mat> &surveys, std::vector<float> &angles, std::vector<int> &indices);
+
+	/*Refine the lattice vectors
+	**Input:
+	**positions: std::vector<cv::Point>, Positions of located spots. Outlier positions have been removed
+	**latt_vect: std::vector<cv::Vec2i> &, Approximate values for lattice vectors
+	*/
+	void refine_lattice_vectors(std::vector<cv::Point> &positions, std::vector<cv::Vec2i> &latt_vect);
+
+	/*Get the surveys made by spots equidistant from the central spot in the aligned images average px values diffraction pattern. These 
+	**will be used to identify the atlas symmetry
+	**Inputs:
+	**positions: , Relative positions of the individual spots in the aligned images average px values diffraction pattern
+	**threshold: float, Maximum proportion of the distance between the brightest spot and the spot least distant from it that a spot can be
+	**and still be considered to be one of the equidistant spots
+	**Returns:
+	**struct equidst_surveys, Indices of the spots nearest to and equidistant from the brightest spot and their angles to a horizontal
+	**line drawn horizontally through the brightest spot
+	*/
+	struct equidst_surveys {
+		std::vector<int> indices;
+		std::vector<float> angles;
+	};
+	struct equidst_surveys equidistant_surveys(std::vector<cv::Point> &spot_pos, float threshold);
+
+	/*Order indices in order of increasing angle from the horizontal
+	**Inputs:
+	**angles: std::vector<float> &, Angles between the survey spots and a line drawn horizontally through the brightest spot
+	**indices: std::vector<int> &, Indices of the surveys to compare to identify the atlas symmetry
+	**Returns:
+	**std::vector<int>, Indices in order of increasing angle from the horizontal
+	*/
+	std::vector<int> order_indices_by_angle(std::vector<float> &angles, std::vector<int> &indices);
+
+	/*Get the largest rectangular portion of an image inside a surrounding black background
+	**Inputs:
+	**img: cv::Mat &, Input floating point image to extract the largest possible non-black region of
+	**Returns:
+	**cv::Rect, Largest non-black region
+	*/
+	cv::Rect biggest_not_black(cv::Mat &img)
 }
