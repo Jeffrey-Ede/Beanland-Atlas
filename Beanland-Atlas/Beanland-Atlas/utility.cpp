@@ -173,4 +173,50 @@ namespace ba
 	{
 		return n <= ceil ? ceil : ceil_power_2(n, 2*ceil);
 	}
+
+	/*Calculate Pearson normalised product moment correlation coefficient between 2 OpenCV mats for some offset between them
+	**Inputs:
+	**img1: cv::Mat &, One of the mats
+	**img1: cv::Mat &, One of the mats
+	**col_offset: const int, Offset of the second mat's columnss from the first's
+	**row_offset: const int, Offset of the second mat's rows from the first's
+	**Return:
+	**float, Pearson normalised product moment correlation coefficient between the 2 mats
+	*/
+	float pearson_corr(cv::Mat img1, cv::Mat img2, const int row_offset, const int col_offset) 
+	{
+		//Sums for Pearson product moment correlation coefficient
+		float sum_xy = 0.0f;
+		float sum_x = 0.0f;
+		float sum_y = 0.0f;
+		float sum_x2 = 0.0f;
+		float sum_y2 = 0.0f;
+
+		//Iterate across mat rows...
+		float *r;
+		float *s;
+        #pragma omp parallel reduction(sum:sum_xy), reduction(sum:sum_x), reduction(sum:sum_y), reduction(sum:sum_x2), reduction(sum:sum_y2)
+		for (int m = 0; m < img1.rows-row_offset; m++) 
+		{
+			//...and iterate across each mat columns
+			r = img1.ptr<float>(m);
+			s = img2.ptr<float>(m+row_offset);
+			for (int n = 0; n < img1.cols-col_offset; n++) 
+			{
+				//If the pixels are both not black
+				if (r[n] && s[n+col_offset])
+				{
+					//Contribute to Pearson correlation coefficient
+					sum_xy += r[n]*s[n+col_offset];
+					sum_x += r[n];
+					sum_y += s[n+col_offset];
+					sum_x2 += r[n]*r[n];
+					sum_y2 += s[n+col_offset]*s[n+col_offset];
+				}
+			}
+		}
+
+		return (img1.rows*img1.cols*sum_xy - sum_x*sum_y) / (std::sqrt(img1.rows*img1.cols*sum_x2 - sum_x*sum_x) * 
+			std::sqrt(img1.rows*img1.cols*sum_y2 - sum_y*sum_y));
+	}
 }

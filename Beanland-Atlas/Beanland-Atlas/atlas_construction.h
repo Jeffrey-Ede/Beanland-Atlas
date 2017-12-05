@@ -439,10 +439,17 @@ namespace ba
 	**group
 	**angles: std::vector<float> &, Angles of spots used to create surveys relative to a horizontal line drawn through the brightest spot
 	**indices: std::vector<int> &, Indices of the surveys to compare to identify the atlas symmetry
+	**spot_pos: std::vector<cv::Point> &, Positions of spots on the aligned average image values diffraction pattern
+	**cascade: bool, If true, calculate Pearson normalised product moment correlation coefficients for all possible symmetries for a given
+	**number of surveys. If false, the calculation will be faster
 	**Returns:
-	**int, Number between 0 and 30 representing the type of symmetry
+	**struct atlas_sym, Atlas symmetries
 	*/
-	int identify_symmetry(std::vector<cv::Mat> &surveys, std::vector<float> &angles, std::vector<int> &indices);
+	struct atlas_sym {
+		//parameters
+	};
+	struct atlas_sym identify_symmetry(std::vector<cv::Mat> &surveys, std::vector<float> &angles, std::vector<int> &indices, 
+		std::vector<cv::Point> &spot_pos, bool cascade);
 
 	/*Refine the lattice vectors
 	**Input:
@@ -454,7 +461,8 @@ namespace ba
 	/*Get the surveys made by spots equidistant from the central spot in the aligned images average px values diffraction pattern. These 
 	**will be used to identify the atlas symmetry
 	**Inputs:
-	**positions: , Relative positions of the individual spots in the aligned images average px values diffraction pattern
+	**positions: std::vector<cv::Point> &, Relative positions of the individual spots in the aligned images average px values diffraction 
+	**pattern
 	**threshold: float, Maximum proportion of the distance between the brightest spot and the spot least distant from it that a spot can be
 	**and still be considered to be one of the equidistant spots
 	**Returns:
@@ -482,5 +490,152 @@ namespace ba
 	**Returns:
 	**cv::Rect, Largest non-black region
 	*/
-	cv::Rect biggest_not_black(cv::Mat &img)
+	cv::Rect biggest_not_black(cv::Mat &img);
+
+	/*Calculate Pearson normalised product moment correlation coefficient between 2 OpenCV mats for some offset between them
+	**Inputs:
+	**img1: cv::Mat &, One of the mats
+	**img1: cv::Mat &, One of the mats
+	**col_offset: const int, Offset of the second mat's columnss from the first's
+	**row_offset: const int, Offset of the second mat's rows from the first's
+	**Return:
+	**float, Pearson normalised product moment correlation coefficient between the 2 mats
+	*/
+	float pearson_corr(cv::Mat img1, cv::Mat img2, const int row_offset, const int col_offset);
+
+	/*Find the largest-area regions that are non-black in each of the mat
+	**Inputs:
+	**surveys: std::vector<cv::Mat> &, Surveys of k space made by individual spots, some of which will be compared to identify the symmetry 
+	**group
+	**Returns:
+	**std::vector<cv::Rect>, Largest non-black region in the mat 
+	*/
+	std::vector<cv::Rect> biggest_not_blacks(std::vector<cv::Mat> &mats);
+
+	/*Decrease the size of the larger rectangular region of interest so that it is the same size as the smaller
+	**Inputs:
+	**roi1: cv::Rect, One of the regions of interest
+	**roi2: cv::Rect, The other region of interest
+	**Returns:
+	**std::vector<cv::Rect>, Regions of interest that are the same size, in the same order as the input arguments
+	*/
+	std::vector<cv::Rect> same_size_rois(cv::Rect roi1, cv::Rect roi2);
+
+	/*Calculate Pearson nomalised product moment correlation coefficients between the surveys and reflections of the other surveys in
+	**a mirror line between the 2 surveys
+	**Inputs:
+	**rot_to_align: std::vector<cv::Mat> &, Surveys that have been rotated so that they are all at the same angle to a horizontal line
+	**drawn through the brightest spot
+	**big_not_black: std::vector<cv::Rect> &, The highest-are non-black region in the survey
+	**Returns:
+	**std::vector<std::vector<float>>, Pearson normalised product moment correlation coefficients and centres of symmetry, in that order
+	*/
+	std::vector<std::vector<float>> get_mirror_between_sym(std::vector<cv::Mat> &rot_to_align, std::vector<cv::Rect> &big_not_black);
+
+	/*Calculate Pearson nomalised product moment correlation coefficients between the surveys when rotated to the positions of the other
+	**surveys
+	**Inputs:
+	**rot_to_align: std::vector<cv::Mat> &, Surveys that have been rotated so that they are all at the same angle to a horizontal line
+	**drawn through the brightest spot
+	**big_not_black: std::vector<cv::Rect> &, The highest-are non-black region in the survey
+	**Returns:
+	**std::vector<std::vector<float>>, Pearson normalised product moment correlation coefficients and centres of symmetry, in that order
+	*/
+	std::vector<std::vector<float>> get_rotational_between_sym(std::vector<cv::Mat> &rot_to_align, std::vector<cv::Rect> &big_not_black);
+
+	/*Calculate Pearson nomalised product moment correlation coefficients for 180 deg rotational symmetry in the surveys
+	**Inputs:
+	**rot_to_align: std::vector<cv::Mat> &, Surveys that have been rotated so that they are all at the same angle to a horizontal line
+	**drawn through the brightest spot
+	**big_not_black: std::vector<cv::Rect> &, The highest-are non-black region in the survey
+	**Returns:
+	**std::vector<std::vector<float>>, Pearson normalised product moment correlation coefficients and centres of symmetry, in that order
+	*/
+	std::vector<std::vector<float>> get_rotational_in_sym(std::vector<cv::Mat> &rot_to_align, std::vector<cv::Rect> &big_not_black);
+
+	/*Calculate the symmetry of a 2 survey atlas
+	**Inputs:
+	**rot_to_align: std::vector<cv::Mat> &, Surveys that have been rotated so that they are all at the same angle to a horizontal line
+	**drawn through the brightest spot
+	**big_not_black: std::vector<cv::Rect> &, The highest-are non-black region in the survey
+	**spot_pos: std::vector<cv::Point> &, Positions of spots on the aligned average image values diffraction pattern
+	**cascade: bool, If true, calculate Pearson normalised product moment correlation coefficients for all possible symmetries for a given
+	**number of surveys. If false, the calculation will be slightly faster
+	**Returns:
+	**struct atlas_sym, Atlas symmetries
+	*/
+	struct atlas_sym atlas_sym_2(std::vector<cv::Mat> &rot_to_align, std::vector<cv::Rect> &big_not_black, std::vector<cv::Point> &spot_pos,
+		bool cascade);
+
+	/*Calculate the symmetry of a 3 survey atlas
+	**Inputs:
+	**rot_to_align: std::vector<cv::Mat> &, Surveys that have been rotated so that they are all at the same angle to a horizontal line
+	**drawn through the brightest spot
+	**big_not_black: std::vector<cv::Rect> &, The highest-are non-black region in the survey
+	**spot_pos: std::vector<cv::Point> &, Positions of spots on the aligned average image values diffraction pattern
+	**cascade: bool, If true, calculate Pearson normalised product moment correlation coefficients for all possible symmetries for a given
+	**number of surveys. If false, the calculation will be slightly faster
+	**Returns:
+	**struct atlas_sym, Atlas symmetries
+	*/
+	struct atlas_sym atlas_sym_3(std::vector<cv::Mat> &rot_to_align, std::vector<cv::Rect> &big_not_black, std::vector<cv::Point> &spot_pos,
+		bool cascade);
+
+	/*Calculate the symmetry of a 4 survey atlas
+	**Inputs:
+	**rot_to_align: std::vector<cv::Mat> &, Surveys that have been rotated so that they are all at the same angle to a horizontal line
+	**drawn through the brightest spot
+	**big_not_black: std::vector<cv::Rect> &, The highest-are non-black region in the survey
+	**spot_pos: std::vector<cv::Point> &, Positions of spots on the aligned average image values diffraction pattern
+	**cascade: bool, If true, calculate Pearson normalised product moment correlation coefficients for all possible symmetries for a given
+	**number of surveys. If false, the calculation will be slightly faster
+	**Returns:
+	**struct atlas_sym, Atlas symmetries
+	*/
+	struct atlas_sym atlas_sym_4(std::vector<cv::Mat> &rot_to_align, std::vector<cv::Rect> &big_not_black, std::vector<cv::Point> &spot_pos,
+		bool cascade);
+
+	/*Calculate the symmetry of a 6 survey atlas
+	**Inputs:
+	**rot_to_align: std::vector<cv::Mat> &, Surveys that have been rotated so that they are all at the same angle to a horizontal line
+	**drawn through the brightest spot
+	**big_not_black: std::vector<cv::Rect> &, The highest-are non-black region in the survey
+	**spot_pos: std::vector<cv::Point> &, Positions of spots on the aligned average image values diffraction pattern
+	**cascade: bool, If true, calculate Pearson normalised product moment correlation coefficients for all possible symmetries for a given
+	**number of surveys. If false, the calculation will be slightly faster
+	**Returns:
+	**struct atlas_sym, Atlas symmetries
+	*/
+	struct atlas_sym atlas_sym_6(std::vector<cv::Mat> &rot_to_align, std::vector<cv::Rect> &big_not_black, std::vector<cv::Point> &spot_pos,
+		bool cascade);
+
+	/*Rotates an image keeping the image the same size, embedded in a larger black rectangle
+	**Inputs:
+	**src: cv::Mat &, Image to rotate
+	**angle: float, Angle to rotate the image (anticlockwise)
+	**Returns:
+	**cv::Mat, Rotated image
+	*/
+	cv::Mat rotate_CV(cv::Mat src, float angle);
+
+	/*Rotate the surveys so that they are all aligned at the same angle to a horizontal line drawn through the brightest spot
+	**Inputs:
+	**surveys: std::vector<cv::Mat> &, Surveys of k space made by individual spots, some of which will be compared to identify the symmetry 
+	**group
+	**angles: std::vector<float> &, Angles between the survey spots and a line drawn horizontally through the brightest spot
+	**indices: std::vector<int> &, Indices of the surveys to compare to identify the atlas symmetry
+	**Returns:
+	**std::vector<cv::Mat>, Images rotated so that they are all aligned. 
+	*/
+	std::vector<cv::Mat> rotate_to_align(std::vector<cv::Mat> &surveys, std::vector<float> &angles, std::vector<int> &indices);
+
+	/*Calculate Pearson nomalised product moment correlation coefficients for mirror rotational symmetry inside the surveys
+	**Inputs:
+	**rot_to_align: std::vector<cv::Mat> &, Surveys that have been rotated so that they are all at the same angle to a horizontal line
+	**drawn through the brightest spot
+	**big_not_black: std::vector<cv::Rect> &, The highest-are non-black region in the survey
+	**Returns:
+	**std::vector<float>, Pearson normalised product moment correlation coefficients and centres of symmetry, in that order
+	*/
+	std::vector<std::vector<float>> get_mir_rot_in_sym(std::vector<cv::Mat> &rot_to_align, float mir_row);
 }

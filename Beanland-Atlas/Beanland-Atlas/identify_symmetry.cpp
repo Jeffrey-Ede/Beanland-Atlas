@@ -5,7 +5,8 @@ namespace ba
 	/*Get the surveys made by spots equidistant from the central spot in the aligned images average px values diffraction pattern. These 
 	**will be used to identify the atlas symmetry
 	**Inputs:
-	**positions: , Relative positions of the individual spots in the aligned images average px values diffraction pattern
+	**positions: std::vector<cv::Point> &, Relative positions of the individual spots in the aligned images average px values diffraction 
+	**pattern
 	**threshold: float, Maximum proportion of the distance between the brightest spot and the spot least distant from it that a spot can be
 	**and still be considered to be one of the equidistant spots
 	**Returns:
@@ -65,30 +66,127 @@ namespace ba
 	**group
 	**angles: std::vector<float> &, Angles of spots used to create surveys relative to a horizontal line drawn through the brightest spot
 	**indices: std::vector<int> &, Indices of the surveys to compare to identify the atlas symmetry
+	**spot_pos: std::vector<cv::Point> &, Positions of spots on the aligned average image values diffraction pattern
+	**cascade: bool, If true, calculate Pearson normalised product moment correlation coefficients for all possible symmetries for a given
+	**number of surveys. If false, the calculation will be faster
 	**Returns:
-	**int, Number between 0 and 30 representing the type of symmetry
+	**struct atlas_sym, Atlas symmetries
 	*/
-	int identify_symmetry(std::vector<cv::Mat> &surveys, std::vector<float> &angles, std::vector<int> &indices)
+	struct atlas_sym identify_symmetry(std::vector<cv::Mat> &surveys, std::vector<float> &angles, std::vector<int> &indices, 
+		std::vector<cv::Point> &spot_pos, bool cascade)
 	{
 		//Order the indices into order order of increasing position angle from the horizontal
 		std::vector<int> ordered_indices = order_indices_by_angle(angles, indices);
 
-		//Check for outright mirror symmetry between the surveys
-		float mir_between = mir_sym_between_surveys(surveys, angles, ordered_indices);
+		//Rotate the surveys so that they all have the same angle relative to a horizontal line drawn through the brightest spot
+		std::vector<cv::Mat> rot_to_align = rotate_to_align(surveys, angles, ordered_indices);
 
-		//Check for rotational symmetry between the surveys
-		float rot_between = rot_sym_between_surveys(surveys, ordered_indices);
+		//Get the largest non-black regions in the rotated images
+		std::vector<cv::Rect> big_not_black = biggest_not_blacks(rot_to_align);
 
-		//Check for mirror symmetry inside individual surveys
-		float mir_in = mir_sym_in_surveys(surveys, ordered_indices);
+		//Special case:
+		if (indices.size() == 2)
+		{
+			return alas_sym_2(rot_to_align, big_not_black, spot_pos, cascade);
+		}
+		else
+		{
+			if (indices.size() == 3)
+			{
+				return alas_sym_3(rot_to_align, big_not_black, spot_pos, cascade);
+			}
+			else
+			{
+				if (indices.size() == 4)
+				{
+					return alas_sym_4(rot_to_align, big_not_black, spot_pos, cascade);
+				}
+				else
+				{
+					return alas_sym_6(rot_to_align, big_not_black, spot_pos, cascade);
+				}
+			}
+		}
 
-		//Check for rotational symmetry inside individual surveys
-		float rot_in = rot_sym_in_surveys(surveys, ordered_indices);
+		//Mirror symmetry Pearson normalised product moment coefficient spectrums between surveys
+		std::vector<float> mirror_between = get_mirror_between_sym(rot_to_align, big_not_black);
 
-		//Use the symmetry score to identify the symmetry type
+		//Rotational symmetry Pearson normalised product moment coefficient spectrum between surveys
+		std::vector<float> rotational_between = get_rotational_between_sym(rot_to_align, big_not_black);
 
-		//Return integer for now. Return more meaningful data later
-		return 7;
+		//Rotational symmetry Pearson normalised product moment coefficient spectrum in surveys
+		std::vector<float> rotational_in = get_rotational_in_sym(rot_to_align, big_not_black);
+	}
+
+	/*Calculate the symmetry of a 2 survey atlas
+	**Inputs:
+	**rot_to_align: std::vector<cv::Mat> &, Surveys that have been rotated so that they are all at the same angle to a horizontal line
+	**drawn through the brightest spot
+	**big_not_black: std::vector<cv::Rect> &, The highest-are non-black region in the survey
+	**spot_pos: std::vector<cv::Point> &, Positions of spots on the aligned average image values diffraction pattern
+	**cascade: bool, If true, calculate Pearson normalised product moment correlation coefficients for all possible symmetries for a given
+	**number of surveys. If false, the calculation will be slightly faster
+	**Returns:
+	**struct atlas_sym, Atlas symmetries
+	*/
+	struct atlas_sym atlas_sym_2(std::vector<cv::Mat> &rot_to_align, std::vector<cv::Rect> &big_not_black, std::vector<cv::Point> &spot_pos,
+		bool cascade)
+	{
+		//Mirror symmetry Pearson normalised product moment coefficient spectrums between surveys
+		std::vector<std::vector<float>> mirror_between = get_mirror_between_sym(rot_to_align, big_not_black);
+
+
+	}
+
+	/*Calculate the symmetry of a 3 survey atlas
+	**Inputs:
+	**rot_to_align: std::vector<cv::Mat> &, Surveys that have been rotated so that they are all at the same angle to a horizontal line
+	**drawn through the brightest spot
+	**big_not_black: std::vector<cv::Rect> &, The highest-are non-black region in the survey
+	**spot_pos: std::vector<cv::Point> &, Positions of spots on the aligned average image values diffraction pattern
+	**cascade: bool, If true, calculate Pearson normalised product moment correlation coefficients for all possible symmetries for a given
+	**number of surveys. If false, the calculation will be slightly faster
+	**Returns:
+	**struct atlas_sym, Atlas symmetries
+	*/
+	struct atlas_sym atlas_sym_3(std::vector<cv::Mat> &rot_to_align, std::vector<cv::Rect> &big_not_black, std::vector<cv::Point> &spot_pos,
+		bool cascade)
+	{
+
+	}
+
+	/*Calculate the symmetry of a 4 survey atlas
+	**Inputs:
+	**rot_to_align: std::vector<cv::Mat> &, Surveys that have been rotated so that they are all at the same angle to a horizontal line
+	**drawn through the brightest spot
+	**big_not_black: std::vector<cv::Rect> &, The highest-are non-black region in the survey
+	**spot_pos: std::vector<cv::Point> &, Positions of spots on the aligned average image values diffraction pattern
+	**cascade: bool, If true, calculate Pearson normalised product moment correlation coefficients for all possible symmetries for a given
+	**number of surveys. If false, the calculation will be slightly faster
+	**Returns:
+	**struct atlas_sym, Atlas symmetries
+	*/
+	struct atlas_sym atlas_sym_4(std::vector<cv::Mat> &rot_to_align, std::vector<cv::Rect> &big_not_black, std::vector<cv::Point> &spot_pos,
+		bool cascade)
+	{
+
+	}
+
+	/*Calculate the symmetry of a 6 survey atlas
+	**Inputs:
+	**rot_to_align: std::vector<cv::Mat> &, Surveys that have been rotated so that they are all at the same angle to a horizontal line
+	**drawn through the brightest spot
+	**big_not_black: std::vector<cv::Rect> &, The highest-are non-black region in the survey
+	**spot_pos: std::vector<cv::Point> &, Positions of spots on the aligned average image values diffraction pattern
+	**cascade: bool, If true, calculate Pearson normalised product moment correlation coefficients for all possible symmetries for a given
+	**number of surveys. If false, the calculation will be slightly faster
+	**Returns:
+	**struct atlas_sym, Atlas symmetries
+	*/
+	struct atlas_sym atlas_sym_6(std::vector<cv::Mat> &rot_to_align, std::vector<cv::Rect> &big_not_black, std::vector<cv::Point> &spot_pos,
+		bool cascade)
+	{
+
 	}
 
 	/*Order indices in order of increasing angle from the horizontal
@@ -117,98 +215,6 @@ namespace ba
 		}
 	}
 
-	/*Calculate the mirror symmetry between adjacent surveys by phase correlating their reflections and then calculating their Pearson normalised product
-	**moment correlation coefficient. Return the lowest score
-	**Inputs:
-	**surveys: std::vector<cv::Mat> &, Surveys of k space made by individual spots, some of which will be compared to identify the symmetry 
-	**group
-	**indice: std::vector<int> &, Indices of the surveys to compare to identify the atlas symmetry
-	**Returns:
-	**float, Minimum Pearson normalised product moment correlation coefficient for mirror symmetry between surveys
-	*/
-	float mir_sym_between_surveys(std::vector<cv::Mat> &surveys, std::vector<float> &angles, std::vector<int> &indices)
-	{
-		//Average highest correlation
-		float pearson_corr = 0.0f;
-
-		//Compare each matrix with...
-        #pragma omp parallel for reduction(sum:pearson_corr)
-		for (int i = 0; i < surveys.size(); i++)
-		{
-			//...the reflections of the next matrices
-			for (int j = i + 1; j < surveys.size(); j++)
-			{
-				//Find the highest possible Pearson correlation between the image and its reflection
-				pearson_corr += highest_mir_sym_between(surveys[indices[i]], surveys[indices[j]], 0.5*(angles[i] + angles[j]));
-			}
-		}
-
-		//Use the Hockey-Stick formula to get the number of comparisons to divide the sum by to get the mean
-		pearson_corr *= 3 /((surveys.size()+1) * surveys.size() * (surveys.size()-1));
-
-		
-		return sym;
-	}
-
-	/*Calculate the rotational symmetry between the surveys by phase correlating their rotations and then calculating their Pearson normalised product
-	**moment correlation coefficient. Return the lowest score
-	**Inputs:
-	**surveys: std::vector<cv::Mat> &, Surveys of k space made by individual spots, some of which will be compared to identify the symmetry 
-	**group
-	**indice: std::vector<int> &, Indices of the surveys to compare to identify the atlas symmetry
-	**Returns:
-	**float, Minimum Pearson normalised product moment correlation coefficient for rotational symmetry between surveys
-	*/
-	float rot_sym_between_surveys(std::vector<cv::Mat> &surveys, std::vector<int> &indices)
-	{
-		float sym;
-		return sym;
-	}
-
-	/*Calculate the mirror symmetry in the surveys by phase correlating their reflections and then calculating their Pearson normalised product
-	**moment correlation coefficient. Return the lowest score
-	**Inputs:
-	**surveys: std::vector<cv::Mat> &, Surveys of k space made by individual spots, some of which will be compared to identify the symmetry 
-	**group
-	**indice: std::vector<int> &, Indices of the surveys to compare to identify the atlas symmetry
-	**Returns:
-	**float, Minimum Pearson normalised product moment correlation coefficient for mirror symmetry in the surveys
-	*/
-	float mir_sym_in_surveys(std::vector<cv::Mat> &surveys, std::vector<int> &indices)
-	{
-		float sym;
-		return sym;
-	}
-
-	/*Calculate the rotational symmetry in the surveys by phase correlating their rotations and then calculating their Pearson normalised product
-	**moment correlation coefficient. Return the lowest score
-	**Inputs:
-	**surveys: std::vector<cv::Mat> &, Surveys of k space made by individual spots, some of which will be compared to identify the symmetry 
-	**group
-	**indice: std::vector<int> &, Indices of the surveys to compare to identify the atlas symmetry
-	**Returns:
-	**float, Minimum Pearson normalised product moment correlation coefficient for rotational symmetry in surveys
-	*/
-	float rot_sym_in_surveys(std::vector<cv::Mat> &surveys, std::vector<int> &indices)
-	{
-		float sym;
-		return sym;
-	}
-
-	/*Create mirror image to use when phase correlating it against it's partner. Image is mirrored in a line perpendicular to the one
-	**joining it to its partner
-	**Inputs:
-	**mat: cv::Mat &, Image to reflect and extract part of the mirror from
-	**group
-	**Returns:
-	**cv::Mat, Image reflected in mirror line
-	*/
-	cv::Mat reflect_mat(cv::Mat &mat)
-	{
-		cv::Mat reflection;
-		return reflection;
-	}
-
 	/*Rotates an image keeping the image the same size, embedded in a larger black rectangle
 	**Inputs:
 	**src: cv::Mat &, Image to rotate
@@ -224,68 +230,6 @@ namespace ba
 		cv::warpAffine(src, dst, r, cv::Size(src.cols*std::cos(angle) + src.rows*std::sin(angle), 
 			src.cols*std::sin(angle) + src.rows*std::cos(angle)));
 		return dst;
-	}
-
-	/*Highest possible Pearson normalise product moment correlation coefficient between a survey and the reflection of a second survey where
-	**the surveys are at a known mean angle to the horizontal
-	**Inputs:
-	**img1: cv::Mat &, One of the surveys
-	**img1: cv::Mat &, The other survey
-	**angle: float, Mean angle between the 2 survey's spots and a horizontal line going through the brightest spot
-	**Returns:
-	**float, Highest Pearson product moment correlation coefficient between the the first image and the reflection of the second
-	*/
-	float highest_mir_sym_between(cv::Mat &img1, cv::Mat img2, float angle)
-	{
-		//Rotate the images clockwise by their mean angular difference from a horizontal line drawn through the brightest spot
-		//This maximises their overlap when the second image is reflected by a horizontal line above it
-		cv::Mat rot1 = rotate_CV(img1, 360 - RAD_TO_DEG*angle);
-
-		//Rotate the second image. Then flip the second image's columns to mirror it
-		cv::Mat mir2;
-		cv::flip(rotate_CV(img2, 360 - RAD_TO_DEG*angle), mir2, 1);
-
-		//Get the biggest portions of the images that are not black background
-		cv::Rect rot1_roi = biggest_not_black(rot1);
-		cv::Rect mir2_roi = biggest_not_black(mir2);
-
-		//Match up the region of interest rowspans so they are both the smallest
-		if (rot1_roi.width > mir2_roi.width)
-		{
-			rot1_roi.width -= rot1_roi.width - mir2_roi.width;
-			rot1_roi.x += (rot1_roi.width - mir2_roi.width) / 2;
-		}
-		else
-		{
-			if (rot1_roi.width < mir2_roi.width)
-			{
-				mir2_roi.width -= mir2_roi.width - rot1_roi.width;
-				mir2_roi.x += (mir2_roi.width - rot1_roi.width) / 2;
-			}
-		}
-
-		//Match up the region of interest columnspans so they are are both the smallest
-		if (rot1_roi.height > mir2_roi.height)
-		{
-			rot1_roi.height -= rot1_roi.height - mir2_roi.height;
-			rot1_roi.y += (rot1_roi.height - mir2_roi.height) / 2;
-		}
-		else
-		{
-			if (rot1_roi.height < mir2_roi.height)
-			{
-				mir2_roi.height -= mir2_roi.height - rot1_roi.height;
-				mir2_roi.y += (mir2_roi.height - rot1_roi.height) / 2;
-			}
-		}
-
-		//Get the position of the maximum phase correlation between the rotated image and the reflection of its partner
-		cv::Point2d max_phase_corr = cv::phaseCorrelate(rot1(rot1_roi), mir2(mir2_roi));
-
-		//Calculate the phase correlation for this offset, including the offset of the regions of interest themselves
-
-		//Get Find the Pearson normalised product moment coefficient for the alignment of maximum phase correlation
-		return ;
 	}
 
 	/*Get the largest rectangular portion of an image inside a surrounding black background
@@ -355,7 +299,8 @@ namespace ba
 			//Check if this produces the highest area
 			if(j_left < j_right) //Safeguard against the entire row being black
 			{
-				int min_thick_vert_idx = std::distance(thicknesses.begin(), std::min_element(thicknesses.begin() + j_left, thicknesses.end() - j_left));
+				int min_thick_vert_idx = std::distance(thicknesses.begin(),
+					std::min_element(thicknesses.begin() + j_left, thicknesses.end() - j_left));
 
 				if (thickness * thicknesses[min_thick_vert_idx] > max_area)
 				{
@@ -369,5 +314,292 @@ namespace ba
 		}
 
 		return cv::Rect(max_row, max_col, max_rows, max_cols);
+	}
+
+	/*Rotate the surveys so that they are all aligned at the same angle to a horizontal line drawn through the brightest spot
+	**Inputs:
+	**surveys: std::vector<cv::Mat> &, Surveys of k space made by individual spots, some of which will be compared to identify the symmetry 
+	**group
+	**angles: std::vector<float> &, Angles between the survey spots and a line drawn horizontally through the brightest spot
+	**indices: std::vector<int> &, Indices of the surveys to compare to identify the atlas symmetry
+	**Returns:
+	**std::vector<cv::Mat>, Images rotated so that they are all aligned. 
+	*/
+	std::vector<cv::Mat> rotate_to_align(std::vector<cv::Mat> &surveys, std::vector<float> &angles, std::vector<int> &indices)
+	{
+		//Rotate each mat so that they all have the same orientation to a horizontal line drawn through the brightest spot in the aligned patter
+		std::vector<cv::Mat> rot_to_align(indices.size());
+        #pragma omp parallel for
+		for (int i = 0; i < indices.size(); i++)
+		{
+			rot_to_align[i] = rotate_CV(surveys[indices[i]], 360 - RAD_TO_DEG*angles[i]);
+		}
+
+		return rot_to_align;
+	}
+
+	/*Find the largest-area regions that are non-black in each of the mat
+	**Inputs:
+	**surveys: std::vector<cv::Mat> &, Surveys of k space made by individual spots, some of which will be compared to identify the symmetry 
+	**group
+	**Returns:
+	**std::vector<cv::Rect>, Largest non-black region in the mat 
+	*/
+	std::vector<cv::Rect> biggest_not_blacks(std::vector<cv::Mat> &mats)
+	{
+		//Find the largest non-black region in each mat
+		std::vector<cv::Rect> rois(mats.size());
+        #pragma omp parallel for
+		for (int i = 0; i < mats.size(); i++)
+		{
+			rois[i] = biggest_not_black(mats[i]);
+		}
+
+		return rois;
+	}
+
+	/*Decrease the size of the larger rectangular region of interest so that it is the same size as the smaller
+	**Inputs:
+	**roi1: cv::Rect, One of the regions of interest
+	**roi2: cv::Rect, The other region of interest
+	**Returns:
+	**std::vector<cv::Rect>, Regions of interest that are the same size, in the same order as the input arguments
+	*/
+	std::vector<cv::Rect> same_size_rois(cv::Rect roi1, cv::Rect roi2)
+	{
+		std::vector<cv::Rect> same_size_rects(2);
+
+		//Match up the region of interest rowspans so they are both the smallest
+		if (roi1.width > roi2.width)
+		{
+			roi1.width -= roi1.width - roi2.width;
+			roi1.x += (roi1.width - roi2.width) / 2;
+		}
+		else
+		{
+			if (roi1.width < roi2.width)
+			{
+				roi2.width -= roi2.width - roi1.width;
+				roi2.x += (roi2.width - roi1.width) / 2;
+			}
+		}
+
+		//Match up the region of interest columnspans so they are are both the smallest
+		if (roi1.height > roi2.height)
+		{
+			roi1.height -= roi1.height - roi2.height;
+			roi1.y += (roi1.height - roi2.height) / 2;
+		}
+		else
+		{
+			if (roi1.height < roi2.height)
+			{
+				roi2.height -= roi2.height - roi1.height;
+				roi2.y += (roi2.height - roi1.height) / 2;
+			}
+		}
+
+		same_size_rects[0] = roi1;
+		same_size_rects[1] = roi2;
+
+		return same_size_rects;
+	}
+
+	/*Calculate Pearson nomalised product moment correlation coefficients between the surveys and reflections of the other surveys in
+	**a mirror line between the 2 surveys
+	**Inputs:
+	**rot_to_align: std::vector<cv::Mat> &, Surveys that have been rotated so that they are all at the same angle to a horizontal line
+	**drawn through the brightest spot
+	**big_not_black: std::vector<cv::Rect> &, The highest-are non-black region in the survey
+	**Returns:
+	**std::vector<std::vector<float>>, Pearson normalised product moment correlation coefficients and centres of symmetry, in that order
+	*/
+	std::vector<std::vector<float>> get_mirror_between_sym(std::vector<cv::Mat> &rot_to_align, std::vector<cv::Rect> &big_not_black)
+	{
+		//Use the Hockey-Stick formula to get the number of comparisons
+		int num_comp = (rot_to_align.size()+1) * rot_to_align.size() * (rot_to_align.size()-1) / 3;
+
+		//Assign vectors to hold the symmetry parameters
+		std::vector<std::vector<float>> sym_param(2);
+		std::vector<float> mirror_between(num_comp); //Pearson normalised product moment correlation coefiicients
+		std::vector<float> sym_centres(num_comp); //position of the mirror symmetry phase correlation maximum
+
+		//Compare each matrix with...
+		for (int i = 0, k = 0; i < rot_to_align.size(); i++)
+		{
+			//...the higher index matrices
+			for (int j = i + 1; j < rot_to_align.size(); j++, k++)
+			{
+				//Flip the second mat in the comparison
+				cv::Mat mir;
+				cv::flip(rot_to_align[j], mir, 1);
+
+				//Find the mirrored roi
+				cv::Rect mir_roi = cv::Rect(rot_to_align[j].rows - big_not_black[j].x - big_not_black[j].width, 
+					rot_to_align[j].cols - big_not_black[j].y - big_not_black[j].height, big_not_black[j].width, big_not_black[j].height);
+
+				//Reduce one of the rois size, if necessary, so that they are the same size
+				std::vector<cv::Rect> same_sized_roi = same_size_rois(big_not_black[i], mir_roi);
+
+				//Get the position of the maximum phase correlation between the rotated image and the reflection of its partner
+				cv::Point2d max_phase_corr = cv::phaseCorrelate(rot_to_align[i](same_sized_roi[0]), mir(same_sized_roi[1]));
+
+				//Record the location of the maximum phase correlation
+				sym_centres[k] = 1/*0.5*(rot_to_align[i].rows - (max_phase_corr.y + same_sized_roi[1].y-same_sized_roi[0].y))*/;
+
+				//Calculate the phase correlation for this offset, including the offset of the regions of interest themselves
+				mirror_between[k] = pearson_corr(rot_to_align[i], mir, max_phase_corr.x + 
+					same_sized_roi[1].x-same_sized_roi[0].x, max_phase_corr.y + same_sized_roi[1].y-same_sized_roi[0].y);
+			}
+		}
+
+		sym_param[0] = mirror_between;
+		sym_param[1] = sym_centres;
+
+		return sym_param;
+	}
+
+	/*Calculate Pearson nomalised product moment correlation coefficients between the surveys when rotated to the positions of the other
+	**surveys
+	**Inputs:
+	**rot_to_align: std::vector<cv::Mat> &, Surveys that have been rotated so that they are all at the same angle to a horizontal line
+	**drawn through the brightest spot
+	**big_not_black: std::vector<cv::Rect> &, The highest-are non-black region in the survey
+	**Returns:
+	**std::vector<std::vector<float>>, Pearson normalised product moment correlation coefficients and centres of symmetry, in that order
+	*/
+	std::vector<std::vector<float>> get_rotational_between_sym(std::vector<cv::Mat> &rot_to_align, std::vector<cv::Rect> &big_not_black)
+	{
+		//Use the Hockey-Stick formula to get the number of comparisons
+		int num_comp = (rot_to_align.size()+1) * rot_to_align.size() * (rot_to_align.size()-1) / 3;
+
+		//Assign vectors to hold the symmetry parameters
+		std::vector<std::vector<float>> sym_param(2);
+		std::vector<float> rotation_between(num_comp); //Pearson normalised product moment correlation coefiicients
+		std::vector<float> sym_centres(num_comp); //position of the mirror symmetry phase correlation maximum
+
+		//Compare each matrix with...
+		for (int i = 0, k = 0; i < rot_to_align.size(); i++)
+		{
+			//...the higher index matrices
+			for (int j = i; j < rot_to_align.size(); j++, k++)
+			{
+				//Reduce one of the rois size, if necessary, so that they are the same size
+				std::vector<cv::Rect> same_sized_roi = same_size_rois(big_not_black[i], big_not_black[j]);
+
+				//Get the position of the maximum phase correlation between the rotated image and its partner
+				cv::Point2d max_phase_corr = cv::phaseCorrelate(rot_to_align[i](same_sized_roi[0]), rot_to_align[j](same_sized_roi[1]));
+
+				//Record the location of the maximum phase correlation
+				sym_centres[k] = 1/*0.5*(rot_to_align[i].rows - (max_phase_corr.y + same_sized_roi[1].y-same_sized_roi[0].y))*/;
+
+				//Calculate the phase correlation for this offset, including the offset of the regions of interest themselves
+				rotation_between[k] = pearson_corr(rot_to_align[i], rot_to_align[j], max_phase_corr.x + 
+					same_sized_roi[1].x-same_sized_roi[0].x, max_phase_corr.y + same_sized_roi[1].y-same_sized_roi[0].y);
+			}
+		}
+
+		sym_param[0] = rotation_between;
+		sym_param[1] = sym_centres;
+
+		return sym_param;
+	}
+
+	/*Calculate Pearson nomalised product moment correlation coefficients for 180 deg rotational symmetry in the surveys
+	**Inputs:
+	**rot_to_align: std::vector<cv::Mat> &, Surveys that have been rotated so that they are all at the same angle to a horizontal line
+	**drawn through the brightest spot
+	**big_not_black: std::vector<cv::Rect> &, The highest-are non-black region in the survey
+	**Returns:
+	**std::vector<std::vector<float>>, Pearson normalised product moment correlation coefficients and centres of symmetry, in that order
+	*/
+	std::vector<std::vector<float>> get_rotational_in_sym(std::vector<cv::Mat> &rot_to_align, std::vector<cv::Rect> &big_not_black)
+	{
+		//Assign vectors to hold the symmetry parameters
+		std::vector<std::vector<float>> sym_param(2);
+		std::vector<float> rotation_in(rot_to_align.size()); //Pearson normalised product moment correlation coefiicients
+		std::vector<float> sym_centres(rot_to_align.size()); //position of the mirror symmetry phase correlation maximum
+
+		//Look for rotational symmetry in each matrix
+		for (int i = 0; i < rot_to_align.size(); i++)
+		{
+			//Rotate the matrix 180 degrees
+			cv::Mat rot_180;
+			cv::flip(rot_to_align[i], rot_180, -1);
+
+			//Get the largest non-black region of interest in the rotated mat
+			cv::Rect rot_180_roi = cv::Rect(rot_to_align[i].rows - big_not_black[i].x - big_not_black[i].width, 
+				rot_to_align[i].cols - big_not_black[i].y - big_not_black[i].height, big_not_black[i].width, big_not_black[i].height);
+
+			//Get the position of the maximum phase correlation between the rotated image and itself
+			cv::Point2d max_phase_corr = cv::phaseCorrelate(rot_to_align[i](big_not_black[i]), rot_180(rot_180_roi));
+
+			//Record the location of the maximum phase correlation
+			sym_centres[i] = 1/*0.5*(rot_to_align[i].rows - (max_phase_corr.y + same_sized_roi[1].y-same_sized_roi[0].y))*/;
+
+			//Calculate the phase correlation for this offset, including the offset of the regions of interest themselves
+			rotation_in[i] = pearson_corr(rot_to_align[i], rot_180, max_phase_corr.x + 
+				rot_180_roi.x-big_not_black[i].x, max_phase_corr.y + rot_180_roi.y-big_not_black[i].y);
+		}
+
+		sym_param[0] = rotation_in;
+		sym_param[1] = sym_centres;
+
+		return sym_param;
+	}
+
+	/*Calculate Pearson nomalised product moment correlation coefficients for mirror rotational symmetry inside the surveys
+	**Inputs:
+	**rot_to_align: std::vector<cv::Mat> &, Surveys that have been rotated so that they are all at the same angle to a horizontal line
+	**drawn through the brightest spot
+	**big_not_black: std::vector<cv::Rect> &, The highest-are non-black region in the survey
+	**Returns:
+	**std::vector<float>, Pearson normalised product moment correlation coefficients and centres of symmetry, in that order
+	*/
+	std::vector<std::vector<float>> get_mir_rot_in_sym(std::vector<cv::Mat> &rot_to_align, float mir_row)
+	{
+		//Assign vectors to hold the symmetry parameters
+		std::vector<std::vector<float>> sym_param(2);
+		std::vector<float> rot_mir_in(rot_to_align.size()); //Pearson normalised product moment correlation coefiicients
+		std::vector<float> sym_centres(rot_to_align.size()); //position of the mirror symmetry phase correlation maximum
+
+		//Look for rotational symmetry in each matrix
+		for (int i = 0; i < rot_to_align.size(); i++)
+		{
+			//Partition matrix into 2 parts, along the known mirror line
+			cv::Rect roi_left = cv::Rect(0, 0, (int)mir_row, rot_to_align[i].cols);
+			cv::Rect roi_right = cv::Rect(mir_row > (int)mir_row ? std::ceil(mir_row) : (int)mir_row+1, 0,
+				rot_to_align[i].rows - (int)mir_row, rot_to_align[i].cols);
+
+			//Rotate the rightmost region of interest 180 degrees
+			cv::Mat rot_180;
+			cv::flip(rot_to_align[i](roi_right), rot_180, -1);
+
+			//Mirror the rotated region of interest
+			cv::Mat mir_rot;
+			cv::flip(rot_180, mir_rot, 1);
+
+			//Calculate the largest non-black regions of interest for both regions
+			cv::Rect roi_left_bnb = biggest_not_black(rot_to_align[i](roi_left));
+			cv::Rect mir_rot_bnb = biggest_not_black(mir_rot);
+
+			//Find the largest possible roi that fits in both images
+			std::vector<cv::Rect> same_size_rects = same_size_rois(roi_left_bnb, mir_rot_bnb);
+
+			//Get the position of the maximum phase correlation between the rotated image and itself
+			cv::Point2d max_phase_corr = cv::phaseCorrelate(rot_to_align[i](same_size_rects[0]), mir_rot(same_size_rects[1]));
+
+			//Record the location of the maximum phase correlation
+			sym_centres[i] = 1/*0.5*(rot_to_align[i].rows - (max_phase_corr.y + same_sized_roi[1].y-same_sized_roi[0].y))*/;
+
+			//Calculate the phase correlation for this offset, including the offset of the regions of interest themselves
+			rot_mir_in[i] = pearson_corr(rot_to_align[i](roi_left_bnb), mir_rot(mir_rot_bnb), max_phase_corr.x + 
+				same_size_rects[1].x-same_size_rects[0].x, max_phase_corr.y + same_size_rects[1].y-same_size_rects[0].y);
+		}
+
+		sym_param[0] = rot_mir_in;
+		sym_param[1] = sym_centres;
+
+		return sym_param;
 	}
 }
