@@ -1,6 +1,6 @@
 # Beanland Atlas
 
-Pioneering work by Dr Richard Beanland on high dynamic range electron diffraction seabed patterns has led to the development of a new ultra-high resolution structure determination technique. This technique offers orders of magnitude higher resolution than traditional x-ray diffraction techniques and is able to resolve the bonding contributions of individual atomic orbitals.
+Pioneering work by Dr Richard Beanland on high dynamic range electron diffraction CBED patterns has led to the development of a new ultra-high resolution structure determination technique. This technique offers orders of magnitude higher resolution than traditional x-ray diffraction techniques and is able to resolve the bonding contributions of individual atomic orbitals.
 
 This repository will house code that:
 
