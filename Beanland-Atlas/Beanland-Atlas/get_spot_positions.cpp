@@ -130,7 +130,7 @@ namespace ba
 		}
 
 		//Extract the lattice vectors
-		std::vector<cv::Vec2i> lattice_vectors = get_lattice_vectors(positions);
+		//std::vector<cv::Vec2i> lattice_vectors = get_lattice_vectors(positions);
 
 		////Remove or correct any outlier spots
 		//check_spot_pos(positions, lattice_vectors);
@@ -139,7 +139,7 @@ namespace ba
 		//refine_lattice_vectors(lattice_vectors);
 
 		//Use the lattice vectors to find additional spots in the aligned images average px values pattern
-		find_other_spots(xcorr, positions, lattice_vectors, align_avg_cols, align_avg_rows, radius);
+		//find_other_spots(xcorr, positions, lattice_vectors, align_avg_cols, align_avg_rows, radius);
 
 		//Rescale the spot positions to the origninal dimensions of the aligned average image
         #pragma omp parallel for

@@ -41,6 +41,8 @@ namespace ba
 			int dx = spot_pos[i].x - spot_pos[0].x;
 			int dy = spot_pos[i].y - spot_pos[0].y;
 
+			std::cout << std::sqrt(dx*dx + dy*dy) << std::endl;
+
 			//Check if the distance of the spot is smaller than the threshold
 			if (std::sqrt(dx*dx + dy*dy) < (1.0+threshold)*min_dst)
 			{
@@ -49,7 +51,7 @@ namespace ba
 
 				//Get the angle to the horizontal drawn through the brightest spot
 				float angle = std::acos(dx / std::sqrt(dx*dx + dy*dy));
-				survey_angles.push_back(dy > 0 ? angle : angle+PI);
+				survey_angles.push_back(dy > 0 ? angle : 2*PI-angle);
 			}
 		}
 
@@ -64,58 +66,61 @@ namespace ba
 	**Inputs:
 	**surveys: std::vector<cv::Mat> &, Surveys of k space made by individual spots, some of which will be compared to identify the symmetry 
 	**group
-	**angles: std::vector<float> &, Angles of spots used to create surveys relative to a horizontal line drawn through the brightest spot
-	**indices: std::vector<int> &, Indices of the surveys to compare to identify the atlas symmetry
 	**spot_pos: std::vector<cv::Point> &, Positions of spots on the aligned average image values diffraction pattern
+	**threshold: float, Maximum proportion of the distance between the brightest spot and the spot least distant from it that a spot can be
 	**cascade: bool, If true, calculate Pearson normalised product moment correlation coefficients for all possible symmetries for a given
 	**number of surveys. If false, the calculation will be faster
 	**Returns:
 	**struct atlas_sym, Atlas symmetries
 	*/
-	struct atlas_sym identify_symmetry(std::vector<cv::Mat> &surveys, std::vector<float> &angles, std::vector<int> &indices, 
-		std::vector<cv::Point> &spot_pos, bool cascade)
+	struct atlas_sym identify_symmetry(std::vector<cv::Mat> &surveys, std::vector<cv::Point> &spot_pos, float threshold, bool cascade)
 	{
+		//Get the indices of the surveys to compare to identify the atlas symmetry and the angles of the spots used to create surveys
+		//relative to a horizontal line drawn through the brightest spot
+		struct equidst_surveys equidst = equidistant_surveys(spot_pos, threshold);
+
 		//Order the indices into order order of increasing position angle from the horizontal
-		std::vector<int> ordered_indices = order_indices_by_angle(angles, indices);
+		order_indices_by_angle(equidst.angles, equidst.indices);
 
 		//Rotate the surveys so that they all have the same angle relative to a horizontal line drawn through the brightest spot
-		std::vector<cv::Mat> rot_to_align = rotate_to_align(surveys, angles, ordered_indices);
+		std::vector<cv::Mat> rot_to_align = rotate_to_align(surveys, equidst.angles, equidst.indices);
 
 		//Get the largest non-black regions in the rotated images
 		std::vector<cv::Rect> big_not_black = biggest_not_blacks(rot_to_align);
 
-		//Special case:
-		if (indices.size() == 2)
+		//Special case based on the number of spots equidistant from the straight through beam
+		if (equidst.indices.size() == 2)
 		{
-			return alas_sym_2(rot_to_align, big_not_black, spot_pos, cascade);
+			return atlas_sym_2(rot_to_align, big_not_black, spot_pos, cascade);
 		}
 		else
 		{
-			if (indices.size() == 3)
+			if (equidst.indices.size() == 3)
 			{
-				return alas_sym_3(rot_to_align, big_not_black, spot_pos, cascade);
+				return atlas_sym_3(rot_to_align, big_not_black, spot_pos, cascade);
 			}
 			else
 			{
-				if (indices.size() == 4)
+				if (equidst.indices.size() == 4)
 				{
-					return alas_sym_4(rot_to_align, big_not_black, spot_pos, cascade);
+					std::cout << "Number: 4" << std::endl;
+					return atlas_sym_4(rot_to_align, big_not_black, spot_pos, cascade);
 				}
 				else
 				{
-					return alas_sym_6(rot_to_align, big_not_black, spot_pos, cascade);
+					return atlas_sym_6(rot_to_align, big_not_black, spot_pos, cascade);
 				}
 			}
 		}
 
-		//Mirror symmetry Pearson normalised product moment coefficient spectrums between surveys
-		std::vector<float> mirror_between = get_mirror_between_sym(rot_to_align, big_not_black);
+		////Mirror symmetry Pearson normalised product moment coefficient spectrums between surveys
+		//std::vector<float> mirror_between = get_mirror_between_sym(rot_to_align, big_not_black);
 
-		//Rotational symmetry Pearson normalised product moment coefficient spectrum between surveys
-		std::vector<float> rotational_between = get_rotational_between_sym(rot_to_align, big_not_black);
+		////Rotational symmetry Pearson normalised product moment coefficient spectrum between surveys
+		//std::vector<float> rotational_between = get_rotational_between_sym(rot_to_align, big_not_black);
 
-		//Rotational symmetry Pearson normalised product moment coefficient spectrum in surveys
-		std::vector<float> rotational_in = get_rotational_in_sym(rot_to_align, big_not_black);
+		////Rotational symmetry Pearson normalised product moment coefficient spectrum in surveys
+		//std::vector<float> rotational_in = get_rotational_in_sym(rot_to_align, big_not_black);
 	}
 
 	/*Calculate the symmetry of a 2 survey atlas
@@ -132,10 +137,9 @@ namespace ba
 	struct atlas_sym atlas_sym_2(std::vector<cv::Mat> &rot_to_align, std::vector<cv::Rect> &big_not_black, std::vector<cv::Point> &spot_pos,
 		bool cascade)
 	{
-		//Mirror symmetry Pearson normalised product moment coefficient spectrums between surveys
-		std::vector<std::vector<float>> mirror_between = get_mirror_between_sym(rot_to_align, big_not_black);
+		atlas_sym a;
 
-
+		return a;
 	}
 
 	/*Calculate the symmetry of a 3 survey atlas
@@ -152,7 +156,9 @@ namespace ba
 	struct atlas_sym atlas_sym_3(std::vector<cv::Mat> &rot_to_align, std::vector<cv::Rect> &big_not_black, std::vector<cv::Point> &spot_pos,
 		bool cascade)
 	{
+		atlas_sym a;
 
+		return a;
 	}
 
 	/*Calculate the symmetry of a 4 survey atlas
@@ -169,7 +175,19 @@ namespace ba
 	struct atlas_sym atlas_sym_4(std::vector<cv::Mat> &rot_to_align, std::vector<cv::Rect> &big_not_black, std::vector<cv::Point> &spot_pos,
 		bool cascade)
 	{
+		//Mirror symmetry Pearson normalised product moment coefficient spectrums between surveys
+		std::vector<std::vector<float>> mirror_between = get_mirror_between_sym(rot_to_align, big_not_black);
 
+		for (int i = 0; i < mirror_between[0].size(); i++)
+		{
+			std::cout << mirror_between[0][i] << std::endl;
+		}
+
+		std::getchar();
+
+		atlas_sym a;
+
+		return a;
 	}
 
 	/*Calculate the symmetry of a 6 survey atlas
@@ -186,32 +204,47 @@ namespace ba
 	struct atlas_sym atlas_sym_6(std::vector<cv::Mat> &rot_to_align, std::vector<cv::Rect> &big_not_black, std::vector<cv::Point> &spot_pos,
 		bool cascade)
 	{
+		atlas_sym a;
 
+		return a;
 	}
 
 	/*Order indices in order of increasing angle from the horizontal
 	**Inputs:
 	**angles: std::vector<float> &, Angles between the survey spots and a line drawn horizontally through the brightest spot
-	**indices: std::vector<int> &, Indices of the surveys to compare to identify the atlas symmetry
-	**Returns:
-	**std::vector<int>, Indices in order of increasing angle from the horizontal
+	**indices_orig: std::vector<int> &, Indices of the surveys to compare to identify the atlas symmetry
 	*/
-	std::vector<int> order_indices_by_angle(std::vector<float> &angles, std::vector<int> &indices)
+	void order_indices_by_angle(std::vector<float> &angles, std::vector<int> &indices)
 	{
-		//Bubble sort the indices by increasing angle size
-        #pragma omp parallel for
-		for (int i = 0; indices.size(); i++) //Brute force: don't check if array is sorted after each iteration
-		{
-			//Swap pairs of indices in the wrong order
-			for (int j = 1; j < indices.size(); j++)
-			{
-				if (angles[j] < angles[j-1])
-				{
-					int temp = indices[j];
-					indices[j] = indices[j-1];
-					indices[j-1] = indices[j];
-				}
+		//Structure to combine the angles and indices vectors so that they can be coupled for sorting
+		struct angl_idx {
+			float angle;
+			int idx;
+		};
+
+		//Custom comparison of coupled elements based on angle
+		struct by_angle { 
+			bool operator()(angl_idx const &a, angl_idx const &b) { 
+				return a.angle < b.angle;
 			}
+		};
+
+		//Populate the coupled structure
+		std::vector<angl_idx> angls_idxs(angles.size());
+		for (int i = 0; i < angles.size(); i++)
+		{
+			angls_idxs[i].angle = angles[i];
+			angls_idxs[i].idx = indices[i];
+		}
+
+		//Use the custom comparison to sort the coupled elements
+		std::sort(angls_idxs.begin(), angls_idxs.end(), by_angle());
+
+		//Replace the contents of the original vectors with the ordered vlues
+		for (int i = 0; i < angles.size(); i++)
+		{
+			angles[i] = angls_idxs[i].angle ;
+			indices[i] = angls_idxs[i].idx;
 		}
 	}
 
@@ -224,11 +257,25 @@ namespace ba
 	*/
 	cv::Mat rotate_CV(cv::Mat src, float angle)
 	{
+		//Center of rotation
+		cv::Point2f pt(src.cols/2., src.rows/2.);
+
+		//Rotation matrix
+		cv::Mat rot = getRotationMatrix2D(pt, angle, 1.0);
+
+		//Determine bounding rectangle
+		cv::Rect bbox = cv::RotatedRect(pt, src.size(), angle).boundingRect();
+
+		//Adjust the transformation matrix
+		rot.at<double>(0,2) += bbox.width/2.0 - pt.x;
+		rot.at<double>(1,2) += bbox.height/2.0 - pt.y;
+
+		//Rotate the image
 		cv::Mat dst;
-		cv::Point2f pt(src.cols/2., src.rows/2.);    
-		cv::Mat r = getRotationMatrix2D(pt, angle, 1.0);
-		cv::warpAffine(src, dst, r, cv::Size(src.cols*std::cos(angle) + src.rows*std::sin(angle), 
-			src.cols*std::sin(angle) + src.rows*std::cos(angle)));
+		cv::warpAffine(src, dst, rot, bbox.size());
+
+		display_CV(dst, 1e-3);
+
 		return dst;
 	}
 
@@ -242,7 +289,6 @@ namespace ba
 	{
 		//Work inwards from the top and bottom of every column to find the length of the non-black region
 		std::vector<int> thicknesses(img.cols);
-        #pragma omp parallel for
 		for (int i = 0; i < img.cols; i++)
 		{
 			//From the top of the image
@@ -265,7 +311,7 @@ namespace ba
 				}
 			}
 
-			thicknesses[i] = img.rows - (j_bot - j_top) + 1;
+			thicknesses[i] = j_bot > j_top ? j_bot - j_top + 1 : 0;
 		}
 
 		//Work inwards from the top and bottom of every row to find the length of the non-black region. Record the one whose
@@ -294,13 +340,13 @@ namespace ba
 				}
 			}
 
-			int thickness = img.cols - (j_right - j_left) + 1;
+			int thickness = j_right > j_left ? j_right - j_left + 1 : 0;
 
 			//Check if this produces the highest area
 			if(j_left < j_right) //Safeguard against the entire row being black
 			{
 				int min_thick_vert_idx = std::distance(thicknesses.begin(),
-					std::min_element(thicknesses.begin() + j_left, thicknesses.end() - j_left));
+					std::min_element(thicknesses.begin() + j_left, thicknesses.begin() + j_right));
 
 				if (thickness * thicknesses[min_thick_vert_idx] > max_area)
 				{
@@ -332,7 +378,9 @@ namespace ba
         #pragma omp parallel for
 		for (int i = 0; i < indices.size(); i++)
 		{
-			rot_to_align[i] = rotate_CV(surveys[indices[i]], 360 - RAD_TO_DEG*angles[i]);
+			std::cout << RAD_TO_DEG*angles[i] << std::endl;
+			display_CV(surveys[indices[i]], 1e-3);
+			rot_to_align[i] = rotate_CV(surveys[indices[i]], RAD_TO_DEG*angles[i]);
 		}
 
 		return rot_to_align;
@@ -352,6 +400,8 @@ namespace ba
         #pragma omp parallel for
 		for (int i = 0; i < mats.size(); i++)
 		{
+			std::cout << "angle #: " << i << std::endl;
+			display_CV(mats[i], 1e-3);
 			rois[i] = biggest_not_black(mats[i]);
 		}
 

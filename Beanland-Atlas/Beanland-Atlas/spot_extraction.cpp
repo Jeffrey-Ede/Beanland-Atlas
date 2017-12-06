@@ -13,9 +13,9 @@ namespace ba
 	**ns_radius: const int, Radius to Navier-Stokes infill when removing the diffuse background
 	**inpainting_method: Method to inpaint the Bragg peak regions in the diffraction pattern. Defaults to the Navier-Stokes method
 	**Returns:
-	**cv::Mat, Atlas showing the k space surveyed by each of the spots
+	**std::vector<cv::Mat>, Regions of k space surveys by the spots
 	*/
-	cv::Mat create_spot_maps(std::vector<cv::Mat> &mats, std::vector<cv::Point> &spot_pos, std::vector<std::vector<int>> &rel_pos,
+	std::vector<cv::Mat> create_spot_maps(std::vector<cv::Mat> &mats, std::vector<cv::Point> &spot_pos, std::vector<std::vector<int>> &rel_pos,
 		const int radius, const int ns_radius, const int inpainting_method)
 	{
 		//Initialise vectors of OpenCV mats to hold individual paths and number of contributions to those paths
@@ -221,13 +221,9 @@ namespace ba
 			indv_maps[k](roi_map).copyTo(surveys[k](roi_crop));
 		}
 
-		//Find the spots closest to and equidistant to the central spot
-		struct equidst_surveys survey_param = equidistant_surveys(spot_pos, EQUIDST_THRESH);
+		//display_CV(create_raw_atlas(surveys, spot_pos, radius, cols_diff, rows_diff), 1e-3);
 
-		//Identify the symmetry
-		int a = identify_symmetry(surveys, survey_param.angles, survey_param.indices)
-
-		return create_raw_atlas(surveys, spot_pos, radius, cols_diff, rows_diff);
+		return surveys;
 	}
 
 	/*Combines individual spots' surveys of k space into a single atlas. Surveys are positioned proportionally to their spot's position in 

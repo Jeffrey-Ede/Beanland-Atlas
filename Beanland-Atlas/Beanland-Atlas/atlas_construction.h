@@ -408,9 +408,9 @@ namespace ba
 	**ns_radius: const int, Radius to Navier-Stokes infill when removing the diffuse background
 	**inpainting_method: Method to inpaint the Bragg peak regions in the diffraction pattern. Defaults to the Navier-Stokes method
 	**Returns:
-	**cv::Mat, Atlas showing the k space surveyed by each of the spots
+	**std::vector<cv::Mat>, Regions of k space surveys by the spots
 	*/
-	cv::Mat create_spot_maps(std::vector<cv::Mat> &mats, std::vector<cv::Point> &spot_pos, std::vector<std::vector<int>> &rel_pos,
+	std::vector<cv::Mat> create_spot_maps(std::vector<cv::Mat> &mats, std::vector<cv::Point> &spot_pos, std::vector<std::vector<int>> &rel_pos,
 		const int radius, const int ns_radius, const int inpainting_method = cv::INPAINT_NS);
 
 	/*Combines individual spots' surveys of k space into a single atlas. Surveys are positioned proportionally to their spot's position in 
@@ -437,9 +437,8 @@ namespace ba
 	**Inputs:
 	**surveys: std::vector<cv::Mat> &, Surveys of k space made by individual spots, some of which will be compared to identify the symmetry 
 	**group
-	**angles: std::vector<float> &, Angles of spots used to create surveys relative to a horizontal line drawn through the brightest spot
-	**indices: std::vector<int> &, Indices of the surveys to compare to identify the atlas symmetry
 	**spot_pos: std::vector<cv::Point> &, Positions of spots on the aligned average image values diffraction pattern
+	**threshold: float, Maximum proportion of the distance between the brightest spot and the spot least distant from it that a spot can be
 	**cascade: bool, If true, calculate Pearson normalised product moment correlation coefficients for all possible symmetries for a given
 	**number of surveys. If false, the calculation will be faster
 	**Returns:
@@ -448,8 +447,7 @@ namespace ba
 	struct atlas_sym {
 		//parameters
 	};
-	struct atlas_sym identify_symmetry(std::vector<cv::Mat> &surveys, std::vector<float> &angles, std::vector<int> &indices, 
-		std::vector<cv::Point> &spot_pos, bool cascade);
+	struct atlas_sym identify_symmetry(std::vector<cv::Mat> &surveys, std::vector<cv::Point> &spot_pos, float threshold, bool cascade = true);
 
 	/*Refine the lattice vectors
 	**Input:
@@ -478,11 +476,9 @@ namespace ba
 	/*Order indices in order of increasing angle from the horizontal
 	**Inputs:
 	**angles: std::vector<float> &, Angles between the survey spots and a line drawn horizontally through the brightest spot
-	**indices: std::vector<int> &, Indices of the surveys to compare to identify the atlas symmetry
-	**Returns:
-	**std::vector<int>, Indices in order of increasing angle from the horizontal
+	**indices_orig: std::vector<int> &, Indices of the surveys to compare to identify the atlas symmetry
 	*/
-	std::vector<int> order_indices_by_angle(std::vector<float> &angles, std::vector<int> &indices);
+	void order_indices_by_angle(std::vector<float> &angles, std::vector<int> &indices);
 
 	/*Get the largest rectangular portion of an image inside a surrounding black background
 	**Inputs:
