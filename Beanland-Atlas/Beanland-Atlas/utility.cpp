@@ -192,26 +192,115 @@ namespace ba
 		float sum_x2 = 0.0f;
 		float sum_y2 = 0.0f;
 
-		//Iterate across mat rows...
-		float *r;
-		float *s;
-        #pragma omp parallel reduction(sum:sum_xy), reduction(sum:sum_x), reduction(sum:sum_y), reduction(sum:sum_x2), reduction(sum:sum_y2)
-		for (int m = 0; m < img1.rows-row_offset; m++) 
+		//Special case the 4 different combinations of positive and negative offsets
+		if (row_offset >= 0 && col_offset >= 0)
 		{
-			//...and iterate across each mat columns
-			r = img1.ptr<float>(m);
-			s = img2.ptr<float>(m+row_offset);
-			for (int n = 0; n < img1.cols-col_offset; n++) 
+			//Iterate across mat rows...
+			float *r;
+			float *s;
+            #pragma omp parallel reduction(sum:sum_xy), reduction(sum:sum_x), reduction(sum:sum_y), reduction(sum:sum_x2), reduction(sum:sum_y2)
+			for (int m = row_offset; m < img1.rows; m++) 
 			{
-				//If the pixels are both not black
-				if (r[n] && s[n+col_offset])
+				//...and iterate across mat columns
+				r = img1.ptr<float>(m);
+				s = img2.ptr<float>(m-row_offset);
+				for (int n = col_offset; n < img1.cols; n++) 
 				{
-					//Contribute to Pearson correlation coefficient
-					sum_xy += r[n]*s[n+col_offset];
-					sum_x += r[n];
-					sum_y += s[n+col_offset];
-					sum_x2 += r[n]*r[n];
-					sum_y2 += s[n+col_offset]*s[n+col_offset];
+					//If the pixels are both not black - safegaurd against rows or columns with some black in the middle
+					if (r[n] && s[n-col_offset])
+					{
+						//Contribute to Pearson correlation coefficient
+						sum_xy += r[n]*s[n-col_offset];
+						sum_x += r[n];
+						sum_y += s[n-col_offset];
+						sum_x2 += r[n]*r[n];
+						sum_y2 += s[n-col_offset]*s[n-col_offset];
+					}
+				}
+			}
+		}
+		else 
+		{
+			if (row_offset < 0 && col_offset < 0)
+			{
+				//Iterate across mat rows...
+				float *r;
+				float *s;
+                #pragma omp parallel reduction(sum:sum_xy), reduction(sum:sum_x), reduction(sum:sum_y), reduction(sum:sum_x2), reduction(sum:sum_y2)
+				for (int m = -row_offset; m < img1.rows; m++) 
+				{
+					//...and iterate across mat columns
+					r = img1.ptr<float>(m+row_offset);
+					s = img2.ptr<float>(m);
+					for (int n = -col_offset; n < img1.cols; n++) 
+					{
+						//If the pixels are both not black - safegaurd against rows or columns with some black in the middle
+						if (r[n+col_offset] && s[n])
+						{
+							//Contribute to Pearson correlation coefficient
+							sum_xy += r[n+col_offset]*s[n];
+							sum_x += r[n+col_offset];
+							sum_y += s[n];
+							sum_x2 += r[n+col_offset]*r[n+col_offset];
+							sum_y2 += s[n]*s[n];
+						}
+					}
+				}
+			}
+			else
+			{
+				if (row_offset >= 0 && col_offset < 0)
+				{
+					//Iterate across mat rows...
+					float *r;
+					float *s;
+                    #pragma omp parallel reduction(sum:sum_xy), reduction(sum:sum_x), reduction(sum:sum_y), reduction(sum:sum_x2), reduction(sum:sum_y2)
+					for (int m = row_offset; m < img1.rows; m++) 
+					{
+						//...and iterate across mat columns
+						r = img1.ptr<float>(m);
+						s = img2.ptr<float>(m-row_offset);
+						for (int n = -col_offset; n < img1.cols; n++) 
+						{
+							//If the pixels are both not black - safegaurd against rows or columns with some black in the middle
+							if (r[n+col_offset] && s[n])
+							{
+								//Contribute to Pearson correlation coefficient
+								sum_xy += r[n+col_offset]*s[n];
+								sum_x += r[n+col_offset];
+								sum_y += s[n];
+								sum_x2 += r[n+col_offset]*r[n+col_offset];
+								sum_y2 += s[n]*s[n];
+							}
+						}
+					}
+				}
+				//The remaining case is row_offset < 0 && col_offset >= 0
+				else
+				{
+					//Iterate across mat rows...
+					float *r;
+					float *s;
+                    #pragma omp parallel reduction(sum:sum_xy), reduction(sum:sum_x), reduction(sum:sum_y), reduction(sum:sum_x2), reduction(sum:sum_y2)
+					for (int m = -row_offset; m < img1.rows; m++) 
+					{
+						//...and iterate across mat columns
+						r = img1.ptr<float>(m+row_offset);
+						s = img2.ptr<float>(m);
+						for (int n = col_offset; n < img1.cols; n++) 
+						{
+							//If the pixels are both not black - safegaurd against rows or columns with some black in the middle
+							if (r[n] && s[n-col_offset])
+							{
+								//Contribute to Pearson correlation coefficient
+								sum_xy += r[n]*s[n-col_offset];
+								sum_x += r[n];
+								sum_y += s[n-col_offset];
+								sum_x2 += r[n]*r[n];
+								sum_y2 += s[n-col_offset]*s[n-col_offset];
+							}
+						}
+					}
 				}
 			}
 		}
@@ -219,4 +308,293 @@ namespace ba
 		return (img1.rows*img1.cols*sum_xy - sum_x*sum_y) / (std::sqrt(img1.rows*img1.cols*sum_x2 - sum_x*sum_x) * 
 			std::sqrt(img1.rows*img1.cols*sum_y2 - sum_y*sum_y));
 	}
+
+	/*Create a copy of an image where the black pixels are replaced with the mean values of the image
+	**img: cv::Mat &, Floating point mat to make a black pixel free copy of
+	**Returns:
+	**cv::Mat, Copy of input mat where black pixels have been replaced with the mean matrix value
+	*/
+	cv::Mat black_to_mean(cv::Mat &img)
+	{
+		//Create the dbackened mat
+		cv::Mat no_black = cv::Mat(img.size(), img.type());
+
+		//Get the mean px value
+		cv::Scalar mean = cv::mean(img);
+
+		float *r, *s;
+		//Iterate across mat rows...
+        #pragma omp parallel for
+		for (int m = 0; m < img.rows; m++) 
+		{
+			//...and iterate across mat columns
+			r = img.ptr<float>(m);
+			s = no_black.ptr<float>(m);
+			for (int n = 0; n < img.cols; n++) 
+			{
+				s[n] = r[n] ? r[n] : mean.val[0];
+			}
+		}
+
+		return no_black;
+	}
+
+	/*Gaussian blur an image based on its size
+	**img: cv::Mat &, Floating point mam to blur
+	**frac: float, Gaussian kernel size as a fraction of the image's smallest dimension's size
+	**Returns,
+	**cv::Mat, Blurred copy of the input mat
+	*/
+	cv::Mat blur_by_size(cv::Mat &img, float blur_frac)
+	{
+		cv::Mat blurred;
+		cv::filter2D(img, blurred, img.depth(), cv::getGaussianKernel((int)(blur_frac*std::min(img.rows, img.cols)), -1, CV_32F));
+
+		return blurred;
+	}
+
+	/*Create phase correlation specturm
+	**src1: cv::Mat &, One of the images
+	**src2: cv::Mat &, The second image
+	**Returns,
+	**cv::Mat, phase correlation spectrum
+	*/
+	cv::Mat phase_corr_spectrum(cv::Mat &src1, cv::Mat &src2)
+	{
+		cv::Mat window;
+		CV_Assert( src1.type() == src2.type());
+		CV_Assert( src1.type() == CV_32FC1 || src1.type() == CV_64FC1 );
+		CV_Assert( src1.size == src2.size);
+
+		if(!window.empty())
+		{
+			CV_Assert( src1.type() == window.type());
+			CV_Assert( src1.size == window.size);
+		}
+
+		int M = cv::getOptimalDFTSize(src1.rows);
+		int N = cv::getOptimalDFTSize(src1.cols);
+
+		cv::Mat padded1, padded2, paddedWin;
+
+		if(M != src1.rows || N != src1.cols)
+		{
+			cv::copyMakeBorder(src1, padded1, 0, M - src1.rows, 0, N - src1.cols, cv::BORDER_CONSTANT, cv::Scalar::all(0));
+			cv::copyMakeBorder(src2, padded2, 0, M - src2.rows, 0, N - src2.cols, cv::BORDER_CONSTANT, cv::Scalar::all(0));
+
+			if(!window.empty())
+			{
+				cv::copyMakeBorder(window, paddedWin, 0, M - window.rows, 0, N - window.cols, cv::BORDER_CONSTANT, cv::Scalar::all(0));
+			}
+		}
+		else
+		{
+			padded1 = src1;
+			padded2 = src2;
+			paddedWin = window;
+		}
+
+		cv::Mat FFT1, FFT2, P, Pm, C;
+
+		// perform window multiplication if available
+		if(!paddedWin.empty())
+		{
+			// apply window to both images before proceeding...
+			cv::multiply(paddedWin, padded1, padded1);
+			cv::multiply(paddedWin, padded2, padded2);
+		}
+
+		//Execute phase correlation equation
+		cv::dft(padded1, FFT1, cv::DFT_REAL_OUTPUT);
+		cv::dft(padded2, FFT2, cv::DFT_REAL_OUTPUT);
+
+		//Compute FF* / |FF*|
+		cv::mulSpectrums(FFT1, FFT2, P, 0, true);
+		cv::mulSpectrums(P, 1 / (cv::abs(P)+1) , C, 0, false);
+
+		//cv::divide(P, cv::abs(P), C, 0, false); 
+
+		cv::Mat D;
+		C.convertTo(D, CV_32FC1);
+
+		cv::idft(D, D); // gives us the nice peak shift location...
+
+		return D;
+	}
+
+	/*Sum of squared differences between 2 images. The second images is correlated against the first in the Fourier domain
+	**src1: cv::Mat &, One of the images
+	**src2: cv::Mat &, The second image
+	**frac: float, Proportion of the first image's dimensions to pad it by
+	**Returns,
+	**cv::Mat, Sum of the squared differences
+	*/
+	cv::Mat ssd(cv::Mat &src1, cv::Mat &src2, float frac)
+	{
+		//Pad the first matrix to prepare it for the second matrix being correlated accross it
+		cv::Mat pad1;
+		int pad_rows = (int)(frac*src1.rows);
+		int pad_cols = (int)(frac*src1.cols);
+		cv::copyMakeBorder(src1, pad1, pad_rows, pad_rows, pad_cols, pad_cols, cv::BORDER_CONSTANT, 0.0);
+
+		//Calculate the sum of squared differences in the Fourier domain
+		cv::Mat ssd;
+		cv::matchTemplate(pad1, src2, ssd, cv::TM_SQDIFF);
+
+		//Calculate the cumulative rowwise and columnwise sums of squares. These can be used to calculate additive corrections
+		//to the calculate sum of squared differences where the templates did not overlap
+		float *r, *s;
+
+		/* Left */
+		//Iterate across mat rows...
+		cv::Mat left = cv::Mat(src2.rows, pad_cols, CV_32FC1);
+		for (int i = 0; i < left.rows; i++)
+		{
+			//Initialise pointers
+			r = left.ptr<float>(i);
+			s = src2.ptr<float>(i);
+
+			//Calculate the square of the first column element
+			r[left.cols-1] = s[0]*s[0];
+
+			//Iterate across the remaining mat columns, accumulating the sum of squares
+			for (int j = left.cols-2, k = 1; j >= 0; j--, k++)
+			{
+				r[j] = s[k]*s[k] + r[j+1];
+			}
+		}
+
+		/* Right */
+		//Iterate across mat rows...
+		cv::Mat right = cv::Mat(src2.rows, pad_cols, CV_32FC1);
+		for (int i = 0; i < right.rows; i++)
+		{
+			//Initialise pointers
+			r = right.ptr<float>(i);
+			s = src2.ptr<float>(i);
+
+			//Calculate the square of the first column element
+			r[0] = s[src2.cols-1]*s[src2.cols-1];
+
+			//Iterate across the remaining mat columns, accumulating the sum of squares
+			for (int j = 1, k = src2.cols-2; j < right.cols; j++, k--)
+			{
+				r[j] = s[k]*s[k] + r[j-1];
+			}
+		}
+
+		/* Top */
+		//Iterate across mat cols
+		cv::Mat top = cv::Mat(pad_rows, src2.cols, CV_32FC1);
+		for (int i = 0; i < top.cols; i++)
+		{
+
+			//Calculate the square of the first row element
+			top.at<float>(top.rows-1, i) = src2.at<float>(0, i)*src2.at<float>(0, i);
+
+			//Iterate across the remaining mat rows, accumulating the sum of squares
+			for (int j = top.rows-2, k = 1; j >= 0; j--, k++)
+			{
+				top.at<float>(j, i) = src2.at<float>(k, i)*src2.at<float>(k, i) + top.at<float>(j+1, i);
+			}
+		}
+
+		/* Bottom */
+		//Iterate across mat cols...
+		cv::Mat bot = cv::Mat(pad_rows, src2.cols, CV_32FC1);
+		for (int i = 0; i < bot.cols; i++)
+		{
+			//Calculate the square of the first row element
+			bot.at<float>(0, i) = src2.at<float>(src2.rows-1, i)*src2.at<float>(src2.rows-1, i);
+
+			//Iterate across the remaining mat rows, accumulating the sum of squares
+			for (int j = 1, k = src2.rows-2; j < bot.rows; j++, k--)
+			{
+				bot.at<float>(j, i) = src2.at<float>(k, i)*src2.at<float>(k, i) + bot.at<float>(j-1, i);
+			}
+		}
+
+
+		//Calulate the linear map needed to map the ssd values from the Fourier analysis to the correct values
+		cv::Mat offset = cv::Mat(ssd.rows, ssd.cols, CV_32FC1, cv::Scalar(0.0));
+		cv::Mat scale = cv::Mat(ssd.rows, ssd.cols, CV_32FC1, cv::Scalar(0.0));
+
+		//Accumulate the top and bot accumulator rows
+		std::vector<float> vert_acc(2*pad_rows+1, 0);
+		for (int i = 0; i < top.rows; i++)
+		{
+			//Iterate across the accumulator columns
+			r = top.ptr<float>(i);
+			for (int j = 0; j < top.cols; j++)
+			{
+				vert_acc[i] += r[j];
+			}
+		}
+		for (int i = 0, k = top.rows+1; i < bot.rows; i++, k++)
+		{
+			//Iterate across the accumulator columns
+			r = bot.ptr<float>(i);
+			for (int j = 0; j < bot.cols; j++)
+			{
+				vert_acc[k] += r[j];
+			}
+		}
+
+		//Accumulate the left accumulator columns
+		for (int i = 0; i < left.cols; i++)
+		{
+			float acc = 0.0f;
+			for (int j = 0; j < top.rows; j++)
+			{
+				offset.at<float>(j, i) += acc + vert_acc[j];
+				acc += left.at<float>(j, i);
+			}
+
+			//Continue across the left rows
+			for (int j = 0, k = bot.rows; j < bot.rows; j++, k++)
+			{
+				offset.at<float>(k, i) += acc + vert_acc[k];
+				acc -= left.at<float>(j, i);
+			}
+		}
+
+		//Middle columns
+		for (int i = 0; i < top.rows + bot.rows + 1; i++)
+		{
+			offset.at<float>(i, left.cols) = vert_acc[i];
+		}
+
+		//Accumulate the right accumulator columns
+		for (int i = 0, l = right.cols+1; i < right.cols; i++, l++)
+		{
+			float acc = 0.0f;
+			for (int j = 0; j < top.rows; j++)
+			{
+				offset.at<float>(j, l) += acc + vert_acc[j];
+				acc += right.at<float>(j, i);
+			}
+
+			//Continue across the left rows
+			for (int j = 0, k = bot.rows; j < bot.rows; j++, k++)
+			{
+				offset.at<float>(k, l) += acc + vert_acc[k];
+				acc -= right.at<float>(j, i);
+			}
+		}
+
+		//Iterate across mat rows...
+		for (int m = 0; m < scale.rows; m++) 
+		{
+			//...and iterate across mat columns
+			s = scale.ptr<float>(m);
+			for (int n = 0; n < scale.cols; n++) 
+			{
+				s[n] = (src2.rows-std::abs(m-top.rows))*(src2.cols-std::abs(n-left.cols));
+			}
+		}
+
+		//Linearly map to the correct results
+		return (ssd - offset) / scale;
+	}
 }
+

@@ -57,6 +57,12 @@
 //Factor to convert radians to degrees
 #define RAD_TO_DEG 57.29577951
 
+//Blur regions of interest used to extract symmetry using a standard deviation based on this portion of their minimum dimension's size
+#define SYM_BLUR_FRAC 0.05
+
+//Portion of extracted rectangular region of interest to use when calculating the sum of squared differences to match it against another region
+#define QUANT_SYM_USE_FRAC 0.8
+
 //External libraries
 #include <includes.h>
 

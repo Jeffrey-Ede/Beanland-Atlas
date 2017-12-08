@@ -701,7 +701,14 @@ namespace ba
 		cv::Mat blur1 = blur_by_size(img1(resized_rois[0]), blur_frac);
 		cv::Mat blur2 = blur_by_size(img2(resized_rois[1]), blur_frac);
 
-		cv::Mat sum_sqr_diff = ssd(blur1, blur2);
+		display_CV(blur1, 1e-3);
+		display_CV(blur2, 1e-3);
+
+		//Speed up this process by only considering pixels of low ssd later...
+
+		cv::Mat a = ssd(blur1, blur2);
+
+		display_CV(a, 1e-5);
 
 		//float frac = 0.3;
 
