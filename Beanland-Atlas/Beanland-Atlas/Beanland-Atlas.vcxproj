@@ -28,6 +28,7 @@
     <ClCompile Include="developer_helper_func.cpp" />
     <ClCompile Include="get_spot_positions.cpp" />
     <ClCompile Include="identify_symmetry.cpp" />
+    <ClCompile Include="ident_sym_utility.cpp" />
     <ClCompile Include="img_rel_pos.cpp" />
     <ClCompile Include="kernel_launchers.cpp" />
     <ClCompile Include="preprocessing.cpp" />

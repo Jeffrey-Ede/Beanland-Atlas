@@ -57,11 +57,11 @@
 //Factor to convert radians to degrees
 #define RAD_TO_DEG 57.29577951
 
-//Blur regions of interest used to extract symmetry using a standard deviation based on this portion of their minimum dimension's size
-#define SYM_BLUR_FRAC 0.05
-
 //Portion of extracted rectangular region of interest to use when calculating the sum of squared differences to match it against another region
-#define QUANT_SYM_USE_FRAC 0.8
+#define QUANT_SYM_USE_FRAC 0.6
+
+//Fraction of rectangular roi size to base blurring Gaussian standard deviation on when calculating the sum of squared differences
+#define QUANT_GAUSS_FRAC 0.03
 
 //External libraries
 #include <includes.h>
@@ -73,7 +73,7 @@
 #include <atlas_construction.h>
 
 //Possible mirror symmetries
-static const std::array<int, 4> pos_mir_sym = {2, 3, 4, 6}; //Add to this - see Richard's paper on seabed atlas symmetry
+static const std::array<int, 4> pos_mir_sym = {2, 3, 4, 6}; //Add to this - see Richard's paper on CBED atlas symmetry
 
 //Input data location
 static const char* inputImagePath = "D:/data/default2.tif";

@@ -629,7 +629,7 @@ namespace ba
 	**Returns,
 	**cv::Mat, Blurred copy of the input mat
 	*/
-	cv::Mat blur_by_size(cv::Mat &img, float blur_frac);
+	cv::Mat blur_by_size(cv::Mat &img, float blur_frac = QUANT_GAUSS_FRAC);
 
 	/*Create phase correlation specturm
 	**src1: cv::Mat &, One of the images
@@ -643,12 +643,11 @@ namespace ba
 	**Inputs:
 	**img1: cv::Mat &, One of the images
 	**img1: cv::Mat &, The second image
-	**blur_frac: const float, Fraction od image to base Gaussian blurring kernel standard deviation on
 	**Returns:
 	**std::vector<float>, Pearson normalised product moment correlation coefficients and relative row and column shift of the second 
 	**image, in that order
 	*/
-	std::vector<float> quantify_rel_shift(cv::Mat &img1, cv::Mat &img2, const float blur_frac = SYM_BLUR_FRAC);
+	std::vector<float> quantify_rel_shift(cv::Mat &img1, cv::Mat &img2);
 
 	/*Sum of squared differences between 2 images. The second images is correlated against the first in the Fourier domain
 	**src1: cv::Mat &, One of the images
