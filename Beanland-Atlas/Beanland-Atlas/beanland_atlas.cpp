@@ -114,7 +114,8 @@ int main()
 
 	//Combine the compendiums of maps mapped out by each spot to create maps showing the whole k spaces surveyed by each of the spots,
 	//then combine these surveys into an atlas to show the whole k space mapped out
-	std::vector<cv::Mat> surveys = create_spot_maps(mats, spot_pos, refined_pos, 0.8*annulus_param[0], annulus_param[0]+2*annulus_param[1], -1);
+	std::vector<cv::Mat> surveys = create_spot_maps(mats, spot_pos, refined_pos, 0.8*annulus_param[0], 
+		annulus_param[0]+2*annulus_param[1], -1);
 
 	struct atlas_sym atlas_symmetry = identify_symmetry(surveys, spot_pos, EQUIDST_THRESH);
 

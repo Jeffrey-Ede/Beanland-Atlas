@@ -41,4 +41,17 @@ namespace ba
 	**arr: af_array &, Arrayfire C API array
 	*/
 	void print_AF_dims(af_array &arr);
+
+	/*Combines individual spots' surveys of k space into a single atlas. Surveys are positioned proportionally to their spot's position in 
+	**the aligned average px values pattern
+	**Inputs:
+	**surveys: std::vector<cv::Mat> &, Surveys of k space made by each spot
+	**spot_pos: std::vector<cv::Point> &, Positions of spots in aligned average image
+	**radius: int, Radius of the spots being used
+	**cols_diff: int, Difference between the minimum and maximum spot columns
+	**rows_diff: int, Difference between the minimum and maximum spot rows
+	**Return:
+	cv::Mat, Atlas of the k space surveyed by the diffraction spots
+	*/
+	cv::Mat create_raw_atlas(std::vector<cv::Mat> &surveys, std::vector<cv::Point> &spot_pos, int radius, int cols_diff, int rows_diff);
 }

@@ -63,6 +63,9 @@
 //Fraction of rectangular roi size to base blurring Gaussian standard deviation on when calculating the sum of squared differences
 #define QUANT_GAUSS_FRAC 0.03
 
+//Size of Gaussian blurring filter when preprocessing individual spots to find the Bragg profile
+#define BRAGG_PROF_PREPROC_GAUSS 3
+
 //External libraries
 #include <includes.h>
 

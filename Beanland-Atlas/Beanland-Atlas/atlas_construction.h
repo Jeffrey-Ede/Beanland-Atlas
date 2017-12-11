@@ -413,19 +413,6 @@ namespace ba
 	std::vector<cv::Mat> create_spot_maps(std::vector<cv::Mat> &mats, std::vector<cv::Point> &spot_pos, std::vector<std::vector<int>> &rel_pos,
 		const int radius, const int ns_radius, const int inpainting_method = cv::INPAINT_NS);
 
-	/*Combines individual spots' surveys of k space into a single atlas. Surveys are positioned proportionally to their spot's position in 
-	**the aligned average px values pattern
-	**Inputs:
-	**surveys: std::vector<cv::Mat> &, Surveys of k space made by each spot
-	**spot_pos: std::vector<cv::Point> &, Positions of spots in aligned average image
-	**radius: int, Radius of the spots being used
-	**cols_diff: int, Difference between the minimum and maximum spot columns
-	**rows_diff: int, Difference between the minimum and maximum spot rows
-	**Return:
-	cv::Mat, Atlas of the k space surveyed by the diffraction spots
-	*/
-	cv::Mat create_raw_atlas(std::vector<cv::Mat> &surveys, std::vector<cv::Point> &spot_pos, int radius, int cols_diff, int rows_diff);
-
 	///*Preprocess each of the images by applying a bilateral filter and resizing them
 	//**Inputs:
 	//**mats: std::vector<cv::Mat> &, Individual images to preprocess
@@ -657,4 +644,58 @@ namespace ba
 	**cv::Mat, Sum of the squared differences
 	*/
 	cv::Mat ssd(cv::Mat &src1, cv::Mat &src2, float frac = QUANT_SYM_USE_FRAC);
+
+	/*Subtract the bacground from micrographs by masking the spots, infilling the masked image and then subtracting the infilled
+	**image from the original
+	**Inputs:
+	**mats: std::vector<cv::Mat> &, Individual floating point images to extract spots from
+	**spot_pos: std::vector<cv::Point>, Positions of located spots in aligned diffraction pattern
+	**rel_pos: std::vector<std::vector<int>> &, Relative positions of images
+	**inpainting_method: Method to inpaint the Bragg peak regions in the diffraction pattern
+	**col_max: int, Maximum column difference between spot positions
+	**row_max: int, Maximum row difference between spot positions
+	**ns_radius: const int, Radius to Navier-Stokes infill when removing the diffuse background
+	*/
+	void subtract_background(std::vector<cv::Mat> &mats, std::vector<cv::Point> &spot_pos, std::vector<std::vector<int>> &rel_pos, 
+		int inpainting_method, int col_max, int row_max, int ns_radius);
+
+	/*Identify groups of consecutive spots that all have the same position
+	**Inputs:
+	**rel_pos: std::vector<std::vector<int>> &, Relative positions of the spots in the image stack
+	**Returns:
+	**std::vector<std::vector<int>>, Groups of spots with the same location
+	*/
+	std::vector<std::vector<int>> consec_same_pos_spots(std::vector<std::vector<int>> &rel_pos);
+
+	/*Extracts a circle of data from an OpenCV mat and accumulates it in another mat. It is assumed that the dimensions specified for
+	**the accumulator will allow the full circle-sized extraction to be accumulated
+	**Inputs:
+	**mat: cv::Mat &, Reference to a floating point OpenCV mat to extract the data from
+	**col: const int &, column of circle origin
+	**row: const int &, row of circle origin
+	**rad: const int &, radius of the circle to extract data from
+	**acc: cv::Mat &, Floating point OpenCV mat to accumulate the data in
+	**acc_col: const int &, Column of the accumulator mat to position the circle at
+	**acc_row: const int &, Row of the accumulator mat to position the circle at
+	*/
+	void accumulate_circle(cv::Mat &mat, const int &col, const int &row, const int &rad, cv::Mat &acc, const int &acc_col,
+		const int &acc_row);
+
+	/*Extract a Bragg peak from an image stack, averaging the spots that are in the same position in consecutive images
+	**Inputs:
+	**mats: std::vector<cv::Mat> &, Images to extract the spots from
+	**grouped_idx: std::vector<std::vector<int>> &, Groups of consecutive image indices where the spots are all in the same position
+	**spot_pos: cv::Point &, Position of the spot on the aligned images average px values diffraction pattern
+	**rel_pos: std::vector<std::vector<int>> &, Relative positions of the spots in the input images to the first image
+	**col_max: const int &, Maximum column difference between spot positions
+	**row_max: const int &, Maximum row difference between spot positions
+	**radius: const int &, Radius of the spot
+	**diam: const int &, Diameter of the spot
+	**gauss_size: const int &, Size of the Gaussian blurring kernel applied during the last preprocessing step to remove unwanted noise
+	**Returns:
+	**std::vector<cv::Mat>, Preprocessed Bragg peaks, ready for dark field decoupled profile extraction
+	*/
+	std::vector<cv::Mat> bragg_profile_preproc(std::vector<cv::Mat> &mats, std::vector<std::vector<int>> &grouped_idx, cv::Point &spot_pos, 
+		std::vector<std::vector<int>> &rel_pos, const int &col_max, const int &row_max, const int &radius, const int &diam, 
+		const int &gauss_size);
 }

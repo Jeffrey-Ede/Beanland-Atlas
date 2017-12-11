@@ -165,8 +165,6 @@ namespace ba
 			std::cout << mirror_between[i] << std::endl;
 		}
 
-		std::getchar();
-
 		atlas_sym a;
 
 		return a;

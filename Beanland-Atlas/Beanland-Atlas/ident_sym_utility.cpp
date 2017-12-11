@@ -67,15 +67,6 @@ namespace ba
 		//Record the maximum Pearson normalised product moment correlation coefficient
 		sym_pos[0] = max_pear;
 
-		std::cout << sym_pos[0] << ", " << sym_pos[1] << ", " << sym_pos[2] << std::endl;
-
-		display_CV(img1, 1e-3);
-		display_CV(img2, 1e-3);
-
-		//display_CV(img1, 1e-3);
-		//display_CV(img2, 1e-3);
-		//display_CV(sum_sqr_diff, 1e-5);
-
 		return sym_pos;
 	}
 }
