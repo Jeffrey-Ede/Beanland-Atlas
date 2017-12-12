@@ -393,9 +393,17 @@ namespace ba
 	/*Remove or correct any spot positions that do not fit on the spot lattice very well
 	**Input:
 	**positions: std::vector<cv::Point>, Positions of located spots
-	**latt_vect: std::vector<cv::Vec2i> &, Approximate values for lattice vectors
+	**lattice_vectors: std::vector<cv::Vec2i> &, Initial lattice vector estimate
+	**cols: int, Number of columns in the aligned image average pattern OpenCV mat. ArrayFire arrays are transpositional
+	**rows: int, Number of rows in the aligned image average pattern OpenCV mat. ArrayFire arrays are transpositional
+	**rad: int, radius of the spots
+	**tol: float, The maximum fraction of the circle radius that a circle can be away from a multiple of the initial
+	**lattice vectors estimate and still be considered a valid spot
+	**Returns:
+	**std::vector<cv::Point>, Spots that lie within tolerance of the lattice defined by the lattice vectors
 	*/
-	void check_spot_pos(std::vector<cv::Point> &positions, std::vector<cv::Vec2i> &latt_vect);
+	std::vector<cv::Point> correct_spot_pos(std::vector<cv::Point> &positions, std::vector<cv::Vec2i> &lattice_vectors,	int cols, int rows,
+		int rad, float tol = SPOT_POS_TOL);
 
 	/*Combine the k spaces mapped out by spots in each of the images create maps of the whole k space navigated by that spot.
 	**Individual maps are summed together. The total map is then divided by the number of spot k space maps contributing to 
@@ -413,12 +421,12 @@ namespace ba
 	std::vector<cv::Mat> create_spot_maps(std::vector<cv::Mat> &mats, std::vector<cv::Point> &spot_pos, std::vector<std::vector<int>> &rel_pos,
 		const int radius, const int ns_radius, const int inpainting_method = cv::INPAINT_NS);
 
-	///*Preprocess each of the images by applying a bilateral filter and resizing them
-	//**Inputs:
-	//**mats: std::vector<cv::Mat> &, Individual images to preprocess
-	//**med_filt_size: int, Size of median filter
-	//*/
-	//void preprocess(std::vector<cv::Mat> &mats, int med_filt_size);
+	/*Preprocess each of the images by applying a bilateral filter and resizing them
+	**Inputs:
+	**mats: std::vector<cv::Mat> &, Individual images to preprocess
+	**med_filt_size: int, Size of median filter
+	*/
+	void preprocess(std::vector<cv::Mat> &mats, int med_filt_size);
 
 	/*Identifies the symmetry of the Beanland Atlas using Fourier analysis and Pearson normalised product moment correlation
 	**Inputs:
@@ -439,9 +447,10 @@ namespace ba
 	/*Refine the lattice vectors
 	**Input:
 	**positions: std::vector<cv::Point>, Positions of located spots. Outlier positions have been removed
-	**latt_vect: std::vector<cv::Vec2i> &, Approximate values for lattice vectors
+	**Returns:
+	**std::vector<cv::Vec2f> &, Refined estimate of the lattice vectors
 	*/
-	void refine_lattice_vectors(std::vector<cv::Point> &positions, std::vector<cv::Vec2i> &latt_vect);
+	std::vector<cv::Vec2f> refine_lattice_vectors(std::vector<cv::Point> &positions);
 
 	/*Get the surveys made by spots equidistant from the central spot in the aligned images average px values diffraction pattern. These 
 	**will be used to identify the atlas symmetry
@@ -698,4 +707,57 @@ namespace ba
 	std::vector<cv::Mat> bragg_profile_preproc(std::vector<cv::Mat> &mats, std::vector<std::vector<int>> &grouped_idx, cv::Point &spot_pos, 
 		std::vector<std::vector<int>> &rel_pos, const int &col_max, const int &row_max, const int &radius, const int &diam, 
 		const int &gauss_size);
+
+	/*Calculate an initial estimate for the dark field decoupled Bragg profile using the preprocessed Bragg peaks. This function is redundant.
+	**It remains in case I need to generate data from it for my thesis, etc. in the future
+	**Input:
+	**blur_not_consec: std::vector<cv::Mat>> &, Preprocessed Bragg peaks. Consecutive Bragg peaks in the same position have been averaged
+	**and they have been Gaussian blurred to remove unwanted high frequency noise
+	**circ_mask: cv::Mat &, Mask indicating the spot pixels
+	**Returns:
+	**cv::Mat, Dark field decouple Bragg profile of the accumulation
+	*/
+	cv::Mat get_acc_bragg_profile(std::vector<cv::Mat> &blur_not_consec, cv::Mat &circ_mask);
+
+	/*Extract a spot's dark field decoupled Bragg profile for each micrograph it is in
+	**Inputs:
+	**mats: std::vector<cv::Mat> &, Individual floating point images to extract spots from
+	**mats: std::vector<cv::Mat> &, Individual floating point images to extract spots from
+	**spot_pos: std::vector<cv::Point>, Positions of located spots in aligned diffraction pattern
+	**rel_pos: std::vector<std::vector<int>> &, Relative positions of images
+	**col_max: int, Maximum column difference between spot positions
+	**row_max: int, Maximum row difference between spot positions
+	**radius: const int, Radius about the spot locations to extract pixels from
+	*/
+	std::vector<cv::Mat> get_bragg_profiles(std::vector<cv::Mat> &mats, cv::Point &spot_pos, std::vector<std::vector<int>> &rel_pos,
+		int col_max, int row_max, int radius);
+
+	/*Calculate an initial estimate for the dark field decoupled Bragg profile using the preprocessed Bragg peaks
+	**Input:
+	**blur_not_consec: std::vector<cv::Mat>> &, Preprocessed Bragg peaks. Consecutive Bragg peaks in the same position have been averaged
+	**and they have been Gaussian blurred to remove unwanted high frequency noise
+	**circ_mask: cv::Mat &, Mask indicating the spot pixels
+	**max_dst: float, The maximum distance between 2 instances of a spot for the overlap between them to be considered
+	**Returns:
+	**cv::Mat, Dark field decouple Bragg profile of the accumulation
+	*/
+	cv::Mat get_angl_intens(std::vector<cv::Mat> &blur_not_consec, cv::Mat &circ_mask, float &max_dist);
+
+	/*Rotate an image in into the image plane
+	**Input:
+	**img: cv::Mat &, Image to rotate
+	**angle_horiz: const float &, Angle to rotate into plane from horizontal axis
+	**angle_vert: const float &, Angle to rotate into plane from vertical axis
+	**Returns:
+	**cv::Mat, Image after rotation into the image plane
+	*/
+	cv::Mat in_plane_rotate(cv::Mat &img, const float &angle_horiz, const float &angle_vert);
+
+	/*Estimate the radius of curvature of the Ewald sphere
+	**Input:
+	**spot_pos: std::vector<cv::Point> &, Positions of spots in the aligned images' average px values diffraction pattern
+	**Returns:
+	**float, Initial estimate of the Ewald sphere radius of curvature
+	*/
+	float ewald_radius(std::vector<cv::Point> &spot_pos);
 }

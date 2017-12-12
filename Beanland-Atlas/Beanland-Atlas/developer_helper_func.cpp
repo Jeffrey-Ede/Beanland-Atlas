@@ -40,16 +40,32 @@ namespace ba
 	**Inputs:
 	**mat: cv::Mat &, OpenCV mat to display
 	**scale: float, Multiply the mat elements by this value before displaying
+	**norm: bool, If true, min-max normalise the mat before displaying it with values in the range 0-255
 	**plt_name: char *, Optional name for plot
 	*/
-	void display_CV(cv::Mat &mat, float scale, char * plt_name)
+	void display_CV(cv::Mat &mat, float scale, bool norm, char * plt_name)
 	{
 		//Set up the window to be resizable while keeping its aspect ratio
 		cv::namedWindow( plt_name, cv::WINDOW_NORMAL | cv::WINDOW_KEEPRATIO );
 
-		//Show the OpenCV mat
-		cv::imshow( plt_name, mat*scale );
-		cv::waitKey(0);
+		//Normalise
+		if (norm)
+		{
+			//Min-max normalise the mat
+			cv::Mat norm;
+			cv::normalize(mat, norm, 0, 255, cv::NORM_MINMAX, CV_8UC1);
+
+			//Show the OpenCV mat
+			cv::imshow( plt_name, norm );
+			cv::waitKey(0);
+		}
+		//Don't normalise (default)
+		else
+		{
+			//Show the OpenCV mat
+			cv::imshow( plt_name, mat*scale );
+			cv::waitKey(0);
+		}
 	}
 
 	/*Print the size of the first 2 dimensions of a C++ API ArrayFire array

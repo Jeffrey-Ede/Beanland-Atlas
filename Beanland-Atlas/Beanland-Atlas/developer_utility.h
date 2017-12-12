@@ -26,9 +26,10 @@ namespace ba
 	**Inputs:
 	**mat: cv::Mat &, OpenCV mat to display
 	**scale: float, Multiply the mat elements by this value before displaying
+	**norm: bool, If true, min-max normalise the mat before displaying it with values in the range 0-255
 	**plt_name: char *, Optional name for plot
 	*/
-	void display_CV(cv::Mat &mat, float scale = 1.0f, char * plt_name = "OpenCV 2D Plot");
+	void display_CV(cv::Mat &mat, float scale = 1.0f, bool norm = true, char * plt_name = "OpenCV 2D Plot");
 
 	/*Print the size of the first 2 dimensions of a C++ API ArrayFire array
 	**Input:
@@ -54,4 +55,14 @@ namespace ba
 	cv::Mat, Atlas of the k space surveyed by the diffraction spots
 	*/
 	cv::Mat create_raw_atlas(std::vector<cv::Mat> &surveys, std::vector<cv::Point> &spot_pos, int radius, int cols_diff, int rows_diff);
+
+	/*Print contents of vector, then wait for user input to continue. Defaults to printing the entire vector if no print size is specified
+	**Inputs:
+	**vect: std::vector<T> &, Vector to print
+	**Num: const int &, Number of elements to print
+	*/
+	template <class T> void print_vect(std::vector<T> &vect, const int num = 0);
+    
+	//Include template function definitions below their prototypes
+#include "developer_utility.hpp"
 }

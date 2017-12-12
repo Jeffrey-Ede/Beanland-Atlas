@@ -90,22 +90,21 @@ namespace ba
 		
 					//Draw circle at the position of the spot on the mask
 					cv::Point circleCenter(spot_pos[k].x-col_max+rel_pos[0][j], spot_pos[k].y-row_max+rel_pos[1][j]);
-					cv::circle(circ_mask, circleCenter, radius, cv::Scalar(1), -1, 8, 0);
+					cv::circle(circ_mask, circleCenter, radius+1, cv::Scalar(1), -1, 8, 0);
 		
 					//Copy the part of the micrograph containing the spot
 					cv::Mat imagePart = cv::Mat::zeros(mats[j].size(), mats[j].type());
 					mats[j].copyTo(imagePart, circ_mask);
 		
 					//Compend spot to map
-					float *r;
+					float *r, *t;
 					ushort *s;
-					ushort *t;
 					byte *u;
 					for (int m = 0; m < indv_num_mappers[k].rows; m++) 
 					{
 						r = indv_maps[k].ptr<float>(m);
 						s = indv_num_mappers[k].ptr<ushort>(m);
-						t = imagePart.ptr<ushort>(m);
+						t = imagePart.ptr<float>(m);
 						u = circ_mask.ptr<byte>(m);
 						for (int n = 0; n < indv_num_mappers[k].cols; n++) 
 						{
@@ -257,12 +256,23 @@ namespace ba
 	}
 
 	/*Extract a spot's dark field decoupled Bragg profile for each micrograph it is in
+	**Inputs:
+	**mats: std::vector<cv::Mat> &, Individual floating point images to extract spots from
+	**mats: std::vector<cv::Mat> &, Individual floating point images to extract spots from
+	**spot_pos: std::vector<cv::Point>, Positions of located spots in aligned diffraction pattern
+	**rel_pos: std::vector<std::vector<int>> &, Relative positions of images
+	**col_max: int, Maximum column difference between spot positions
+	**row_max: int, Maximum row difference between spot positions
+	**radius: const int, Radius about the spot locations to extract pixels from
 	*/
 	std::vector<cv::Mat> get_bragg_profiles(std::vector<cv::Mat> &mats, cv::Point &spot_pos, std::vector<std::vector<int>> &rel_pos,
 		int col_max, int row_max, int radius)
 	{
 		//Find the non-consecutively same position spots and record the indices of multiple spots with the same positions
 		std::vector<std::vector<int>> grouped_idx = consec_same_pos_spots(rel_pos);
+		
+		//Add calculation to extract sensible smaller radius to use
+		int small_rad = 0.7*radius; //Approximate the smaller radius for now
 
 		//Create collection of the spot images at different positions, averaging the consecutively same position spots. Also, blur the 
 		//spots to remove high frequency noise
@@ -270,57 +280,71 @@ namespace ba
 		std::vector<cv::Mat> blur_not_consec = bragg_profile_preproc(mats, grouped_idx, spot_pos, rel_pos, col_max, row_max, radius, 
 			diam, BRAGG_PROF_PREPROC_GAUSS);
 
+		//Create a mask to indicate which pixels in the square are circle pixels to reduce calculations
+		cv::Mat circ_mask = cv::Mat(blur_not_consec[0].size(), CV_8UC1, cv::Scalar(0));
+
+		//Draw circle at the position of the spot on the mask
+		cv::circle(circ_mask, cv::Point(radius, radius), radius+1, cv::Scalar(1), -1, 8, 0);
+
+		/*display_CV(circ_mask);
+		display_CV(blur_not_consec[0]);*/
+
+		float max_sep = 1.2*radius/*bragg_get_max_sep()*/;
+
 		//Get an approximate dark field decoupled Bragg profile
-		cv::Mat decoupled_bragg = get_acc_bragg_profile(blur_not_consec);
+		cv::Mat decoupled_bragg = get_angl_intens(blur_not_consec, circ_mask, max_sep); //Separation parameter needs to be calculated properly later
+
+		std::cout << decoupled_bragg;
 
 		//Create a 3D mat to store the data
-		
-		int dims[] = {diam, diam, grouped_pos.size()};
-		cv::Mat intensities = cv::Mat(3, dims, CV_32FC1);
+		//
+		//int dims[] = {diam, diam, grouped_idx.size()};
+		//cv::Mat intensities = cv::Mat(3, dims, CV_32FC1);
 
 
 
-		//...and extract the spot from each micrograph
-		for (int j = 0; j < mats.size(); j++)
-		{		
-			if (spot_pos.y >= row_max-rel_pos[1][j] && spot_pos.y < row_max-rel_pos[1][j]+mats[j].rows &&
-				spot_pos.x >= col_max-rel_pos[0][j] && spot_pos.x < col_max-rel_pos[0][j]+mats[j].cols)
-			{
+		////...and extract the spot from each micrograph
+		//for (int j = 0; j < mats.size(); j++)
+		//{		
+		//	if (spot_pos.y >= row_max-rel_pos[1][j] && spot_pos.y < row_max-rel_pos[1][j]+mats[j].rows &&
+		//		spot_pos.x >= col_max-rel_pos[0][j] && spot_pos.x < col_max-rel_pos[0][j]+mats[j].cols)
+		//	{
 
 
 
-				///Mask to extract spot from micrograph
-				cv::Mat circ_mask = cv::Mat::zeros(mats[j].size(), CV_8UC1);
+		//		///Mask to extract spot from micrograph
+		//		cv::Mat circ_mask = cv::Mat::zeros(mats[j].size(), CV_8UC1);
 
-				//Draw circle at the position of the spot on the mask
-				cv::Point circleCenter(spot_pos[k].x-col_max+rel_pos[0][j], spot_pos[k].y-row_max+rel_pos[1][j]);
-				cv::circle(circ_mask, circleCenter, radius, cv::Scalar(1), -1, 8, 0);
+		//		//Draw circle at the position of the spot on the mask
+		//		cv::Point circleCenter(spot_pos[k].x-col_max+rel_pos[0][j], spot_pos[k].y-row_max+rel_pos[1][j]);
+		//		cv::circle(circ_mask, circleCenter, radius, cv::Scalar(1), -1, 8, 0);
 
-				//Copy the part of the micrograph containing the spot
-				cv::Mat imagePart = cv::Mat::zeros(mats[j].size(), mats[j].type());
-				mats[j].copyTo(imagePart, circ_mask);
+		//		//Copy the part of the micrograph containing the spot
+		//		cv::Mat imagePart = cv::Mat::zeros(mats[j].size(), mats[j].type());
+		//		mats[j].copyTo(imagePart, circ_mask);
 
-				//Compend spot to map
-				float *r;
-				ushort *s;
-				ushort *t;
-				byte *u;
-				for (int m = 0; m < indv_num_mappers[k].rows; m++) 
-				{
-					r = indv_maps[k].ptr<float>(m);
-					s = indv_num_mappers[k].ptr<ushort>(m);
-					t = imagePart.ptr<ushort>(m);
-					u = circ_mask.ptr<byte>(m);
-					for (int n = 0; n < indv_num_mappers[k].cols; n++) 
-					{
-						//Add contributing pixels to maps
-						r[n] += t[n];
-						s[n] += u[n];
-					}
-				}
-			}
-		}
+		//		//Compend spot to map
+		//		float *r;
+		//		ushort *s;
+		//		ushort *t;
+		//		byte *u;
+		//		for (int m = 0; m < indv_num_mappers[k].rows; m++) 
+		//		{
+		//			r = indv_maps[k].ptr<float>(m);
+		//			s = indv_num_mappers[k].ptr<ushort>(m);
+		//			t = imagePart.ptr<ushort>(m);
+		//			u = circ_mask.ptr<byte>(m);
+		//			for (int n = 0; n < indv_num_mappers[k].cols; n++) 
+		//			{
+		//				//Add contributing pixels to maps
+		//				r[n] += t[n];
+		//				s[n] += u[n];
+		//			}
+		//		}
+		//	}
+		//}
 
+		std::vector<cv::Mat> something;
 		return something;
 	}
 
@@ -335,7 +359,7 @@ namespace ba
 		//Find consecutive spots with the same position
 		std::vector<std::vector<int>> groups;
 		int first_same = 0; //Start of same position train
-		for (int i = 1; i < rel_pos.size(); i++)
+		for (int i = 1; i < rel_pos[0].size(); i++)
 		{
 			//Check if relative position is different from the previous
 			if (rel_pos[0][i] != rel_pos[0][i-1] || rel_pos[1][i] != rel_pos[1][i-1])
@@ -356,7 +380,7 @@ namespace ba
 		}
 
 		//Create the last train of same position indices
-		std::vector<int> same_train(rel_pos.size() - first_same);
+		std::vector<int> same_train(rel_pos[0].size() - first_same);
 		for (int j = 0; j < same_train.size(); j++)
 		{
 			same_train[j] = first_same + j;
@@ -391,13 +415,12 @@ namespace ba
 		std::vector<cv::Mat> blur_not_consec;
 
 		//For each group of spots...
-        #pragma omp parallel for
 		for (int i = 0; i < grouped_idx.size(); i++)
 		{
 			//Index of the first image in the group
 			int j = grouped_idx[i][0];
 
-			//Check if the spot is in the image. If the first in the group isn't, none of them are
+			//Check if the spot is in the image. If the first in the group isn't, none of them are as they are all in the same position
 			if (spot_pos.y >= row_max-rel_pos[1][j] && spot_pos.y < row_max-rel_pos[1][j]+mats[j].rows &&
 				spot_pos.x >= col_max-rel_pos[0][j] && spot_pos.x < col_max-rel_pos[0][j]+mats[j].cols)
 			{
@@ -447,13 +470,10 @@ namespace ba
 		int min_row = std::max(0, row-rad);
 		int max_row = std::min(mat.rows-1, row+rad);
 
-		int min_col_acc = acc_col-rad;
-		int min_row_acc = acc_row-rad;
-
 		//Iterate accross the circle rows
-		float *p, *q; 
+		float *p, *q;
         #pragma omp parallel for
-		for (int i = min_row, rel_row = -rad, k = min_row_acc; i <= max_row; i++, rel_row++, k++)
+		for (int i = min_row, rel_row = -rad, k = acc_row-rad; i <= max_row; i++, rel_row++, k++)
 		{
 			//Create C-style pointers to interate across the circle with
 			p = mat.ptr<float>(i);
@@ -465,7 +485,7 @@ namespace ba
 			int max = std::min(max_col, col+c);
 
 			//Iterate across columns
-			for (int j = min, l = min_col_acc; j <= max; j++, l++)
+			for (int j = min, l = acc_col-c; j <= max; j++, l++)
 			{
 				q[l] += p[j];
 			}
@@ -476,17 +496,61 @@ namespace ba
 	**Input:
 	**blur_not_consec: std::vector<cv::Mat>> &, Preprocessed Bragg peaks. Consecutive Bragg peaks in the same position have been averaged
 	**and they have been Gaussian blurred to remove unwanted high frequency noise
+	**circ_mask: cv::Mat &, Mask indicating the spot pixels
+	**max_dst: float, The maximum distance between 2 instances of a spot for the overlap between them to be considered
 	**Returns:
 	**cv::Mat, Dark field decouple Bragg profile of the accumulation
 	*/
-	cv::Mat get_acc_bragg_profile(std::vector<cv::Mat> &blur_not_consec)
+	cv::Mat get_angl_intens(std::vector<cv::Mat> &blur_not_consec, cv::Mat &circ_mask, float &max_dist)
 	{
-		for (int i = 0; i < blur_not_consec.size(); i++)
+		cv::Mat r;
+		return r;
+	}
+
+	/*Calculate an initial estimate for the dark field decoupled Bragg profile using the preprocessed Bragg peaks. This function is redundant.
+	**It remains in case I need to generate data from it for my thesis, etc. in the future
+	**Input:
+	**blur_not_consec: std::vector<cv::Mat>> &, Preprocessed Bragg peaks. Consecutive Bragg peaks in the same position have been averaged
+	**and they have been Gaussian blurred to remove unwanted high frequency noise
+	**circ_mask: cv::Mat &, Mask indicating the spot pixels
+	**Returns:
+	**cv::Mat, Dark field decouple Bragg profile of the accumulation
+	*/
+	cv::Mat get_acc_bragg_profile(std::vector<cv::Mat> &blur_not_consec, cv::Mat &circ_mask)
+	{
+		//Assign memory to store the dark field decoupled Bragg profile estimate
+		cv::Mat profile = cv::Mat(blur_not_consec[0].size(), CV_32FC1, cv::Scalar(0.0));
+
+		//Get the maximum pixel in every column
+		byte *c;
+
+		//Iterate across mask rows...
+		for (int i = 0; i < circ_mask.rows; i++)
 		{
-			display_CV(blur_not_consec[i], 1e-3);
+			//...and columns
+			c = circ_mask.ptr<byte>(i);
+			for (int j = 0; j < circ_mask.cols; j++)
+			{
+				//Get maximum values for mask pixels
+				if (c[j])
+				{
+					//Iterate through every preprocessed Bragg peak to find the maximum
+					float max = 0;
+					for (int k = 0; k < blur_not_consec.size(); k++)
+					{
+						//Check if the pixel value is higher than the maximum
+						if (blur_not_consec[k].at<float>(i, j) > max)
+						{
+							max = blur_not_consec[k].at<float>(i, j);
+						}
+					}
+
+					//Record the maximum on the Bragg profile estimate
+					profile.at<float>(i, j) = max;
+				}
+			}
 		}
 
-		cv::Mat something;
-		return something;
+		return profile;
 	}
 }

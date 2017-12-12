@@ -24,6 +24,7 @@
     <ClCompile Include="annulus_param.cpp" />
     <ClCompile Include="approx_symmetry_axes.cpp" />
     <ClCompile Include="beanland_atlas.cpp" />
+    <ClCompile Include="bragg_profile_utility.cpp" />
     <ClCompile Include="circ_size_upper_bound.cpp" />
     <ClCompile Include="developer_helper_func.cpp" />
     <ClCompile Include="get_spot_positions.cpp" />
@@ -42,6 +43,7 @@
     <ClInclude Include="atlas_construction.h" />
     <ClInclude Include="beanland_atlas.h" />
     <ClInclude Include="developer_utility.h" />
+    <ClInclude Include="developer_utility.hpp" />
     <ClInclude Include="includes.h" />
   </ItemGroup>
   <ItemGroup>

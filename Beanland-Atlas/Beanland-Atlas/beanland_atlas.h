@@ -66,6 +66,10 @@
 //Size of Gaussian blurring filter when preprocessing individual spots to find the Bragg profile
 #define BRAGG_PROF_PREPROC_GAUSS 3
 
+//Maximum fraction of the pot radius that a spot can lie away from the initially calculated lattice vectors and not be excluded from the lattice
+//vector refinement calculation
+#define SPOT_POS_TOL 0.1
+
 //External libraries
 #include <includes.h>
 

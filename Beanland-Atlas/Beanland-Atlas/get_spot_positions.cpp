@@ -130,29 +130,29 @@ namespace ba
 		}
 
 		//Extract the lattice vectors
-		//std::vector<cv::Vec2i> lattice_vectors = get_lattice_vectors(positions);
+		std::vector<cv::Vec2i> lattice_vectors = get_lattice_vectors(positions);
 
-		////Remove or correct any outlier spots
-		//check_spot_pos(positions, lattice_vectors);
+		//Remove or correct any outlier spots
+		std::vector<cv::Point> on_latt_spots = correct_spot_pos(positions, lattice_vectors, align_avg_cols, align_avg_rows, radius);
 
 		////Refine the lattice vectors
-		//refine_lattice_vectors(lattice_vectors);
+		//std::vector<cv::Vec2f> refined_latt_vect = refine_lattice_vectors(on_latt_spots, lattice_vectors);
 
 		//Use the lattice vectors to find additional spots in the aligned images average px values pattern
-		//find_other_spots(xcorr, positions, lattice_vectors, align_avg_cols, align_avg_rows, radius);
+		find_other_spots(xcorr, on_latt_spots, lattice_vectors, align_avg_cols, align_avg_rows, radius);
 
 		//Rescale the spot positions to the origninal dimensions of the aligned average image
         #pragma omp parallel for
-		for (int i = 0; i < positions.size(); i++)
+		for (int i = 0; i < on_latt_spots.size(); i++)
 		{
-			positions[i].x = (positions[i].x * align_avg_cols) / cols;
-			positions[i].y = (positions[i].y * align_avg_rows) / rows;
+			on_latt_spots[i].x = (on_latt_spots[i].x * align_avg_cols) / cols;
+			on_latt_spots[i].y = (on_latt_spots[i].y * align_avg_rows) / rows;
 		}
 
 		//Free memory
 		free(xcorr_data);
 
-		return positions;
+		return on_latt_spots;
 	}
 
 	/*Blackens the circle of pixels within a certain radius of a point in a floating point OpenCV mat
@@ -278,9 +278,6 @@ namespace ba
 		//Search specified area around lattice point
 		const int search_radius = std::min((int)(SCALE_SEARCH_RAD*rad), 1);
 
-		//Number of positions currently located
-		const int init_num_pos = positions.size();
-
 		//Calculate the maximum and minimum multiples of the lattice vectors that are in the image
 		int max_vect1 = 1;
 		int min_vect1 = -1;
@@ -337,8 +334,8 @@ namespace ba
 			for (int j = min_vect2; j <= max_vect2; j++)
 			{
 				//Calculate the location of this combination of lattice vectors
-				int col = i*lattice_vectors[0][0] + j*lattice_vectors[1][0] + positions[0].x;
-				int row = i*lattice_vectors[0][1] + j*lattice_vectors[1][1] + positions[0].y;
+				float col = i*lattice_vectors[0][0] + j*lattice_vectors[1][0] + positions[0].x;
+				float row = i*lattice_vectors[0][1] + j*lattice_vectors[1][1] + positions[0].y;
 
 				//Check that a spot has not already been located in in the region
 				bool pos_not_loc = true;
@@ -361,26 +358,127 @@ namespace ba
 		}
 	}
 
-
 	/*Remove or correct any spot positions that do not fit on the spot lattice very well
 	**Input:
 	**positions: std::vector<cv::Point>, Positions of located spots
-	**latt_vect: std::vector<cv::Vec2i> &, Approximate values for lattice vectors
+	**lattice_vectors: std::vector<cv::Vec2i> &, Initial lattice vector estimate
+	**cols: int, Number of columns in the aligned image average pattern OpenCV mat. ArrayFire arrays are transpositional
+	**rows: int, Number of rows in the aligned image average pattern OpenCV mat. ArrayFire arrays are transpositional
+	**rad: int, radius of the spots
+	**tol: float, The maximum fraction of the circle radius that a circle can be away from a multiple of the initial
+	**lattice vectors estimate and still be considered a valid spot
+	**Returns:
+	**std::vector<cv::Point>, Spots that lie within tolerance of the lattice defined by the lattice vectors
 	*/
-	void check_spot_pos(std::vector<cv::Point> &positions, std::vector<cv::Vec2i> &latt_vect)
+	std::vector<cv::Point> correct_spot_pos(std::vector<cv::Point> &positions, std::vector<cv::Vec2i> &lattice_vectors,	int cols, int rows,
+		int rad, float tol)
 	{
-		//This functionality may be added later
-		//It may depend on another function that will refine the lattice vectors after aberration correction
+
+		//Maximum tolerated difference from expected lattice positions
+		float max_diff = tol * rad;
+
+		//Record whether the spot positions, besides that of the central spot, agree with the lattice vectors
+		std::vector<bool> on_latt(positions.size()-1, false);
+
+		//Calculate the maximum and minimum multiples of the lattice vectors that are in the image
+		int max_vect1 = 1;
+		int min_vect1 = -1;
+		int max_vect2 = 1;
+		int min_vect2 = -1;
+
+        #pragma omp parallel sections
+		{
+            #pragma omp section
+			{
+				//Calculate the maximum multiple of the first lattice vector from the central spot that is in range
+				while (max_vect1*lattice_vectors[0][0] + positions[0].x < cols && max_vect1*lattice_vectors[0][1] + positions[0].y < rows &&
+					max_vect1*lattice_vectors[0][0] + positions[0].x >= 0 && max_vect1*lattice_vectors[0][1] + positions[0].y >= 0)
+				{
+					max_vect1++;
+				}
+			}
+
+            #pragma omp section
+			{
+				//Calculate the minimum multiple of the first lattice vector from the central spot that is in range
+				while (min_vect1*lattice_vectors[0][0] + positions[0].x < cols && min_vect1*lattice_vectors[0][1] + positions[0].y < rows &&
+					min_vect1*lattice_vectors[0][0] + positions[0].x >= 0 && min_vect1*lattice_vectors[0][1] + positions[0].y >= 0)
+				{
+					min_vect1--;
+				}
+			}
+
+            #pragma omp section
+			{
+				//Calculate the maximum multiple of the second lattice vector from the central spot that is in range
+				while (max_vect2*lattice_vectors[1][0] + positions[0].x < cols && max_vect2*lattice_vectors[1][1] + positions[0].y < rows && 
+					max_vect2*lattice_vectors[1][0] + positions[0].x >= 0 && max_vect2*lattice_vectors[1][1] + positions[0].y >= 0) 
+				{
+					max_vect2++;
+				}
+			}
+
+            #pragma omp section
+			{
+				//Calculate the minimum multiple of the second lattice vector from the central spot that is in range
+				while (min_vect2*lattice_vectors[1][0] + positions[0].x < cols && min_vect2*lattice_vectors[1][1] + positions[0].y < rows && 
+					min_vect2*lattice_vectors[1][0] + positions[0].x >= 0 && min_vect2*lattice_vectors[1][1] + positions[0].y >= 0) 
+				{
+					min_vect2--;
+				}
+			}
+		}
+
+		//Iterate across multiples of the first lattice vector
+		int num_on_latt = 0;
+		for (int i = min_vect1; i <= max_vect1; i++)
+		{
+			//Iterate across multiples of the second lattice vector
+			for (int j = min_vect2; j <= max_vect2; j++)
+			{
+				//Calculate the location of this combination of lattice vectors
+				int col = i*lattice_vectors[0][0] + j*lattice_vectors[1][0] + positions[0].x;
+				int row = i*lattice_vectors[0][1] + j*lattice_vectors[1][1] + positions[0].y;
+
+				//If a spot is within tolerance of this lattice vector combination, mark it as being on the lattice
+				for (int k = 1; k < positions.size(); k++)
+				{
+					if (std::sqrt((col - positions[k].x)*(col - positions[k].x) + (row - positions[k].y)*(row - positions[k].y)) <= max_diff)
+					{
+						on_latt[k-1] = true;
+						num_on_latt++;
+					}
+				}
+			}
+		}
+
+		//Return the on lattice spot positions
+		std::vector<cv::Point> on_latt_spots(num_on_latt);
+		on_latt_spots[0] = positions[0]; //The brightest spot is on the lattice
+		for (int i = 1, j = 0; i < positions.size(); i++, j++)
+		{
+			//If the spot is on the lattice
+			if (on_latt[j])
+			{
+				on_latt_spots[i] = positions[i];
+			}
+		}
+
+		return on_latt_spots;
 	}
 
 	/*Refine the lattice vectors
 	**Input:
 	**positions: std::vector<cv::Point>, Positions of located spots. Outlier positions have been removed
-	**latt_vect: std::vector<cv::Vec2i> &, Approximate values for lattice vectors
+	**est_latt_vect: std::vector<cv::Vec2i> &, Original estimate of the lattice vectors
+	**Returns:
+	**std::vector<cv::Vec2f> &, Refined estimate of the lattice vectors
 	*/
-	void refine_lattice_vectors(std::vector<cv::Point> &positions, std::vector<cv::Vec2i> &latt_vect)
+	std::vector<cv::Vec2f> refine_lattice_vectors(std::vector<cv::Point> &positions, std::vector<cv::Vec2i> &est_latt_vect)
 	{
-		//This functionality may be added later
-		//It may depend on another function that will refine the lattice vectors after aberration correction
+		//To be implemented. Possibly by studying the position of the maxima of the Fourier transform of the lattice as it is vibrated
+
+		std::vector<cv::Vec2f> latt_vect;
+		return latt_vect;
 	}
 }

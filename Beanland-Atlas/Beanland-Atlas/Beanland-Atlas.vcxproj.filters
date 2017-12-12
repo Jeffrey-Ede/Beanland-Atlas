@@ -72,6 +72,9 @@
     <ClCompile Include="ident_sym_utility.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="bragg_profile_utility.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="beanland_atlas.h">
@@ -84,6 +87,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="atlas_construction.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="developer_utility.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
