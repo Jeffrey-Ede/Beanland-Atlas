@@ -380,14 +380,13 @@ namespace ba
 
 	/*Uses lattice vectors to search for spots in the diffraction pattern that have not already been recorded
 	**Input:
-	**xcorr: cv::Mat &, Product of annulus and circle cross correlations that has been blackened where spots have already been found
 	**positions: std::vector<cv::Point> &, Known positions of spots in the diffraction pattern
-	**lattice_vectors: std::vector<cv::Vec2i> &, Lattice vectors describing the positions of the spots
+	**lattice_vectors: std::vector<cv::Vec2f> &, Lattice vectors describing the positions of the spots
 	**cols: int, Number of columns in the aligned image average pattern OpenCV mat. ArrayFire arrays are transpositional
 	**rows: int, Number of rows in the aligned image average pattern OpenCV mat. ArrayFire arrays are transpositional
 	**rad: int, radius of the spots
 	*/
-	void find_other_spots(cv::Mat &xcorr, std::vector<cv::Point> &positions, std::vector<cv::Vec2i> &lattice_vectors, 
+	void find_other_spots(std::vector<cv::Point> &positions, std::vector<cv::Vec2f> &lattice_vectors, 
 		int cols, int rows, int rad);
 
 	/*Remove or correct any spot positions that do not fit on the spot lattice very well
@@ -444,13 +443,19 @@ namespace ba
 	};
 	struct atlas_sym identify_symmetry(std::vector<cv::Mat> &surveys, std::vector<cv::Point> &spot_pos, float threshold, bool cascade = true);
 
-	/*Refine the lattice vectors
+	/*Refine the lattice vectors by finding the 2 that best least squares fit the data
 	**Input:
 	**positions: std::vector<cv::Point>, Positions of located spots. Outlier positions have been removed
+	**latt_vect: std::vector<cv::Vec2i> &, Original estimate of the lattice vectors
+	**cols: int, Number of columns in the aligned image average pattern OpenCV mat. ArrayFire arrays are transpositional
+	**rows: int, Number of rows in the aligned image average pattern OpenCV mat. ArrayFire arrays are transpositional
+	**range: float, Lattice vectors are varied over +/- this range
+	**step: float, Step to incrementally move across the component ranges with
 	**Returns:
 	**std::vector<cv::Vec2f> &, Refined estimate of the lattice vectors
 	*/
-	std::vector<cv::Vec2f> refine_lattice_vectors(std::vector<cv::Point> &positions);
+	std::vector<cv::Vec2f> refine_lattice_vectors(std::vector<cv::Point> &positions, std::vector<cv::Vec2i> &latt_vect,	
+		int cols, int rows, float range, float step);
 
 	/*Get the surveys made by spots equidistant from the central spot in the aligned images average px values diffraction pattern. These 
 	**will be used to identify the atlas symmetry
@@ -760,4 +765,29 @@ namespace ba
 	**float, Initial estimate of the Ewald sphere radius of curvature
 	*/
 	float ewald_radius(std::vector<cv::Point> &spot_pos);
+
+	/*Get the spot positions as a multiple of the lattice vectors
+	**Input:
+	**positions: std::vector<cv::Point>, Positions of located spots. Outlier positions have been removed
+	**latt_vect: std::vector<cv::Vec2i> &, Lattice vectors
+	**cols: int, Number of columns in the aligned image average pattern OpenCV mat. ArrayFire arrays are transpositional
+	**rows: int, Number of rows in the aligned image average pattern OpenCV mat. ArrayFire arrays are transpositional
+	**Returns:
+	**std::vector<cv::Point2i> &, Spot positions as the nearest integer multiples of the lattice vectors
+	*/
+	std::vector<cv::Point2i> get_pos_as_mult_latt_vect(std::vector<cv::Point> &positions, std::vector<cv::Vec2i> &latt_vect, 
+		int cols, int rows);
+
+	/*The positions described by some lattice vectors that lie in a finite plane
+	**Input:
+	**positions: std::vector<cv::Point>, Positions of located spots. Outlier positions have been removed
+	**lattice_vectors: std::vector<cv::Vec2i> &, Lattice vectors
+	**cols: int, Number of columns in the aligned image average pattern OpenCV mat. ArrayFire arrays are transpositional
+	**rows: int, Number of rows in the aligned image average pattern OpenCV mat. ArrayFire arrays are transpositional
+	**origin: cv::Point &, Origin of the lattice that linear combinations of the lattice vectors will be measured relative to
+	**Returns:
+	**std::vector<cv::Vec2i> &, Linear additive combinations of integer multiples of the lattice vectors that lie in a finite plane
+	**with a specified origin. Indices are: 0 - multiple of first lattice vector, 1 - multiple of second lattice vector
+	*/
+	std::vector<cv::Vec2i> gen_latt_pos(std::vector<cv::Vec2i> &lattice_vectors, int cols, int rows, cv::Point &origin);
 }

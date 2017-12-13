@@ -68,7 +68,17 @@
 
 //Maximum fraction of the pot radius that a spot can lie away from the initially calculated lattice vectors and not be excluded from the lattice
 //vector refinement calculation
-#define SPOT_POS_TOL 0.1
+#define SPOT_POS_TOL 0.3
+
+//Proportion of the larger initially estimated lattice vector size to incrementally iterate over +/- from the initial estimate when refining
+//the lattice vectors
+#define LATT_REF_RANGE 0.02
+
+//Required accuracy of refined lattice vector
+#define LATT_REF_REQ_ACC 0.1
+
+//Minimum range of values to interate over when refining the lattice vectors
+#define MIN_LATT_REF_RANGE 1.0f
 
 //External libraries
 #include <includes.h>

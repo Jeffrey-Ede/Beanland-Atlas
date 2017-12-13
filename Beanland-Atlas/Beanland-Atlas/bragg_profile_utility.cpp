@@ -23,7 +23,7 @@ namespace ba
 		cv::Mat rotated;
 		cv::warpPerspective(img, rotated, rot_mat, img.size(), cv::INTER_CUBIC | cv::WARP_INVERSE_MAP);
 
-		display_CV(rotated);
+		//display_CV(rotated);
 
 		return rotated;
 	}

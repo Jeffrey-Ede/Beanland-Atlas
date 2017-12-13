@@ -131,15 +131,31 @@ namespace ba
 
 		//Extract the lattice vectors
 		std::vector<cv::Vec2i> lattice_vectors = get_lattice_vectors(positions);
+		std::cout << lattice_vectors[0][0] << ", " << lattice_vectors[0][1] << ", " << lattice_vectors[1][0] << ", " << lattice_vectors[1][1] << std::endl;
 
 		//Remove or correct any outlier spots
 		std::vector<cv::Point> on_latt_spots = correct_spot_pos(positions, lattice_vectors, align_avg_cols, align_avg_rows, radius);
 
 		////Refine the lattice vectors
-		//std::vector<cv::Vec2f> refined_latt_vect = refine_lattice_vectors(on_latt_spots, lattice_vectors);
+		float latt_vect_range = LATT_REF_RANGE * std::max( std::sqrt(lattice_vectors[0][0]*lattice_vectors[0][0] +
+			lattice_vectors[0][1]*lattice_vectors[0][1]), std::sqrt(lattice_vectors[1][0]*lattice_vectors[1][0] +
+				lattice_vectors[1][1]*lattice_vectors[1][1]) );
+		latt_vect_range = std::min(MIN_LATT_REF_RANGE, latt_vect_range);
+		std::vector<cv::Vec2f> refined_latt_vect = refine_lattice_vectors(on_latt_spots, lattice_vectors,  align_avg_cols, align_avg_rows, 
+			latt_vect_range, LATT_REF_REQ_ACC);
+
+		std::cout << refined_latt_vect[0][0] << ", " << refined_latt_vect[0][1] << ", " << refined_latt_vect[1][0] << ", " << refined_latt_vect[1][1] << std::endl;
+		std::getchar();
 
 		//Use the lattice vectors to find additional spots in the aligned images average px values pattern
-		find_other_spots(xcorr, on_latt_spots, lattice_vectors, align_avg_cols, align_avg_rows, radius);
+		find_other_spots(on_latt_spots, refined_latt_vect, align_avg_cols, align_avg_rows, radius);
+
+		for (int i = 0; i < on_latt_spots.size(); i++)
+		{
+			std::cout << on_latt_spots[i] << std::endl;
+		}
+		std::cout << on_latt_spots.size() << std::endl;
+		std::getchar();
 
 		//Rescale the spot positions to the origninal dimensions of the aligned average image
         #pragma omp parallel for
@@ -255,7 +271,7 @@ namespace ba
 					min_pair_dy = dy;
 				}
 			}
-	}
+		}
 
 		//Store the second lattice vector
 		lattice_vectors[1] = cv::Vec2i(min_pair_dx, min_pair_dy);
@@ -265,14 +281,13 @@ namespace ba
 
 	/*Uses lattice vectors to search for spots in the diffraction pattern that have not already been recorded
 	**Input:
-	**xcorr: cv::Mat &, Product of annulus and circle cross correlations that has been blackened where spots have already been found
 	**positions: std::vector<cv::Point> &, Known positions of spots in the diffraction pattern
-	**lattice_vectors: std::vector<cv::Vec2i> &, Lattice vectors describing the positions of the spots
+	**lattice_vectors: std::vector<cv::Vec2f> &, Lattice vectors describing the positions of the spots
 	**cols: int, Number of columns in the aligned image average pattern OpenCV mat. ArrayFire arrays are transpositional
 	**rows: int, Number of rows in the aligned image average pattern OpenCV mat. ArrayFire arrays are transpositional
 	**rad: int, radius of the spots
 	*/
-	void find_other_spots(cv::Mat &xcorr, std::vector<cv::Point> &positions, std::vector<cv::Vec2i> &lattice_vectors, 
+	void find_other_spots(std::vector<cv::Point> &positions, std::vector<cv::Vec2f> &lattice_vectors, 
 		int cols, int rows, int rad)
 	{
 		//Search specified area around lattice point
@@ -352,7 +367,7 @@ namespace ba
 				if (pos_not_loc && row >= 0 && row < rows && col >= 0 && col < cols)
 				{
 					//Store the position
-					positions.push_back(cv::Point(row, col));
+					positions.push_back(cv::Point((int)row, (int)col));
 				}
 			}
 		}
@@ -440,13 +455,36 @@ namespace ba
 				int col = i*lattice_vectors[0][0] + j*lattice_vectors[1][0] + positions[0].x;
 				int row = i*lattice_vectors[0][1] + j*lattice_vectors[1][1] + positions[0].y;
 
-				//If a spot is within tolerance of this lattice vector combination, mark it as being on the lattice
+				//Only record the closest spot
+				float min_dist = INT_MAX;
+				int prev_k = 0;
+
+				//If a spot is within tolerance of this lattice vector combination and is the closest spot, mark it as being on the lattice
 				for (int k = 1; k < positions.size(); k++)
 				{
-					if (std::sqrt((col - positions[k].x)*(col - positions[k].x) + (row - positions[k].y)*(row - positions[k].y)) <= max_diff)
+					//Distance from the lattice point
+					float dist = std::sqrt((col - positions[k].x)*(col - positions[k].x) + (row - positions[k].y)*(row - positions[k].y));
+
+					//If it is closer than the minimum distance and is the closes to the spot
+					if (dist <= max_diff && dist < min_dist)
 					{
-						on_latt[k-1] = true;
-						num_on_latt++;
+						//Record parameters of the spot
+						on_latt[k-1] = true; //Mark that the position is on the lattice, within tolerance
+						min_dist = dist; //The distance of the position from the lattice point to compare followubg positions against to see if they are closer
+
+						//If this spot is closer than a previous spot, unmark the previous
+						if (prev_k)
+						{
+							on_latt[prev_k-1] = false;
+						}
+						//If this is the first spot within range to be found
+						else
+						{
+							num_on_latt++;
+						}
+
+						//Record the index of this spot in case a future spot is closer
+						prev_k = k;
 					}
 				}
 			}
@@ -455,30 +493,221 @@ namespace ba
 		//Return the on lattice spot positions
 		std::vector<cv::Point> on_latt_spots(num_on_latt);
 		on_latt_spots[0] = positions[0]; //The brightest spot is on the lattice
-		for (int i = 1, j = 0; i < positions.size(); i++, j++)
+		for (int i = 1, j = 0; i < positions.size(); i++)
 		{
 			//If the spot is on the lattice
-			if (on_latt[j])
+			if (on_latt[i])
 			{
-				on_latt_spots[i] = positions[i];
+				on_latt_spots[j] = positions[i];
+				j++;
 			}
 		}
 
 		return on_latt_spots;
 	}
 
-	/*Refine the lattice vectors
+	/*Refine the lattice vectors by finding the 2 that best least squares fit the data
 	**Input:
 	**positions: std::vector<cv::Point>, Positions of located spots. Outlier positions have been removed
-	**est_latt_vect: std::vector<cv::Vec2i> &, Original estimate of the lattice vectors
+	**latt_vect: std::vector<cv::Vec2i> &, Original estimate of the lattice vectors
+	**cols: int, Number of columns in the aligned image average pattern OpenCV mat. ArrayFire arrays are transpositional
+	**rows: int, Number of rows in the aligned image average pattern OpenCV mat. ArrayFire arrays are transpositional
+	**range: float, Lattice vectors are varied over +/- this range
+	**step: float, Step to incrementally move across the component ranges with
 	**Returns:
 	**std::vector<cv::Vec2f> &, Refined estimate of the lattice vectors
 	*/
-	std::vector<cv::Vec2f> refine_lattice_vectors(std::vector<cv::Point> &positions, std::vector<cv::Vec2i> &est_latt_vect)
+	std::vector<cv::Vec2f> refine_lattice_vectors(std::vector<cv::Point> &positions, std::vector<cv::Vec2i> &latt_vect,	
+		int cols, int rows, float range, float step)
 	{
-		//To be implemented. Possibly by studying the position of the maxima of the Fourier transform of the lattice as it is vibrated
+		//Express the positions as multiples of the lattice vectors
+		std::vector<cv::Point2i> pos = get_pos_as_mult_latt_vect(positions, latt_vect, cols, rows);
 
-		std::vector<cv::Vec2f> latt_vect;
-		return latt_vect;
+		//Calculate limits to iterate between that don't cause the components of the lattice vectors to change sign
+		float low1_x = latt_vect[0][0] * (latt_vect[0][0]-range) > 0 ? (latt_vect[0][0]-range) : 0;
+		float high1_x = latt_vect[0][0] * (latt_vect[0][0]+range) > 0 ? (latt_vect[0][0]+range) : 0;
+		float low2_x = latt_vect[1][0] * (latt_vect[1][0]-range) > 0 ? (latt_vect[1][0]-range) : 0;
+		float high2_x = latt_vect[1][0] * (latt_vect[1][0]+range) > 0 ? (latt_vect[1][0]+range) : 0;
+		float low1_y = latt_vect[0][1] * (latt_vect[0][1]-range) > 0 ? (latt_vect[0][1]-range) : 0;
+		float high1_y = latt_vect[0][1] * (latt_vect[0][1]+range) > 0 ? (latt_vect[0][1]+range) : 0;
+		float low2_y = latt_vect[1][1] * (latt_vect[1][1]-range) > 0 ? (latt_vect[1][1]-range) : 0;
+		float high2_y = latt_vect[1][1] * (latt_vect[1][1]+range) > 0 ? (latt_vect[1][1]+range) : 0;
+
+
+
+		//Interage over the ranges of the ranges of the 4 lattice vector components to find the one that minimises the sum of
+		//squared differences from the lattice vector positions
+		float min_sqr_diff = FLT_MAX;
+		float i_min, j_min, k_min, l_min;
+		for (float i = low1_x; i <= high1_x; i += step)
+		{
+			for (float k = low2_x; k <= high2_x; k += step)
+			{
+				for (float j = low1_y; j <= high1_y; j += step)
+				{
+					for (float l = low2_y; l <= high2_y; l += step)
+					{
+						//Calculate the sum of squared differences from each of the true lattice points
+						float sqr_diff = 0;
+						for (int m = 1; m < positions.size(); m++)
+						{
+							sqr_diff += (positions[m].x - pos[m].x*i - pos[m].y*j) * (positions[m].x - pos[m].x*i - pos[m].y*j) + 
+								(positions[m].y - pos[m].y*k - pos[m].y*l) * (positions[m].y - pos[m].y*k - pos[m].y*l);
+
+							//Check if this is smaller than the minimum square difference
+							if (sqr_diff < min_sqr_diff)
+							{
+								//Record the parameters that produced this minimum
+								min_sqr_diff = sqr_diff;
+								i_min = i;
+								j_min = j;
+								k_min = k;
+								l_min = l;
+							}
+						}
+					}
+				}
+			}
+		}
+
+		std::vector<cv::Vec2f> lattice_vectors(2);
+		lattice_vectors[0][0] = i_min;
+		lattice_vectors[0][1] = j_min;
+		lattice_vectors[1][0] = k_min;
+		lattice_vectors[1][1] = l_min;
+
+		return lattice_vectors;
+	}
+
+	/*Get the spot positions as a multiple of the lattice vectors
+	**Input:
+	**positions: std::vector<cv::Point>, Positions of located spots. Outlier positions have been removed
+	**latt_vect: std::vector<cv::Vec2i> &, Lattice vectors
+	**cols: int, Number of columns in the aligned image average pattern OpenCV mat. ArrayFire arrays are transpositional
+	**rows: int, Number of rows in the aligned image average pattern OpenCV mat. ArrayFire arrays are transpositional
+	**Returns:
+	**std::vector<cv::Point2i> &, Spot positions as the nearest integer multiples of the lattice vectors
+	*/
+	std::vector<cv::Point2i> get_pos_as_mult_latt_vect(std::vector<cv::Point> &positions, std::vector<cv::Vec2i> &latt_vect, 
+		int cols, int rows)
+	{
+		//Assign memory to store the positions as the nearest integer multiple of the lattice positions
+		std::vector<cv::Point2i> mult_latt_vect(positions.size());
+
+		//Get all multiples of the lattice vectors that lie in the image
+		std::vector<cv::Vec2i> latt_pos = gen_latt_pos(latt_vect, cols, rows, positions[0]);
+
+		//For each position...
+		mult_latt_vect[0] = cv::Point2i(0, 0);
+        #pragma omp parallel for
+		for (int i = 1; i < positions.size(); i++)
+		{
+			//...find the multiple of the lattice vectors that it is closest to...
+			float min_dst2 = INT_MAX;
+			int min_dst_idx;
+			for (int j = 0; j < latt_pos.size(); j++)
+			{
+				//...by calculating the squared distances from it
+				int dst2 = (positions[i].x - positions[0].x - latt_pos[j][0]) * (positions[i].x - positions[0].x - latt_pos[j][0]) +
+					(positions[i].y - positions[0].y - latt_pos[j][1]) * (positions[i].y - positions[0].y - latt_pos[j][1]);
+
+				//Check if this is the minimum distance squared
+				if (dst2 < min_dst2)
+				{
+					min_dst2 = dst2;
+					min_dst_idx = j;
+				}
+
+				//Record the details of the lattice point of minimum distance
+				mult_latt_vect[i] = cv::Point2i(latt_pos[min_dst_idx][0], latt_pos[min_dst_idx][1]);
+			}
+		}
+
+		return mult_latt_vect;
+	}
+
+	/*The positions described by some lattice vectors that lie in a finite plane
+	**Input:
+	**positions: std::vector<cv::Point>, Positions of located spots. Outlier positions have been removed
+	**lattice_vectors: std::vector<cv::Vec2i> &, Lattice vectors
+	**cols: int, Number of columns in the aligned image average pattern OpenCV mat. ArrayFire arrays are transpositional
+	**rows: int, Number of rows in the aligned image average pattern OpenCV mat. ArrayFire arrays are transpositional
+	**origin: cv::Point &, Origin of the lattice that linear combinations of the lattice vectors will be measured relative to
+	**Returns:
+	**std::vector<cv::Vec2i> &, Linear additive combinations of integer multiples of the lattice vectors that lie in a finite plane
+	**with a specified origin. Indices are: 0 - multiple of first lattice vector, 1 - multiple of second lattice vector
+	*/
+	std::vector<cv::Vec2i> gen_latt_pos(std::vector<cv::Vec2i> &lattice_vectors, int cols, int rows, cv::Point &origin)
+	{
+		//Calculate the maximum and minimum multiples of the lattice vectors that are in the image
+		int max_vect1 = 1;
+		int min_vect1 = -1;
+		int max_vect2 = 1;
+		int min_vect2 = -1;
+
+        #pragma omp parallel sections
+		{
+            #pragma omp section
+			{
+				//Calculate the maximum multiple of the first lattice vector from the central spot that is in range
+				while (max_vect1*lattice_vectors[0][0] + origin.x < cols && max_vect1*lattice_vectors[0][1] + origin.y < rows &&
+					max_vect1*lattice_vectors[0][0] + origin.x >= 0 && max_vect1*lattice_vectors[0][1] + origin.y >= 0)
+				{
+					max_vect1++;
+				}
+			}
+
+            #pragma omp section
+			{
+				//Calculate the minimum multiple of the first lattice vector from the central spot that is in range
+				while (min_vect1*lattice_vectors[0][0] + origin.x < cols && min_vect1*lattice_vectors[0][1] + origin.y < rows &&
+					min_vect1*lattice_vectors[0][0] + origin.x >= 0 && min_vect1*lattice_vectors[0][1] + origin.y >= 0)
+				{
+					min_vect1--;
+				}
+			}
+
+            #pragma omp section
+			{
+				//Calculate the maximum multiple of the second lattice vector from the central spot that is in range
+				while (max_vect2*lattice_vectors[1][0] + origin.x < cols && max_vect2*lattice_vectors[1][1] + origin.y < rows && 
+					max_vect2*lattice_vectors[1][0] + origin.x >= 0 && max_vect2*lattice_vectors[1][1] + origin.y >= 0) 
+				{
+					max_vect2++;
+				}
+			}
+
+            #pragma omp section
+			{
+				//Calculate the minimum multiple of the second lattice vector from the central spot that is in range
+				while (min_vect2*lattice_vectors[1][0] + origin.x < cols && min_vect2*lattice_vectors[1][1] + origin.y < rows && 
+					min_vect2*lattice_vectors[1][0] + origin.x >= 0 && min_vect2*lattice_vectors[1][1] + origin.y >= 0) 
+				{
+					min_vect2--;
+				}
+			}
+		}
+
+		//Iterate across multiples of the first lattice vector
+		std::vector<cv::Vec2i> latt_pos;
+		for (int i = min_vect1; i <= max_vect1; i++)
+		{
+			//Iterate across multiples of the second lattice vector
+			for (int j = min_vect2; j <= max_vect2; j++)
+			{
+				//Calculate the location of this combination of lattice vectors
+				int col = i*lattice_vectors[0][0] + j*lattice_vectors[1][0] + origin.x;
+				int row = i*lattice_vectors[0][1] + j*lattice_vectors[1][1] + origin.y;
+
+				//If the lattice point is in the image
+				if (row >= 0 && row < rows && col >= 0 && col < cols)
+				{
+					//Store the position
+					latt_pos.push_back(cv::Vec2i(row, col));
+				}
+			}
+		}
+
+		return latt_pos;
 	}
 }
