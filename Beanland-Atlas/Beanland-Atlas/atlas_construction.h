@@ -724,29 +724,33 @@ namespace ba
 	*/
 	cv::Mat get_acc_bragg_profile(std::vector<cv::Mat> &blur_not_consec, cv::Mat &circ_mask);
 
-	/*Extract a spot's dark field decoupled Bragg profile for each micrograph it is in
+	/*Commensurate the individual images so that the Beanland atlas can be constructed
 	**Inputs:
-	**mats: std::vector<cv::Mat> &, Individual floating point images to extract spots from
 	**mats: std::vector<cv::Mat> &, Individual floating point images to extract spots from
 	**spot_pos: std::vector<cv::Point>, Positions of located spots in aligned diffraction pattern
 	**rel_pos: std::vector<std::vector<int>> &, Relative positions of images
 	**col_max: int, Maximum column difference between spot positions
 	**row_max: int, Maximum row difference between spot positions
 	**radius: const int, Radius about the spot locations to extract pixels from
-	*/
-	std::vector<cv::Mat> get_bragg_profiles(std::vector<cv::Mat> &mats, cv::Point &spot_pos, std::vector<std::vector<int>> &rel_pos,
-		int col_max, int row_max, int radius);
-
-	/*Calculate an initial estimate for the dark field decoupled Bragg profile using the preprocessed Bragg peaks
-	**Input:
-	**blur_not_consec: std::vector<cv::Mat>> &, Preprocessed Bragg peaks. Consecutive Bragg peaks in the same position have been averaged
-	**and they have been Gaussian blurred to remove unwanted high frequency noise
-	**circ_mask: cv::Mat &, Mask indicating the spot pixels
-	**max_dst: float, The maximum distance between 2 instances of a spot for the overlap between them to be considered
+	**ewald_rad: float, Estimated radius of the Ewald sphere
 	**Returns:
-	**cv::Mat, Dark field decouple Bragg profile of the accumulation
+	**
 	*/
-	cv::Mat get_angl_intens(std::vector<cv::Mat> &blur_not_consec, cv::Mat &circ_mask, float &max_dist);
+	std::vector<cv::Mat> beanland_commensurate(std::vector<cv::Mat> &mats, cv::Point &spot_pos, std::vector<std::vector<int>> &rel_pos,
+		int col_max, int row_max, int radius, float ewald_rad);
+
+	/*Commensurate the images using homographic perspective warps, homomorphic warps and intensity rescaling
+	**Input:
+	**commensuration: std::vector<cv::Mat>> &, Preprocessed Bragg peaks. Consecutive Bragg peaks in the same position have been averaged
+	**and they have been Gaussian blurred to remove unwanted high frequency noise
+	**rel_pos: std::vector<std::vector<int>> &, Relative positions of the spots
+	**grouped_idx: std::vector<std::vector<int>> &, Spots where they are grouped if they are consecutively in the same position
+	**circ_mask: cv::Mat &, Mask indicating the spot pixels
+	**max_dst: const float &, The maximum distance between 2 instances of a spot for the overlap between them to be considered
+	**ewald_rad: const float &, Estimated Ewald radius
+	*/
+	void perspective_warp(std::vector<cv::Mat> &commensuration, std::vector<std::vector<int>> &rel_pos, cv::Mat &circ_mask, 
+		std::vector<std::vector<int>> &grouped_idx, const float &max_dist, const float &ewald_rad);
 
 	/*Rotate an image in into the image plane
 	**Input:
@@ -790,4 +794,25 @@ namespace ba
 	**with a specified origin. Indices are: 0 - multiple of first lattice vector, 1 - multiple of second lattice vector
 	*/
 	std::vector<cv::Vec2i> gen_latt_pos(std::vector<cv::Vec2i> &lattice_vectors, int cols, int rows, cv::Point &origin);
+
+	/*Mask noting the positions of the black pixels that are not padding an image
+	**img: cv::Mat &, Floating point OpenCV mat to find the black non-bounding pixels of
+	**Returns: 
+	**cv::Mat, Mask indicating the positions of non-padding black pixels so that they can be infilled
+	*/
+	cv::Mat infilling_mask(cv::Mat &img);
+
+	/*Commensurate the images using homographic perspective warps, homomorphic warps and intensity rescaling
+	**Input:
+	**rel_pos: std::vector<std::vector<int>> &, Relative positions of the spots
+	**grouped_idx: std::vector<std::vector<int>> &, Spots where they are grouped if they are consecutively in the same position
+	**max_dist: const float &, The maximum distance between 2 instances of a spot for the overlap between them to be considered
+	**Returns:
+	**std::vector<std::vector<std::vector<int>>>, For each group of consecutive spots, for each of the spots it overlaps with, 
+	**a vector containing: index 0 - the consecutive group being overlapped, index 1 - the relative column position of the consecutive
+	**group that is overlapping relative to the the spot,  index 2 - the relative row position of the consecutive group that is overlapping 
+	**relative to the the spot
+	*/
+	std::vector<std::vector<std::vector<int>>> get_spot_overlaps(std::vector<std::vector<int>> &rel_pos,
+		std::vector<std::vector<int>> &grouped_idx, const float &max_dist);
 }

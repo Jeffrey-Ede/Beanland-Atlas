@@ -131,7 +131,6 @@ namespace ba
 
 		//Extract the lattice vectors
 		std::vector<cv::Vec2i> lattice_vectors = get_lattice_vectors(positions);
-		std::cout << lattice_vectors[0][0] << ", " << lattice_vectors[0][1] << ", " << lattice_vectors[1][0] << ", " << lattice_vectors[1][1] << std::endl;
 
 		//Remove or correct any outlier spots
 		std::vector<cv::Point> on_latt_spots = correct_spot_pos(positions, lattice_vectors, align_avg_cols, align_avg_rows, radius);
@@ -144,18 +143,8 @@ namespace ba
 		std::vector<cv::Vec2f> refined_latt_vect = refine_lattice_vectors(on_latt_spots, lattice_vectors,  align_avg_cols, align_avg_rows, 
 			latt_vect_range, LATT_REF_REQ_ACC);
 
-		std::cout << refined_latt_vect[0][0] << ", " << refined_latt_vect[0][1] << ", " << refined_latt_vect[1][0] << ", " << refined_latt_vect[1][1] << std::endl;
-		std::getchar();
-
 		//Use the lattice vectors to find additional spots in the aligned images average px values pattern
 		find_other_spots(on_latt_spots, refined_latt_vect, align_avg_cols, align_avg_rows, radius);
-
-		for (int i = 0; i < on_latt_spots.size(); i++)
-		{
-			std::cout << on_latt_spots[i] << std::endl;
-		}
-		std::cout << on_latt_spots.size() << std::endl;
-		std::getchar();
 
 		//Rescale the spot positions to the origninal dimensions of the aligned average image
         #pragma omp parallel for
@@ -291,7 +280,10 @@ namespace ba
 		int cols, int rows, int rad)
 	{
 		//Search specified area around lattice point
-		const int search_radius = std::min((int)(SCALE_SEARCH_RAD*rad), 1);
+		int search_radius = SCALE_SEARCH_RAD * std::min( std::sqrt(lattice_vectors[0][0]*lattice_vectors[0][0] +
+			lattice_vectors[0][1]*lattice_vectors[0][1]), std::sqrt(lattice_vectors[1][0]*lattice_vectors[1][0] +
+				lattice_vectors[1][1]*lattice_vectors[1][1]) );
+		search_radius = std::max(search_radius, 1);
 
 		//Calculate the maximum and minimum multiples of the lattice vectors that are in the image
 		int max_vect1 = 1;
@@ -341,6 +333,8 @@ namespace ba
 				}
 			}
 		}
+
+		std::cout << search_radius << std::endl;
 
 		//Iterate across multiples of the first lattice vector
 		for (int i = min_vect1; i <= max_vect1; i++)
@@ -465,7 +459,7 @@ namespace ba
 					//Distance from the lattice point
 					float dist = std::sqrt((col - positions[k].x)*(col - positions[k].x) + (row - positions[k].y)*(row - positions[k].y));
 
-					//If it is closer than the minimum distance and is the closes to the spot
+					//If it is closer than the minimum distance and is the closest to the spot
 					if (dist <= max_diff && dist < min_dist)
 					{
 						//Record parameters of the spot

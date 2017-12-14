@@ -72,7 +72,13 @@
     <ClCompile Include="ident_sym_utility.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="bragg_profile_utility.cpp">
+    <ClCompile Include="beanland_commensuration.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="postprocessing.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="beanland_commensuration_utility.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

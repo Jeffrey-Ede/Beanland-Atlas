@@ -22,7 +22,7 @@ int main()
 	std::vector<cv::Mat> mats;
 	imreadmulti(inputImagePath, mats, CV_LOAD_IMAGE_UNCHANGED);
 
-	cv::Mat rot = in_plane_rotate(mats[0], 0.1, 0);
+	//cv::Mat rot = in_plane_rotate(mats[0], 0.1, 0);
 
 	//Preprocess the image stack. At the moment, this just involves median filtering, resizing the images and converting them 
 	preprocess(mats, PREPROC_MED_FILT_SIZE);

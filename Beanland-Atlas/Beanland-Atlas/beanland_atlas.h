@@ -45,8 +45,8 @@
 //Minimum anglular separation between lattice vectors in rad
 #define LATTICE_VECT_DIR_DIFF 0.52 //About 30 degrees for now
 
-//Proportion of spot radius to search around lattice points for maximum in
-#define SCALE_SEARCH_RAD 0.5
+//Proportion of smallest lattice vector size to search around lattice position for already detected spot
+#define SCALE_SEARCH_RAD 0.8
 
 //Size of bilateral filter used to preprocess images
 #define PREPROC_MED_FILT_SIZE 3
