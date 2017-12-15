@@ -31,20 +31,89 @@ namespace ba
 		return rotated;
 	}
 
-	/*Estimate the radius of curvature of the Ewald sphere
+	/*Estimate the radius of curvature of the sample-to-detector sphere
 	**Input:
 	**spot_pos: std::vector<cv::Point> &, Positions of spots in the aligned images' average px values diffraction pattern
+	**xcorr: cv::Mat &, Cross correlation spectrum that's peaks reveal the positions of the spots
+	**discard_outer: const int, Spots withing this distance of the boundary are discarded
+	**col: const int, column of spot centre
+	**row: const int, row of spot centre
+	**centroid_size: const int, Size of centroid to take about estimated spot positions to refine them
 	**Returns:
-	**float, Initial estimate of the Ewald sphere radius of curvature
+	**cv::Vec2f, Initial estimate of the sample-to-detector sphere radius of curvature and average direction, respectively
 	*/
-	float ewald_radius(std::vector<cv::Point> &spot_pos)
+	cv::Vec2f get_sample_to_detector_sphere(std::vector<cv::Point> &spot_pos, cv::Mat &xcorr, const int discard_outer, const int col,
+		const int row, const int centroid_size)
 	{
-		//Just return the largest possible radius for now, appromiating the surface to be completely flat
-		return FLT_MAX;
+		//Discard outer spots, if necessary
+		std::vector<cv::Point> spots;
+		if (discard_outer)
+		{
+			spots = discard_outer_spots(spot_pos, col, row, discard_outer);
+		}
+		else
+		{
+			spots = spot_pos;
+		}
+
+		//Get sub-pixely refined positions of the spots, assuming that they are all at least half the centroid away from 
+		//centroid weighting spectrum's borders
+		std::vector<cv::Point2f> refined_pos = refine_spot_pos(spots, xcorr, col, row, centroid_size);
+
+		/*
+		**
+		**FINISH THE FUNCTION LATER
+		**
+		*/
+
+		//Just return the largest possible radius for now, approximating the surface to be completely flat
+		return FLT_MAX; //Change to cv::Vec2f later
 	}
 
-	/*Difference between overlapping regions of circles
+	/*Refine the estimated positions of spots to sub-pixel accuracy by calculating centroids around their estimated
+	**positions based on an image that weights the likelihood of particular pixels representing spots. It is assumed that the spots
+	**are at least have the centroid weighting's width and height away from the weighting spectrum's borders
 	**Input:
+	**spot_pos: std::vector<cv::Point> &, Positions of spots in the aligned images' average px values diffraction pattern
+	**xcorr: cv::Mat &, Cross correlation spectrum that's peaks reveal the positions of the spots
+	**col: const int, column of spot centre
+	**row: const int, row of spot centre
+	**centroid_size: const int, Size of centroid to take about estimated spot positions to refine them
+	**Returns:
+	**std::vector<cv::Point2f>, Sub-pixely accurate spot positions
+	*/
+	std::vector<cv::Point2f> refine_spot_pos(std::vector<cv::Point> &spot_pos, cv::Mat &xcorr, const int col, const int row,
+		const int centroid_size)
+	{
+		//Assign memory to store the refined spot positions
+		std::vector<cv::Point2f> refined_pos(spot_pos.size());
+
+		//Refine the position of each spot by calculating the centroid of the area surrounding it
+		int half_size = centroid_size / 2;
+		float inv_centroid_area = 1.0f / (float)(centroid_size*centroid_size);
+		for (int k = 0; k < spot_pos.size(); k++)
+		{
+			//Redine the position by calculating the centroid
+			float x = 0, y = 0;
+
+			//Iterate over the rows of the centroid weighting square grid...
+			for (int i = -half_size; i <= half_size; i++)
+			{
+				//...and iterate over the columns of the centroid weighting square grid
+				for (int j = -half_size; j <= half_size; j++)
+				{
+					//Add this pixel's contribution to the centroid
+					x += xcorr.at<float>(spot_pos[k].y+i, spot_pos[k].x+j) * j;
+					y += xcorr.at<float>(spot_pos[k].y+i, spot_pos[k].x+j) * i;
+				}
+			}
+
+			//Record the value of the centroid
+			refined_pos[k] = cv::Point2f(x * inv_centroid_area, y * inv_centroid_area);
+		}
+
+		return refined_pos;
+	}
 
 
 	/*Estimate the angular separation between spots using the differences between their overlapping regions
@@ -63,18 +132,24 @@ namespace ba
 		return angles;
 	}
 
-	/*Get Find the smallest circles that can be used to construct the each region of the Beanland atlas without gaps
+	/*Creat a Beanland atlas survey by using pixels from the nearest spot to each survey position
 	**Input:
 	**rel_pos: std::vector<std::vector<int>> &, Relative positions of the images
 	**spot_pos: std::vector<cv::Point>, Positions of located spots in aligned diffraction pattern
-	**max_radius: the maximum radius of the spots that can be used
 	**Returns:
-	**std::vector<std::vector<int>>, Circles contributing to each pixel
+	**cv::Mat, Survey made from the pixels of the nearest spots to each position
 	*/
-	std::vector<std::vector<int>> get_small_spot_sizes(std::vector<std::vector<int>> &rel_pos, std::vector<cv::Point> &spot_pos, 
-		const int max_radius)
+	cv::Mat create_small_spot_survey(std::vector<std::vector<int>> &rel_pos, std::vector<cv::Point> &spot_pos, 
+		const int &max_radius)
 	{
-		std::vector<std::vector<int>> contributors(rel_pos[0].size());
+		//I think the easiest way to do this is simply say each spot centre's distance from each point it covers, marking it and the
+		//spot number in 2 separate 2D mats. Then, every time another spot is added, it can be checked if it's distance is smaller than
+		//the one found already. If so, it becomes the new nearest spot.
+
+		//Note that spots will be elliptical; not circular, after the homographic warp
+
+		//Outside this function, once it is made, need to use it to decouple Bragg peaks from the dark field. This will require some
+		//correction after division by the atlas.
 
 		//Note: this function should figure out which spot is closest to each point on the Beanland atlas so that it can be used to
 		//calculate that point. The resulting atlas can then be used to decouple the Bragg profiles from the dark field
@@ -116,7 +191,8 @@ namespace ba
 		//	}
 		//}
 
-		return contributors;
+		cv::Mat something;
+		return something;
 	}
 
 	/*Commensurate the images using homographic perspective warps, homomorphic warps and intensity rescaling
@@ -128,7 +204,7 @@ namespace ba
 	**std::vector<std::vector<std::vector<int>>>, For each group of consecutive spots, for each of the spots it overlaps with, 
 	**a vector containing: index 0 - the consecutive group being overlapped, index 1 - the relative column position of the consecutive
 	**group that is overlapping relative to the the spot,  index 2 - the relative row position of the consecutive group that is overlapping 
-	**relative to the the spot
+	**relative to the the spot. The nesting is in that order.
 	*/
 	std::vector<std::vector<std::vector<int>>> get_spot_overlaps(std::vector<std::vector<int>> &rel_pos,
 		std::vector<std::vector<int>> &grouped_idx, const float &max_dist)
@@ -137,6 +213,7 @@ namespace ba
 		std::vector<std::vector<std::vector<int>>> group_rel_pos(grouped_idx.size());
 
 		//Compare the positions of each consecutive group of same position spots...
+        #pragma omp parallel for
 		for (int i = 0; i < grouped_idx.size(); i++)
 		{
 			//Assign memory to store relative positions of other consecutive groups with significant overlap with this spot
@@ -164,9 +241,71 @@ namespace ba
 			}
 
 			//Record this group of relative positions
-			group_rel_pos.push_back(rel_pos_overlappers);
+			group_rel_pos[i] = rel_pos_overlappers;
 		}
 
 		return group_rel_pos;
+	}
+
+	/*Find the differences between two overlapping spots where they overlap. Also output a mask indicating which pixels correspond to overlap
+	**in case some of the differences are zero
+	**Input:
+	**img1: cv::Mat &, Image containing a spot
+	**img2: cv::Mat &, A second image containing a spot
+	**origin1: cv::Point &, Column and row of the spot centre in the first image, respectively
+	**origin2: cv::Point &, Column and row of the spot centre in the second image, respectively
+	**dx: const int &, Relative column of the second spot to the first
+	**dy: const int &, Relative row of the second spot to the first
+	**circ_mask: cv::Mat &, Mask indicating the spot pixels
+	**diff: cv::Mat &, Difference between the 2 matrices when the first is subtracted from the second
+	**mask: cv::Mat &, Mask indicating which pixels are differences of the overlapping regions
+	*/
+	void get_diff_overlap(cv::Mat &img1, cv::Mat &img2, cv::Point &origin1, cv::Point &origin2, const int &dx, const int &dy,
+		cv::Mat &circ_mask, cv::Mat &diff, cv::Mat &mask)
+	{
+		//Initialise the difference and mask mats, making the mask binary to save memory
+		diff = cv::Mat(img1.size(), img1.type(), cv::Scalar(0.0)); //Same type as original
+		mask = cv::Mat(img1.size(), CV_8UC1, cv::Scalar(0)); //Binary
+
+		//Create pointers for faster interation: p - img1, q - img2, d - diff, m - mask, c - circ_mask, c2 - second pointer to circle mask
+		float *p, *q, *d; 
+		byte *m, *c, *c2;
+
+		//Create the mask, utilising the already calculated circle mask to speed up calculations
+		//Calculate limits
+		int lcol = dx >= 0 ? dx : 0;
+		int lrow = dy >= 0 ? dy : 0;
+		int ucol = img1.cols-dx < img1.cols ? img1.cols-dx: img1.cols; //Upper column number, not index
+		int urow = img1.rows-dy < img1.rows ? img1.rows-dx: img1.rows; //Upper row number, not index
+
+		//Interate over mask rows...
+		for (int i = lrow, k = 0; i < urow; i++, k++)
+		{
+			//...and iterate over mask columns
+			m = mask.ptr<byte>(i);
+			c = circ_mask.ptr<byte>(i);
+			c2 = circ_mask.ptr<byte>(k);
+			for (int j = lcol, l = 0; j < ucol; j++, l++)
+			{
+				//If the point is on the first image's spot and the second's, record this as a region to calculate the difference
+				m[j] = c[j] && c2[l] ? 1 : 0;
+			}
+		}
+
+		//Find the differences between the overlapping regions of the spots where they overlap in the first image
+		//Interate over mask rows...
+		for (int i = 0; i < mask.rows; i++)
+		{
+			//...and iterate over mask columns
+			m = mask.ptr<byte>(i);
+			p = img1.ptr<float>(i);
+			q = img2.ptr<float>(i);
+			d = diff.ptr<float>(i);
+			for (int j = 0; j < mask.cols; j++)
+			{
+				//Calculate differences where the circles overlap
+				d[j] = m[j] ? q[j] - p[j] : 0;
+			}
+		}
 	}
 }

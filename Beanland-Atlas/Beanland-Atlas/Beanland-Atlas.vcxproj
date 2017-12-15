@@ -44,6 +44,7 @@
   <ItemGroup>
     <ClInclude Include="atlas_construction.h" />
     <ClInclude Include="beanland_atlas.h" />
+    <ClInclude Include="defines.h" />
     <ClInclude Include="developer_utility.h" />
     <ClInclude Include="developer_utility.hpp" />
     <ClInclude Include="includes.h" />

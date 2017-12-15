@@ -111,8 +111,9 @@ int main()
 	struct align_avg_mats aligned_avg = align_and_avg(mats, refined_pos);
 
 	//Get the positions of the spots in the aligned images average
+	cv::Vec2f samp_to_detect_sphere;
 	std::vector<cv::Point> spot_pos = get_spot_pos(aligned_avg.acc, annulus_param[0], annulus_param[0], create_annulus_kernel, 
-		circle_creator, gauss_kernel, af_queue, aligned_avg.acc.cols, aligned_avg.acc.rows);
+		circle_creator, gauss_kernel, af_queue, aligned_avg.acc.cols, aligned_avg.acc.rows, samp_to_detect_sphere);
 
 	//Combine the compendiums of maps mapped out by each spot to create maps showing the whole k spaces surveyed by each of the spots,
 	//then combine these surveys into an atlas to show the whole k space mapped out

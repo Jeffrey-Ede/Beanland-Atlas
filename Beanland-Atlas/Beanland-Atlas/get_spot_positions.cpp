@@ -6,8 +6,8 @@ namespace ba
 	**so it can be assumed that they are relatively featureless
 	**Inputs:
 	**align_avg: cv::Mat &, Average values of px in aligned diffraction patterns
-	**radius: int, Radius of spots
-	**thickness: int, Thickness of annulus to convolve with spots
+	**initial_radius: int, Radius of the spots
+	**initial_thickness: int, Thickness of the annulus to convolve with spots
 	**annulus_creator: cl_kernel, OpenCL kernel to create padded unblurred annulus to cross correlate the aligned image average pattern Sobel
 	**filtrate with
 	**circle_creator: cl_kernel, OpenCL kernel to create padded unblurred circle to cross correlate he aligned image average pattern with
@@ -15,11 +15,14 @@ namespace ba
 	**af_queue: cl_command_queue, ArrayFire command queue
 	**align_avg_cols: int, Number of columns in the aligned image average pattern OpenCV mat. ArrayFire arrays are transpositional
 	**align_avg_rows: int, Number of rows in the aligned image average pattern OpenCV mat. ArrayFire arrays are transpositional
+	**samp_to_detect_sphere: cv::Vec2f &, Reference to store the sample-to-detector sphere radius and orientation estimated by this function
+	**discard_outer: const int, Discard spots within this distance from the boundary. Defaults to discarding spots within 1 radius
 	**Return:
 	std::vector<cv::Point> Positions of spots in the aligned image average pattern
 	*/
-	std::vector<cv::Point> get_spot_pos(cv::Mat &align_avg, int radius, int thickness, cl_kernel annulus_creator, cl_kernel circle_creator, 
-		cl_kernel gauss_creator, cl_command_queue af_queue, int align_avg_cols, int align_avg_rows)
+	std::vector<cv::Point> get_spot_pos(cv::Mat &align_avg, int initial_radius, int initial_thickness, cl_kernel annulus_creator,
+		cl_kernel circle_creator, cl_kernel gauss_creator, cl_command_queue af_queue, int align_avg_cols, int align_avg_rows, 
+		cv::Vec2f &samp_to_detect_sphere, const int discard_outer)
 	{
 		//Create vector to hold the spot positions
 		std::vector<cv::Point> positions;
@@ -32,6 +35,23 @@ namespace ba
 		cv::Mat contig_align_avg;
 		cv::resize(align_avg, contig_align_avg, cv::Size(cols, rows), 0, 0, cv::INTER_LANCZOS4); //Resize the array so that it is a power of 2 in size
 		af::array align_avg_af(cols, rows, (float*)contig_align_avg.data);
+
+		//Approximately resize the annulus and circle parameters if the pattern was resized
+		int radius, thickness;
+		if (rows != align_avg_rows || cols != align_avg_cols)
+		{
+			//Approximately rescale the circle and annulus parameters
+			float scale_factor = std::sqrt((cols/align_avg_cols)*(cols/align_avg_cols) + (rows/align_avg_rows)*(rows/align_avg_rows));
+
+			radius = (int)(scale_factor*initial_radius);
+			thickness = (int)(scale_factor*initial_thickness);
+		}
+		//If the aligned diffraction pattern did not need to be resized
+		else
+		{
+			radius = initial_radius;
+			thickness = initial_thickness;
+		}
 
 		//Fourier transform the aligned average pixel values
 		af_array align_avg_fft_c;
@@ -133,18 +153,18 @@ namespace ba
 		std::vector<cv::Vec2i> lattice_vectors = get_lattice_vectors(positions);
 
 		//Remove or correct any outlier spots
-		std::vector<cv::Point> on_latt_spots = correct_spot_pos(positions, lattice_vectors, align_avg_cols, align_avg_rows, radius);
+		std::vector<cv::Point> on_latt_spots = correct_spot_pos(positions, lattice_vectors, cols, rows, radius);
 
 		////Refine the lattice vectors
 		float latt_vect_range = LATT_REF_RANGE * std::max( std::sqrt(lattice_vectors[0][0]*lattice_vectors[0][0] +
 			lattice_vectors[0][1]*lattice_vectors[0][1]), std::sqrt(lattice_vectors[1][0]*lattice_vectors[1][0] +
 				lattice_vectors[1][1]*lattice_vectors[1][1]) );
 		latt_vect_range = std::min(MIN_LATT_REF_RANGE, latt_vect_range);
-		std::vector<cv::Vec2f> refined_latt_vect = refine_lattice_vectors(on_latt_spots, lattice_vectors,  align_avg_cols, align_avg_rows, 
+		std::vector<cv::Vec2f> refined_latt_vect = refine_lattice_vectors(on_latt_spots, lattice_vectors,  cols, rows, 
 			latt_vect_range, LATT_REF_REQ_ACC);
 
 		//Use the lattice vectors to find additional spots in the aligned images average px values pattern
-		find_other_spots(on_latt_spots, refined_latt_vect, align_avg_cols, align_avg_rows, radius);
+		find_other_spots(on_latt_spots, refined_latt_vect, cols, rows, radius);
 
 		//Rescale the spot positions to the origninal dimensions of the aligned average image
         #pragma omp parallel for
@@ -153,6 +173,13 @@ namespace ba
 			on_latt_spots[i].x = (on_latt_spots[i].x * align_avg_cols) / cols;
 			on_latt_spots[i].y = (on_latt_spots[i].y * align_avg_rows) / rows;
 		}
+
+		//Discard spots that are not at least a specified distance from the peripheries of the image
+		on_latt_spots = discard_outer_spots(on_latt_spots, cols, rows, discard_outer);
+
+		//Estimate the parameters decribing the sample-to-detector sphere
+		samp_to_detect_sphere = get_sample_to_detector_sphere(on_latt_spots, xcorr, discard_outer == -1 || discard_outer >= initial_radius ? 0 : initial_radius,
+			cols, rows);
 
 		//Free memory
 		free(xcorr_data);
@@ -703,5 +730,43 @@ namespace ba
 		}
 
 		return latt_pos;
+	}
+
+	/*Discard the outer spots on the Beanland atlas. Defaults to removing those that are not fully on the aligned diffraction pattern
+	**Input:
+	**pos: std::vector<cv::Point>, Positions of spots
+	**cols: const int, Number of columns in the aligned image average pattern OpenCV mat. ArrayFire arrays are transpositional
+	**rows: const int, Number of rows in the aligned image average pattern OpenCV mat. ArrayFire arrays are transpositional
+	**dst: const int, Minimum distance of spots from the boundary for them to not be discarded
+	**Returns:
+	**std::vector<cv::Point> &, Spots that are at least the minimum distance from the boundary
+	*/
+	std::vector<cv::Point> discard_outer_spots(std::vector<cv::Point> &pos, const int cols, const int rows, const int dst)
+	{
+		//Find the number of inner spots
+		int num_inner = 0;
+		std::vector<bool> mark_inner(pos.size()); //Mark the positions of the inner spots
+		for (int i = 0; i < pos.size(); i++)
+		{
+			//If the spot is the minimum distance from the boundary, mark its position
+			if (pos[i].x >= dst && pos[i].y >= dst && pos[i].x < cols-dst && pos[i].y < rows-dst)
+			{
+				mark_inner[i] = true;
+				num_inner++;
+			}
+		}
+
+		//Return only the inner spots
+		std::vector<cv::Point> inner_spots(num_inner);
+		for (int i = 0, k = 0; i < pos.size(); i++)
+		{
+			if (mark_inner[i])
+			{
+				inner_spots[k] = pos[i];
+				k++;
+			}
+		}
+
+		return inner_spots;
 	}
 }

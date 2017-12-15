@@ -25,7 +25,7 @@ namespace ba
 	int circ_size_ubound(std::vector<cv::Mat> &mats, int mats_rows_af, int mats_cols_af, af::array &gauss, int min_circ_size,
 		int max_num_imgs, cl_context af_context, cl_device_id af_device_id, cl_command_queue af_queue, const int NUM_THREADS);
 
-	/*Create extended Gaussian to blur images with to remove high frequency components. It
+	/*Create extended Gaussian to blur images with to remove high frequency components.
 	**Inputs:
 	**rows: int, Number of columnss in input matrices. ArrayFire matrices are transposed so this is the number of rows of the ArrayFire
 	**array
@@ -325,8 +325,8 @@ namespace ba
 	**so it can be assumed that they are relatively featureless
 	**Inputs:
 	**align_avg: cv::Mat &, Average values of px in aligned diffraction patterns
-	**radius: int, Radius of spots
-	**thickness: int, Thickness of annulus to convolve with spots
+	**initial_radius: int, Radius of the spots
+	**initial_thickness: int, Thickness of the annulus to convolve with spots
 	**annulus_creator: cl_kernel, OpenCL kernel to create padded unblurred annulus to cross correlate the aligned image average pattern Sobel
 	**filtrate with
 	**circle_creator: cl_kernel, OpenCL kernel to create padded unblurred circle to cross correlate he aligned image average pattern with
@@ -334,12 +334,15 @@ namespace ba
 	**af_queue: cl_command_queue, ArrayFire command queue
 	**align_avg_cols: int, Number of columns in the aligned image average pattern OpenCV mat. ArrayFire arrays are transpositional
 	**align_avg_rows: int, Number of rows in the aligned image average pattern OpenCV mat. ArrayFire arrays are transpositional
+	**ewald_rad: cv::Vec2f &, Reference to a float to store the Ewald sphere radius and orientation estimated by this function in
+	**discard_outer: const int, Discard spots within this distance from the boundary. Defaults to discarding spots within 1 radius
 	**Return:
 	std::vector<cv::Point> Positions of spots in the aligned image average pattern
 	*/
-	std::vector<cv::Point>  get_spot_pos(cv::Mat &align_avg, int radius, int thickness, cl_kernel annulus_creator, cl_kernel circle_creator, 
-		cl_kernel gauss_creator, cl_command_queue af_queue, int align_avg_cols, int align_avg_rows);
-
+	std::vector<cv::Point> get_spot_pos(cv::Mat &align_avg, int initial_radius, int initial_thickness, cl_kernel annulus_creator,
+		cl_kernel circle_creator, cl_kernel gauss_creator, cl_command_queue af_queue, int align_avg_cols, int align_avg_rows, cv::Vec2f &ewald_rad,
+		const int discard_outer = DISCARD_SPOTS_DEFAULT);
+	
 	/**Calculates the positions of repeating maxima in noisy data. A peak if the data's Fourier power spectrum is used to 
 	**find the number of times the pattern repeats, assumung that the data only contains an integer number of repeats.
 	**This number of maxima are then searched for.
@@ -762,14 +765,20 @@ namespace ba
 	*/
 	cv::Mat in_plane_rotate(cv::Mat &img, const float &angle_horiz, const float &angle_vert);
 
-	/*Estimate the radius of curvature of the Ewald sphere
+	/*Estimate the radius of curvature of the sample-to-detector sphere
 	**Input:
 	**spot_pos: std::vector<cv::Point> &, Positions of spots in the aligned images' average px values diffraction pattern
+	**xcorr: cv::Mat &, Cross correlation spectrum that's peaks reveal the positions of the spots
+	**discard_outer: const int, Spots withing this distance of the boundary are discarded
+	**col: const int, column of spot centre
+	**row: const int, row of spot centre
+	**centroid_size: const int, Size of centroid to take about estimated spot positions to refine them
 	**Returns:
-	**float, Initial estimate of the Ewald sphere radius of curvature
+	**cv::Vec2f, Initial estimate of the sample-to-detector sphere radius of curvature and average direction, respectively
 	*/
-	float ewald_radius(std::vector<cv::Point> &spot_pos);
-
+	cv::Vec2f get_sample_to_detector_sphere(std::vector<cv::Point> &spot_pos, cv::Mat &xcorr, const int discard_outer, const int col,
+		const int row, const int centroid_size = SAMP_TO_DETECT_CENTROID);
+	
 	/*Get the spot positions as a multiple of the lattice vectors
 	**Input:
 	**positions: std::vector<cv::Point>, Positions of located spots. Outlier positions have been removed
@@ -811,8 +820,57 @@ namespace ba
 	**std::vector<std::vector<std::vector<int>>>, For each group of consecutive spots, for each of the spots it overlaps with, 
 	**a vector containing: index 0 - the consecutive group being overlapped, index 1 - the relative column position of the consecutive
 	**group that is overlapping relative to the the spot,  index 2 - the relative row position of the consecutive group that is overlapping 
-	**relative to the the spot
+	**relative to the the spot. The nesting is in that order.
 	*/
 	std::vector<std::vector<std::vector<int>>> get_spot_overlaps(std::vector<std::vector<int>> &rel_pos,
 		std::vector<std::vector<int>> &grouped_idx, const float &max_dist);
+
+	/*Find the differences between two overlapping spots where they overlap. Also output a mask indicating which pixels correspond to overlap
+	**in case some of the differences are zero
+	**Input:
+	**img1: cv::Mat &, Image containing a spot
+	**img2: cv::Mat &, A second image containing a spot
+	**origin1: cv::Point &, Column and row of the spot centre in the first image, respectively
+	**origin2: cv::Point &, Column and row of the spot centre in the second image, respectively
+	**dx: const int &, Relative column of the second spot to the first
+	**dy: const int &, Relative row of the second spot to the first
+	**circ_mask: cv::Mat &, Mask indicating the spot pixels
+	**diff: cv::Mat &, Difference between the 2 matrices when the first is subtracted from the second
+	**mask: cv::Mat &, Mask indicating which pixels are differences of the overlapping regions
+	*/
+	void get_diff_overlap(cv::Mat &img1, cv::Mat &img2, cv::Point &origin1, cv::Point &origin2, const int &dx, const int &dy,
+		cv::Mat &circ_mask, cv::Mat &diff, cv::Mat &mask);
+
+	/*Calculate the autocorrelation of an OpenCV mat
+	**img: cv::Mat &, Image to calculate the autocorrelation of
+	**Returns,
+	**cv::Mat, Autocorrelation of the image
+	*/
+	cv::Mat autocorrelation(cv::Mat &img);
+
+	/*Discard the outer spots on the Beanland atlas. Defaults to removing those that are not fully on the aligned diffraction pattern
+	**Input:
+	**pos: std::vector<cv::Point>, Positions of spots
+	**cols: const int, Number of columns in the aligned image average pattern OpenCV mat. ArrayFire arrays are transpositional
+	**rows: const int, Number of rows in the aligned image average pattern OpenCV mat. ArrayFire arrays are transpositional
+	**dst: const int, Minimum distance of spots from the boundary for them to not be discarded
+	**Returns:
+	**std::vector<cv::Point> &, Spots that are at least the minimum distance from the boundary
+	*/
+	std::vector<cv::Point> discard_outer_spots(std::vector<cv::Point> &pos, const int cols, const int rows, const int dst);
+
+	/*Refine the estimated positions of spots to sub-pixel accuracy by calculating centroids around their estimated
+	**positions based on an image that weights the likelihood of particular pixels representing spots. It is assumed that the spots
+	**are at least have the centroid weighting's width and height away from the weighting spectrum's borders
+	**Input:
+	**spot_pos: std::vector<cv::Point> &, Positions of spots in the aligned images' average px values diffraction pattern
+	**xcorr: cv::Mat &, Cross correlation spectrum that's peaks reveal the positions of the spots
+	**col: const int, column of spot centre
+	**row: const int, row of spot centre
+	**centroid_size: const int, Size of centroid to take about estimated spot positions to refine them
+	**Returns:
+	**std::vector<cv::Point2f>, Sub-pixely accurate spot positions
+	*/
+	std::vector<cv::Point2f> refine_spot_pos(std::vector<cv::Point> &spot_pos, cv::Mat &xcorr, const int col, const int row,
+		const int centroid_size);
 }

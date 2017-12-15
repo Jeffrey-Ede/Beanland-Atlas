@@ -266,10 +266,28 @@ namespace ba
 		std::vector<std::vector<int>> &grouped_idx, const float &max_dist, const float &ewald_rad)
 	{
 		//Find all the overlaps that must be considered between the groups of consecutive spots that are in the same position
-		std::vector<std::vector<std::vector<int>>> overaps = get_spot_overlaps(rel_pos, grouped_idx, max_dist);
+		std::vector<std::vector<std::vector<int>>> overlaps = get_spot_overlaps(rel_pos, grouped_idx, max_dist);
 
-		//To be completed - I'm completing get_spot_overlaps() now
+		//The positions of the spot centres in the preprocessed images are all the same: they are in the middle of the images
+		cv::Point spot_centre = cv::Point(circ_mask.cols/2 + 1, circ_mask.rows/2 + 1);
 
+		//For each of the significant overlaps, calculate the homographic warps and homomorphisms needed for perspective correction
+		for (int i = 0; i < overlaps.size(); i++)
+		{
+			//For each of the spots the spot overlaps with
+			for (int j = 0; j < overlaps[i].size(); j++)
+			{
+				//Calculate the difference between the overlapping regions of the significantly overlapping groups of spots
+				cv::Mat diff_overlap, mask;
+				get_diff_overlap(commensuration[i], commensuration[overlaps[i][j][0]], spot_centre,	spot_centre, 
+					overlaps[i][j][1], overlaps[i][j][2], circ_mask, diff_overlap, mask);
+
+				/*Use the difference between the overlapping regions to estimate the perspective warping parameters needed to commensurate
+				  the spots*/
+
+
+			}
+		}
 	}
 
 	/*Calculate an initial estimate for the dark field decoupled Bragg profile using the preprocessed Bragg peaks. This function is redundant.

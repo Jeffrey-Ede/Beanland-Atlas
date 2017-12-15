@@ -20,19 +20,14 @@ namespace ba
 		float sum_y2 = 0.0f;
 
 		//Reflect points across mirror line and compare them to the nearest pixel
-		#pragma omp parallel for num_threads(NUM_THREADS)
+		#pragma omp parallel for num_threads(NUM_THREADS), reduction(sum:sum_xy), reduction(sum:sum_x), reduction(sum:sum_y), reduction(sum:sum_x2), reduction(sum:sum_y2)
 		for (int i = 0; i < vect1.size(); i++) {
 
 			//Contribute to Pearson correlation coefficient
-			#pragma omp atomic
 			sum_xy += vect1[i]*vect2[i];
-			#pragma omp atomic
 			sum_x += vect1[i];
-			#pragma omp atomic
 			sum_y += vect2[i];
-			#pragma omp atomic
 			sum_x2 += vect1[i]*vect1[i];
-			#pragma omp atomic
 			sum_y2 += vect2[i]*vect2[i];
 		}
 
@@ -595,6 +590,19 @@ namespace ba
 
 		//Linearly map to the correct results
 		return (ssd - offset) / scale;
+	}
+
+	/*Calculate the autocorrelation of an OpenCV mat
+	**img: cv::Mat &, Image to calculate the autocorrelation of
+	**Returns,
+	**cv::Mat, Autocorrelation of the image
+	*/
+	cv::Mat autocorrelation(cv::Mat &img)
+	{
+		cv::Mat autocorr;
+		cv::filter2D(img, autocorr, CV_32FC1, img, cv::Point(-1,-1), 0.0, cv::BORDER_CONSTANT);
+
+		return autocorr;
 	}
 }
 
