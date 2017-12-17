@@ -1,3 +1,5 @@
+#pragma once
+
 #ifndef _SYMMETRY_CD_H
 #define _SYMMETRY_CD_H
 
@@ -85,7 +87,6 @@ namespace sym
 	//-----------------------------------------------------------------
 	int points_local_maxima(const cv::Mat &symmetry, SymmetryPointVector &candidatepoints, int windowsize = 3);
 
-
 	//-----------------------------------------------------------------
 	// Compute the edge dispersion at the given point.
 	// Arguments:
@@ -109,7 +110,6 @@ namespace sym
 	//  cutoff   = ignore an image border of width cutoff (input)
 	//-----------------------------------------------------------------
 	double edge_directedness_cd(const cv::Mat &gradx, const cv::Mat &grady, const cv::Point &point, int radius = 3, int nbins = 16, int cutoff = 0);
-
 
 	//-----------------------------------------------------------------
 	// Compute the ratio of the the two eigenvalues of the covariance matrix
@@ -181,7 +181,6 @@ namespace sym
 	//  cov_ratio = covariance eigenratio
 	//-----------------------------------------------------------------
 	bool axial_qda(double edge_dir, double skel_size, double anti_par, double cov_ratio);
-
-
-	#endif
 }
+
+#endif

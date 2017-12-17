@@ -250,7 +250,7 @@ namespace ba
 	/*Rotates an image keeping the image the same size, embedded in a larger black rectangle
 	**Inputs:
 	**src: cv::Mat &, Image to rotate
-	**angle: float, Angle to rotate the image (anticlockwise)
+	**angle: float, Angle to rotate the image (anticlockwise) in rad
 	**Returns:
 	**cv::Mat, Rotated image
 	*/
@@ -431,13 +431,34 @@ namespace ba
 
 	/*Get the position of the central spot's symmetry center, whatever it's symmetry may be
 	**Inputs:
-	**img: cv::Mat &, Image to find the center of symmetry of
+	**img: cv::Mat &, Rotated central survey so that the symmetry center is easier to extract
+	**num_equidst: const int, Number of equidistant spots on the aligned diffraction pattern
 	**Returns:
 	**cv::Point, Position of the symmetry center
 	*/
-	cv::Point center_sym_pos(cv::Mat &survey)
+	cv::Point center_sym_pos(cv::Mat &rot_survey, int num_spots)
 	{
+		//Since we just want the center of symmetry, we only have to check the rotational symmetry
+		std::vector<cv::Mat> surveys(num_spots);
+		surveys[0] = rot_survey[0];
+		for (int i = 1; i < num_spots; i++)
+		{
+			surveys[i] = rotate_CV(rot_survey, i * 2*PI / num_spots);
+		}
 
+		std::vector<std::vector<float>> sym = get_rotational_between_sym(surveys);
+
+		//All possible 3-fold symmetries have rotational symmetry between surveys
+		if (num_spots == 3)
+		{
+
+		}
+		//4 and 6 fold symmetries either have rotational symmetry between every spot (1 apart) or between spots 2 apart
+		else
+		{
+
+		}
+
+		return cv::Point(sym[0][1], sym[0][2]);
 	}
-
 }

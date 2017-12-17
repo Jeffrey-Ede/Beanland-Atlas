@@ -1,3 +1,5 @@
+#pragma once
+
 #ifndef _SYMMETRY_POINT_H
 #define _SYMMETRY_POINT_H
 
@@ -59,6 +61,5 @@ namespace sym
 	  }
 	  return neighbors->size();
 	}
-
-	#endif
 }
+#endif

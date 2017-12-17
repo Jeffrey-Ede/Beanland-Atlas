@@ -1,4 +1,11 @@
 #pragma once
+
+#ifdef SYM_API
+#define SYM_API __declspec(dllexport)
+#else
+#define SYM_API __declspec(dllimport)
+#endif
+
 #include <array>
 
 #include <opencv2/highgui/highgui.hpp>
@@ -39,6 +46,6 @@ namespace sym
 	**Note:
 	**This functionality was originally written by Christoph Dalitz and his paper(s) should be cited when using this 
 	*/
-	std::array<int, 4> symmetry(cv::Mat img, int opt_r, cv::Mat imgmask, double opt_alpha = 0.5, bool opt_rect = true, int opt_axial = 3, int opt_only = 0,
-		char* opt_outfile = "", bool opt_log = false, bool opt_trace = false, int opt_trace_greytrans = 0);
+	extern std::array<int, 4> symmetry(cv::Mat img, int opt_r, cv::Mat imgmask, double opt_alpha = 0.5, bool opt_rect = true, int opt_axial = 3, int opt_only = 0,
+		char* opt_outfile = "sym_out", bool opt_log = false, bool opt_trace = false, int opt_trace_greytrans = 0);
 }

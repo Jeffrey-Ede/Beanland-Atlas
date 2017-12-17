@@ -62,7 +62,7 @@ namespace sym
 	std::array<int, 4> symmetry(cv::Mat img, int opt_r, cv::Mat imgmask, double opt_alpha, bool opt_rect, int opt_axial,
 		int opt_only, char* opt_outfile, bool opt_log, bool opt_trace, int opt_trace_greytrans)
 	{
-	  cv::Mat grey, bgr, imgmask, greymask, result, result_rx, result_ry, gradx, grady;
+	  cv::Mat grey, bgr, greymask, result, result_rx, result_ry, gradx, grady;
 	  double edge_dir, anti_par, skel_size, cov_ratio;
 	  int rx,ry,i;
 	  cv::Point maxpoint(0,0);

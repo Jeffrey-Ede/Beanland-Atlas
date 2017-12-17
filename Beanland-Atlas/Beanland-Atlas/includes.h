@@ -46,3 +46,6 @@
 
 //Data type size limits
 #include <limits>
+
+//Gradient based symmetry detection
+//#include <symmetry_func.h> //The algorithm is too slow
