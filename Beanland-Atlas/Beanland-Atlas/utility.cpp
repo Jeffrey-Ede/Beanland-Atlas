@@ -343,7 +343,9 @@ namespace ba
 	cv::Mat blur_by_size(cv::Mat &img, float blur_frac)
 	{
 		cv::Mat blurred;
-		cv::filter2D(img, blurred, img.depth(), cv::getGaussianKernel((int)(blur_frac*std::min(img.rows, img.cols)), -1, CV_32F));
+		int k_size = (int)(blur_frac*std::min(img.rows, img.cols)) < 1 ? 1 : (int)(blur_frac*std::min(img.rows, img.cols));
+
+		cv::filter2D(img, blurred, img.depth(), cv::getGaussianKernel(k_size, -1, CV_32F));
 
 		return blurred;
 	}

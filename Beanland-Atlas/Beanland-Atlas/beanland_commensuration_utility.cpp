@@ -45,6 +45,8 @@ namespace ba
 	cv::Vec2f get_sample_to_detector_sphere(std::vector<cv::Point> &spot_pos, cv::Mat &xcorr, const int discard_outer, const int col,
 		const int row, const int centroid_size)
 	{
+		std::cout << discard_outer << std::endl;
+
 		//Discard outer spots, if necessary
 		std::vector<cv::Point> spots;
 		if (discard_outer)

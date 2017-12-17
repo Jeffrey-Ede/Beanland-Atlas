@@ -510,9 +510,10 @@ namespace ba
 	**rot_to_align: std::vector<cv::Mat> &, Surveys that have been rotated so that they are all at the same angle to a horizontal line
 	**drawn through the brightest spot
 	**Returns:
-	**std::vector<float>, Pearson normalised product moment correlation coefficients and centres of symmetry, in that order
+	**std::vector<std::vector<float>>, Pearson normalised product moment correlation coefficients and relative row and column shift of the 
+	**second image, in that order
 	*/
-	std::vector<float> get_mirror_between_sym(std::vector<cv::Mat> &rot_to_align);
+	std::vector<std::vector<float>> get_mirror_between_sym(std::vector<cv::Mat> &rot_to_align);
 
 	/*Calculate Pearson nomalised product moment correlation coefficients between the surveys when rotated to the positions of the other
 	**surveys
@@ -558,7 +559,7 @@ namespace ba
 	*/
 	struct atlas_sym atlas_sym_3(std::vector<cv::Mat> &rot_to_align, std::vector<cv::Point> &spot_pos, bool cascade);
 
-	/*Calculate the symmetry of a 4 survey atlas
+	/*Calculate the symmetry of a 4 or 6 survey atlas
 	**Inputs:
 	**rot_to_align: std::vector<cv::Mat> &, Surveys that have been rotated so that they are all at the same angle to a horizontal line
 	**drawn through the brightest spot
@@ -568,19 +569,7 @@ namespace ba
 	**Returns:
 	**struct atlas_sym, Atlas symmetries
 	*/
-	struct atlas_sym atlas_sym_4(std::vector<cv::Mat> &rot_to_align, std::vector<cv::Point> &spot_pos, bool cascade);
-
-	/*Calculate the symmetry of a 6 survey atlas
-	**Inputs:
-	**rot_to_align: std::vector<cv::Mat> &, Surveys that have been rotated so that they are all at the same angle to a horizontal line
-	**drawn through the brightest spot
-	**spot_pos: std::vector<cv::Point> &, Positions of spots on the aligned average image values diffraction pattern
-	**cascade: bool, If true, calculate Pearson normalised product moment correlation coefficients for all possible symmetries for a given
-	**number of surveys. If false, the calculation will be slightly faster
-	**Returns:
-	**struct atlas_sym, Atlas symmetries
-	*/
-	struct atlas_sym atlas_sym_6(std::vector<cv::Mat> &rot_to_align, std::vector<cv::Point> &spot_pos, bool cascade);
+	struct atlas_sym atlas_sym_4_or_6(std::vector<cv::Mat> &rot_to_align, std::vector<cv::Point> &spot_pos, bool cascade);
 
 	/*Rotates an image keeping the image the same size, embedded in a larger black rectangle
 	**Inputs:
@@ -873,4 +862,12 @@ namespace ba
 	*/
 	std::vector<cv::Point2f> refine_spot_pos(std::vector<cv::Point> &spot_pos, cv::Mat &xcorr, const int col, const int row,
 		const int centroid_size);
+
+	/*Get the position of the central spot's symmetry center, whatever it's symmetry may be
+	**Inputs:
+	**img: cv::Mat &, Image to find the center of symmetry of
+	**Returns:
+	**cv::Point, Position of the symmetry center
+	*/
+	cv::Point center_sym_pos(cv::Mat &survey);
 }

@@ -71,15 +71,15 @@ namespace ba
 		//Perform background subtraction using Navier-Stokes infilling or otherwise
 		subtract_background(mats, spot_pos, rel_pos, inpainting_method, col_max, row_max, ns_radius);
 
-		//Get the approximate radius of the ewald sphere
-		float ewald_rad = ewald_radius(spot_pos);
+		//Get the approximate radius and orientation of the sample-to-detector sphere
+		//float ewald_rad = ewald_radius(spot_pos);
 
 		//For each spot...
         #pragma omp parallel for
 		for (int k = 0; k < spot_pos.size(); k++) 
 		{
 			//...get it's dark field decoupled Bragg profile in each micrograph...
-			std::vector<cv::Mat> bragg_profiles = beanland_commensurate(mats, spot_pos[k], rel_pos, col_max, row_max, radius, ewald_rad);
+			//std::vector<cv::Mat> bragg_profiles = beanland_commensurate(mats, spot_pos[k], rel_pos, col_max, row_max, radius, ewald_rad);
 
 			//...and extract the spot from each micrograph
 			for (int j = 0; j < mats.size(); j++)

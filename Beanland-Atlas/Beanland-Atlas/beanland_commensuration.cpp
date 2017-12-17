@@ -10,12 +10,12 @@ namespace ba
 	**col_max: int, Maximum column difference between spot positions
 	**row_max: int, Maximum row difference between spot positions
 	**radius: const int, Radius about the spot locations to extract pixels from
-	**ewald_rad: float, Estimated radius of the Ewald sphere
+	**samp_to_detect_sphere: cv::Vec2f, Initial estimate of the sample-to-detector sphere radius of curvature and average direction, respectively
 	**Returns:
 	**
 	*/
 	std::vector<cv::Mat> beanland_commensurate(std::vector<cv::Mat> &mats, cv::Point &spot_pos, std::vector<std::vector<int>> &rel_pos,
-		int col_max, int row_max, int radius, float ewald_rad)
+		int col_max, int row_max, int radius, cv::Vec2f &samp_to_detect_sphere)
 	{
 		//Find the non-consecutively same position spots and record the indices of multiple spots with the same positions
 		std::vector<std::vector<int>> grouped_idx = consec_same_pos_spots(rel_pos);
@@ -36,7 +36,7 @@ namespace ba
 		float max_sep = 1.0*radius/*bragg_get_max_sep()*/;
 
 		//Commensurate the angles and intensities
-		perspective_warp(commensuration, rel_pos, circ_mask, grouped_idx, max_sep, ewald_rad);
+		//perspective_warp(commensuration, rel_pos, circ_mask, grouped_idx, max_sep, ewald_rad); 
 
 		//Calculate the smallest radii of the spots that can be used when constructing the Beanland atlas. We want to use the smallest possible
 		//radii of each circle to minimise the effect of the dark field decoupled Bragg profile curvature
@@ -284,7 +284,6 @@ namespace ba
 
 				/*Use the difference between the overlapping regions to estimate the perspective warping parameters needed to commensurate
 				  the spots*/
-
 
 			}
 		}

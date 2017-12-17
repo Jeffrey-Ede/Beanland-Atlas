@@ -5,6 +5,8 @@ VisualStudioVersion = 15.0.26730.10
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Beanland-Atlas", "Beanland-Atlas\Beanland-Atlas.vcxproj", "{C1F38DF8-2C31-45C3-B514-87798358B5E3}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Symmetry", "Symmetry\Symmetry.vcxproj", "{ED88BCA3-D41E-4418-985A-A3673CAE735C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -21,6 +23,14 @@ Global
 		{C1F38DF8-2C31-45C3-B514-87798358B5E3}.Release|x64.Build.0 = Release|x64
 		{C1F38DF8-2C31-45C3-B514-87798358B5E3}.Release|x86.ActiveCfg = Release|Win32
 		{C1F38DF8-2C31-45C3-B514-87798358B5E3}.Release|x86.Build.0 = Release|Win32
+		{ED88BCA3-D41E-4418-985A-A3673CAE735C}.Debug|x64.ActiveCfg = Debug|x64
+		{ED88BCA3-D41E-4418-985A-A3673CAE735C}.Debug|x64.Build.0 = Debug|x64
+		{ED88BCA3-D41E-4418-985A-A3673CAE735C}.Debug|x86.ActiveCfg = Debug|Win32
+		{ED88BCA3-D41E-4418-985A-A3673CAE735C}.Debug|x86.Build.0 = Debug|Win32
+		{ED88BCA3-D41E-4418-985A-A3673CAE735C}.Release|x64.ActiveCfg = Release|x64
+		{ED88BCA3-D41E-4418-985A-A3673CAE735C}.Release|x64.Build.0 = Release|x64
+		{ED88BCA3-D41E-4418-985A-A3673CAE735C}.Release|x86.ActiveCfg = Release|Win32
+		{ED88BCA3-D41E-4418-985A-A3673CAE735C}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

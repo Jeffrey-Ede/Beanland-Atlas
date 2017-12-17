@@ -7,7 +7,7 @@ namespace ba
 	**img1: cv::Mat &, One of the images
 	**img1: cv::Mat &, The second image
 	**Returns:
-	**std::vector<float>, Pearson normalised product moment correlation coefficients and relative row and column shift of the second 
+	**std::vector<float>, Pearson normalised product moment correlation coefficient and relative row and column shift of the second 
 	**image, in that order
 	*/
 	std::vector<float> quantify_rel_shift(cv::Mat &img1, cv::Mat &img2)
@@ -157,13 +157,6 @@ namespace ba
 					int min_thick_horiz_idx = std::distance(row_thick.begin(),
 						std::min_element(row_thick.begin() + col_top[min_thick_vert_idx], row_thick.begin() + col_bot[min_thick_vert_idx]));
 
-					////Find the differences between the top and bot columns of the rows at the top and bottom of this column of
-					////minimum thickness
-					//int top_row_thick = row_thick[col_top[min_thick_vert_idx]];
-					//int bot_row_thick = row_thick[col_bot[min_thick_vert_idx]];
-
-
-
 					//Check if the area is higher than the maximum...
 					int area = row_thick[min_thick_horiz_idx]*col_thick[min_thick_vert_idx];
 					if (area > max_area)
@@ -180,5 +173,52 @@ namespace ba
 		}
 
 		return cv::Rect(max_row, max_col, max_rows, max_cols);
+	}
+
+	/*Decrease the size of the larger rectangular region of interest so that it is the same size as the smaller
+	**Inputs:
+	**roi1: cv::Rect, One of the regions of interest
+	**roi2: cv::Rect, The other region of interest
+	**Returns:
+	**std::vector<cv::Rect>, Regions of interest that are the same size, in the same order as the input arguments
+	*/
+	std::vector<cv::Rect> same_size_rois(cv::Rect roi1, cv::Rect roi2)
+	{
+		std::vector<cv::Rect> same_size_rects(2);
+
+		//Match up the region of interest rowspans so they are both the smallest
+		if (roi1.width > roi2.width)
+		{
+			roi1.width -= roi1.width - roi2.width;
+			roi1.x += (roi1.width - roi2.width) / 2;
+		}
+		else
+		{
+			if (roi1.width < roi2.width)
+			{
+				roi2.width -= roi2.width - roi1.width;
+				roi2.x += (roi2.width - roi1.width) / 2;
+			}
+		}
+
+		//Match up the region of interest columnspans so they are are both the smallest
+		if (roi1.height > roi2.height)
+		{
+			roi1.height -= roi1.height - roi2.height;
+			roi1.y += (roi1.height - roi2.height) / 2;
+		}
+		else
+		{
+			if (roi1.height < roi2.height)
+			{
+				roi2.height -= roi2.height - roi1.height;
+				roi2.y += (roi2.height - roi1.height) / 2;
+			}
+		}
+
+		same_size_rects[0] = roi1;
+		same_size_rects[1] = roi2;
+
+		return same_size_rects;
 	}
 }

@@ -175,7 +175,7 @@ namespace ba
 		}
 
 		//Discard spots that are not at least a specified distance from the peripheries of the image
-		on_latt_spots = discard_outer_spots(on_latt_spots, cols, rows, discard_outer);
+		on_latt_spots = discard_outer_spots(on_latt_spots, cols, rows, discard_outer == -1 ? initial_radius : discard_outer);
 
 		//Estimate the parameters decribing the sample-to-detector sphere
 		samp_to_detect_sphere = get_sample_to_detector_sphere(on_latt_spots, xcorr, discard_outer == -1 || discard_outer >= initial_radius ? 0 : initial_radius,
@@ -361,8 +361,6 @@ namespace ba
 			}
 		}
 
-		std::cout << search_radius << std::endl;
-
 		//Iterate across multiples of the first lattice vector
 		for (int i = min_vect1; i <= max_vect1; i++)
 		{
@@ -514,7 +512,7 @@ namespace ba
 		//Return the on lattice spot positions
 		std::vector<cv::Point> on_latt_spots(num_on_latt);
 		on_latt_spots[0] = positions[0]; //The brightest spot is on the lattice
-		for (int i = 1, j = 0; i < positions.size(); i++)
+		for (int i = 1, j = 1; i < positions.size(); i++)
 		{
 			//If the spot is on the lattice
 			if (on_latt[i])
