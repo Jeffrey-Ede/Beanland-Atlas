@@ -120,7 +120,7 @@ int main()
 	std::vector<cv::Mat> surveys = create_spot_maps(mats, spot_pos, refined_pos, 0.8*annulus_param[0], 
 		annulus_param[0]+2*annulus_param[1], -1);
 
-	struct atlas_sym atlas_symmetry = identify_symmetry(surveys, spot_pos, EQUIDST_THRESH);
+	struct atlas_sym atlas_symmetry = identify_symmetry(surveys, spot_pos, EQUIDST_THRESH, FRAC_FOR_SYM);
 
 	//display_CV(raw_atlas, 7.5e-4);
 

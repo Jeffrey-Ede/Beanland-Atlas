@@ -430,21 +430,22 @@ namespace ba
 	*/
 	void preprocess(std::vector<cv::Mat> &mats, int med_filt_size);
 
+	struct atlas_sym {
+		//parameters
+	};
 	/*Identifies the symmetry of the Beanland Atlas using Fourier analysis and Pearson normalised product moment correlation
 	**Inputs:
 	**surveys: std::vector<cv::Mat> &, Surveys of k space made by individual spots, some of which will be compared to identify the symmetry 
 	**group
 	**spot_pos: std::vector<cv::Point> &, Positions of spots on the aligned average image values diffraction pattern
 	**threshold: float, Maximum proportion of the distance between the brightest spot and the spot least distant from it that a spot can be
-	**cascade: bool, If true, calculate Pearson normalised product moment correlation coefficients for all possible symmetries for a given
-	**number of surveys. If false, the calculation will be faster
+	**frac_for_sym: const float, Mean Pearson product moment correlation coefficients for each symmetry must be at least this fraction of 
+	**the maximum Pearson coefficient for that symmetry to be considered present
 	**Returns:
 	**struct atlas_sym, Atlas symmetries
 	*/
-	struct atlas_sym {
-		//parameters
-	};
-	struct atlas_sym identify_symmetry(std::vector<cv::Mat> &surveys, std::vector<cv::Point> &spot_pos, float threshold, bool cascade = true);
+	struct atlas_sym identify_symmetry(std::vector<cv::Mat> &surveys, std::vector<cv::Point> &spot_pos, const float threshold,
+		const float frac_for_sym);
 
 	/*Refine the lattice vectors by finding the 2 that best least squares fit the data
 	**Input:
@@ -513,7 +514,7 @@ namespace ba
 	**std::vector<std::vector<float>>, Pearson normalised product moment correlation coefficients and relative row and column shift of the 
 	**second image, in that order
 	*/
-	std::vector<std::vector<float>> get_mirror_between_sym(std::vector<cv::Mat> &rot_to_align);
+	std::vector<std::vector<float>> get_mirror_sym(std::vector<cv::Mat> &rot_to_align);
 
 	/*Calculate Pearson nomalised product moment correlation coefficients between the surveys when rotated to the positions of the other
 	**surveys
@@ -595,11 +596,11 @@ namespace ba
 	**Inputs:
 	**rot_to_align: std::vector<cv::Mat> &, Surveys that have been rotated so that they are all at the same angle to a horizontal line
 	**drawn through the brightest spot
-	**big_not_black: std::vector<cv::Rect> &, The highest-are non-black region in the survey
+	**refl_lines: std::vector<int> &, Lines to perform reflections in
 	**Returns:
-	**std::vector<float>, Pearson normalised product moment correlation coefficients and centres of symmetry, in that order
+	**std::vector<float>, Pearson normalised product moment correlation coefficient for internal mirror rotation symmetry
 	*/
-	std::vector<std::vector<float>> get_mir_rot_in_sym(std::vector<cv::Mat> &rot_to_align, float mir_row);
+	std::vector<float> get_mir_rot_in_sym(std::vector<cv::Mat> &rot_to_align, std::vector<int> &refl_lines);
 
 	/*Get the largest rectangular portion of an image inside a surrounding black background
 	**Inputs:
@@ -863,11 +864,29 @@ namespace ba
 	std::vector<cv::Point2f> refine_spot_pos(std::vector<cv::Point> &spot_pos, cv::Mat &xcorr, const int col, const int row,
 		const int centroid_size);
 
-	/*Get the position of the central spot's symmetry center, whatever it's symmetry may be
+	///*Get the position of the central spot's symmetry center, whatever it's symmetry may be
+	//**Inputs:
+	//**img: cv::Mat &, Rotated central survey so that the symmetry center is easier to extract
+	//**num_equidst: const int, Number of equidistant spots on the aligned diffraction pattern
+	//**Returns:
+	//**cv::Point, Position of the symmetry center
+	//*/
+	//cv::Point2f center_sym_pos(cv::Mat &img, int num_spots);
+
+	/*Get the centers of symmetry in each of the surveys from the quantified symmetries by solving the overdetermined set of simultaneous
+	**equations created during symmetry registration
 	**Inputs:
-	**img: cv::Mat &, Image to find the center of symmetry of
+	**mirror: std::vector<std::vector<float>> &, Mirror symmetry quantification
+	**rot_between: std::vector<std::vector<float>> &, Rotational symmetry between surveys quantification
+	**rot_in: std::vector<std::vector<float>> &, 180 deg rotational symmetry in surveys quantification
+	**symmetries: std::vector<bool> &, Symmetries present. By index: 0 - mir_in, 1 - mir_between, 2 - mir_between_2, 3 - rot_between, 
+	**4 - rot_in. Other symmetries, such as rotational mirror symmetry, are not used by this function
+	**num_surveys: const int, Number of surveys
+	**rot_to_align: std::vector<cv::Mat> &, Surveys that have been rotated so that they are all at the same angle to a horizontal line
+	**drawn through the brightest spot
 	**Returns:
-	**cv::Point, Position of the symmetry center
+	**std::vector<cv::Point2f>, Centers of symmetry for each of the surveys
 	*/
-	cv::Point center_sym_pos(cv::Mat &survey);
+	std::vector<cv::Point2f> get_sym_centers(std::vector<std::vector<float>> &mirror, std::vector<std::vector<float>> &rot_between,
+		std::vector<std::vector<float>> &rot_in, std::vector<bool> &symmetries, const int num_surveys, std::vector<cv::Mat> &rot_to_align);
 }

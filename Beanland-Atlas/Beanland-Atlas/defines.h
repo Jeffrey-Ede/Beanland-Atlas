@@ -87,4 +87,8 @@ namespace ba
 
 	//Spots not at least a minimum distance from the boundary of the aligned diffraction patterns are discarded
 	#define DISCARD_SPOTS_DEFAULT -1 //-1 indicates that spots within 1 radius of the boundary should be discarded. Otherwised, the value is specified in px
+
+	//Minimum fraction of the maximum mean Pearson normalised product moment correlation coefficient that a mean Pearson coefficient can be for
+	//it's symmetry to be registered as present
+    #define FRAC_FOR_SYM 0.7
 }

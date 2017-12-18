@@ -49,3 +49,6 @@
 
 //Gradient based symmetry detection
 //#include <symmetry_func.h> //The algorithm is too slow
+
+//Solve systems of equations
+#include <Eigen/Dense>

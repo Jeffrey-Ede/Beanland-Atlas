@@ -173,8 +173,8 @@ namespace ba
 	**Inputs:
 	**img1: cv::Mat &, One of the mats
 	**img1: cv::Mat &, One of the mats
-	**col_offset: const int, Offset of the second mat's columnss from the first's
 	**row_offset: const int, Offset of the second mat's rows from the first's
+	**col_offset: const int, Offset of the second mat's columns from the first's
 	**Return:
 	**float, Pearson normalised product moment correlation coefficient between the 2 mats
 	*/

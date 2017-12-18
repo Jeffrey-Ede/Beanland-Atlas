@@ -221,4 +221,72 @@ namespace ba
 
 		return same_size_rects;
 	}
+
+	/*Rotates an image keeping the image the same size, embedded in a larger black rectangle
+	**Inputs:
+	**src: cv::Mat &, Image to rotate
+	**angle: float, Angle to rotate the image (anticlockwise) in rad
+	**Returns:
+	**cv::Mat, Rotated image
+	*/
+	cv::Mat rotate_CV(cv::Mat src, float angle)
+	{
+		//Center of rotation
+		cv::Point2f pt(src.cols/2., src.rows/2.);
+
+		//Rotation matrix
+		cv::Mat rot = getRotationMatrix2D(pt, angle, 1.0);
+
+		//Determine bounding rectangle
+		cv::Rect bbox = cv::RotatedRect(pt, src.size(), angle).boundingRect();
+
+		//Adjust the transformation matrix
+		rot.at<double>(0,2) += bbox.width/2.0 - pt.x;
+		rot.at<double>(1,2) += bbox.height/2.0 - pt.y;
+
+		//Rotate the image
+		cv::Mat dst;
+		cv::warpAffine(src, dst, rot, bbox.size());
+
+		return dst;
+	}
+
+	/*Order indices in order of increasing angle from the horizontal
+	**Inputs:
+	**angles: std::vector<float> &, Angles between the survey spots and a line drawn horizontally through the brightest spot
+	**indices_orig: std::vector<int> &, Indices of the surveys to compare to identify the atlas symmetry
+	*/
+	void order_indices_by_angle(std::vector<float> &angles, std::vector<int> &indices)
+	{
+		//Structure to combine the angles and indices vectors so that they can be coupled for sorting
+		struct angl_idx {
+			float angle;
+			int idx;
+		};
+
+		//Custom comparison of coupled elements based on angle
+		struct by_angle { 
+			bool operator()(angl_idx const &a, angl_idx const &b) { 
+				return a.angle < b.angle;
+			}
+		};
+
+		//Populate the coupled structure
+		std::vector<angl_idx> angls_idxs(angles.size());
+		for (int i = 0; i < angles.size(); i++)
+		{
+			angls_idxs[i].angle = angles[i];
+			angls_idxs[i].idx = indices[i];
+		}
+
+		//Use the custom comparison to sort the coupled elements
+		std::sort(angls_idxs.begin(), angls_idxs.end(), by_angle());
+
+		//Replace the contents of the original vectors with the ordered vlues
+		for (int i = 0; i < angles.size(); i++)
+		{
+			angles[i] = angls_idxs[i].angle ;
+			indices[i] = angls_idxs[i].idx;
+		}
+	}
 }
