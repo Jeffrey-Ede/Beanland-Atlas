@@ -170,138 +170,57 @@ namespace ba
 	}
 
 	/*Calculate Pearson normalised product moment correlation coefficient between 2 OpenCV mats for some offset between them
+	**Beware: function needs debugging
 	**Inputs:
 	**img1: cv::Mat &, One of the mats
-	**img1: cv::Mat &, One of the mats
-	**row_offset: const int, Offset of the second mat's rows from the first's
-	**col_offset: const int, Offset of the second mat's columns from the first's
+	**img2: cv::Mat &, The other mat
+	**j: const int, Offset of the second mat's columns from the first's
+	**i: const int, Offset of the second mat's rows from the first's
 	**Return:
 	**float, Pearson normalised product moment correlation coefficient between the 2 mats
 	*/
-	float pearson_corr(cv::Mat img1, cv::Mat img2, const int row_offset, const int col_offset) 
+	float pearson_corr(cv::Mat &img1, cv::Mat &img2, const int j, const int i) 
 	{
-		//Sums for Pearson product moment correlation coefficient
-		float sum_xy = 0.0f;
-		float sum_x = 0.0f;
-		float sum_y = 0.0f;
-		float sum_x2 = 0.0f;
-		float sum_y2 = 0.0f;
+		float pear;
 
-		//Special case the 4 different combinations of positive and negative offsets
-		if (row_offset >= 0 && col_offset >= 0)
+		//Check if this coefficient is greater than the maximum
+		if (i >= 0 && j >= 0)
 		{
-			//Iterate across mat rows...
-			float *r;
-			float *s;
-            #pragma omp parallel reduction(sum:sum_xy), reduction(sum:sum_x), reduction(sum:sum_y), reduction(sum:sum_x2), reduction(sum:sum_y2)
-			for (int m = row_offset; m < img1.rows; m++) 
-			{
-				//...and iterate across mat columns
-				r = img1.ptr<float>(m);
-				s = img2.ptr<float>(m-row_offset);
-				for (int n = col_offset; n < img1.cols; n++) 
-				{
-					//If the pixels are both not black - safegaurd against rows or columns with some black in the middle
-					if (r[n] && s[n-col_offset])
-					{
-						//Contribute to Pearson correlation coefficient
-						sum_xy += r[n]*s[n-col_offset];
-						sum_x += r[n];
-						sum_y += s[n-col_offset];
-						sum_x2 += r[n]*r[n];
-						sum_y2 += s[n-col_offset]*s[n-col_offset];
-					}
-				}
-			}
+			int row_span = std::min(img1.rows-i, img2.rows);
+			int col_span = std::min(img1.cols-j, img2.cols);
+			pear = pearson_corr(img1(cv::Rect(j, i, col_span, row_span)), 
+				img2(cv::Rect(0, 0, col_span, row_span)));
 		}
-		else 
+		else
 		{
-			if (row_offset < 0 && col_offset < 0)
+			if (i >= 0 && j < 0)
 			{
-				//Iterate across mat rows...
-				float *r;
-				float *s;
-                #pragma omp parallel reduction(sum:sum_xy), reduction(sum:sum_x), reduction(sum:sum_y), reduction(sum:sum_x2), reduction(sum:sum_y2)
-				for (int m = -row_offset; m < img1.rows; m++) 
-				{
-					//...and iterate across mat columns
-					r = img1.ptr<float>(m+row_offset);
-					s = img2.ptr<float>(m);
-					for (int n = -col_offset; n < img1.cols; n++) 
-					{
-						//If the pixels are both not black - safegaurd against rows or columns with some black in the middle
-						if (r[n+col_offset] && s[n])
-						{
-							//Contribute to Pearson correlation coefficient
-							sum_xy += r[n+col_offset]*s[n];
-							sum_x += r[n+col_offset];
-							sum_y += s[n];
-							sum_x2 += r[n+col_offset]*r[n+col_offset];
-							sum_y2 += s[n]*s[n];
-						}
-					}
-				}
+				int row_span = std::min(img1.rows-i, img2.rows);
+				int col_span = std::min(img1.cols+j, img2.cols);
+				pear = pearson_corr(img1(cv::Rect(0, i, col_span, row_span)), 
+					img2(cv::Rect(img2.cols-col_span, 0, col_span, row_span)));
 			}
 			else
 			{
-				if (row_offset >= 0 && col_offset < 0)
+				if (i < 0 && j >= 0)
 				{
-					//Iterate across mat rows...
-					float *r;
-					float *s;
-                    #pragma omp parallel reduction(sum:sum_xy), reduction(sum:sum_x), reduction(sum:sum_y), reduction(sum:sum_x2), reduction(sum:sum_y2)
-					for (int m = row_offset; m < img1.rows; m++) 
-					{
-						//...and iterate across mat columns
-						r = img1.ptr<float>(m);
-						s = img2.ptr<float>(m-row_offset);
-						for (int n = -col_offset; n < img1.cols; n++) 
-						{
-							//If the pixels are both not black - safegaurd against rows or columns with some black in the middle
-							if (r[n+col_offset] && s[n])
-							{
-								//Contribute to Pearson correlation coefficient
-								sum_xy += r[n+col_offset]*s[n];
-								sum_x += r[n+col_offset];
-								sum_y += s[n];
-								sum_x2 += r[n+col_offset]*r[n+col_offset];
-								sum_y2 += s[n]*s[n];
-							}
-						}
-					}
+					int row_span = std::min(img1.rows+i, img2.rows);
+					int col_span = std::min(img1.cols-j, img2.cols);
+					pear = pearson_corr(img1(cv::Rect(j, 0, col_span, row_span)), 
+						img2(cv::Rect(0, img2.rows-row_span, col_span, row_span)));
 				}
-				//The remaining case is row_offset < 0 && col_offset >= 0
 				else
 				{
-					//Iterate across mat rows...
-					float *r;
-					float *s;
-                    #pragma omp parallel reduction(sum:sum_xy), reduction(sum:sum_x), reduction(sum:sum_y), reduction(sum:sum_x2), reduction(sum:sum_y2)
-					for (int m = -row_offset; m < img1.rows; m++) 
-					{
-						//...and iterate across mat columns
-						r = img1.ptr<float>(m+row_offset);
-						s = img2.ptr<float>(m);
-						for (int n = col_offset; n < img1.cols; n++) 
-						{
-							//If the pixels are both not black - safegaurd against rows or columns with some black in the middle
-							if (r[n] && s[n-col_offset])
-							{
-								//Contribute to Pearson correlation coefficient
-								sum_xy += r[n]*s[n-col_offset];
-								sum_x += r[n];
-								sum_y += s[n-col_offset];
-								sum_x2 += r[n]*r[n];
-								sum_y2 += s[n-col_offset]*s[n-col_offset];
-							}
-						}
-					}
+					int row_span = std::min(img1.rows+i, img2.rows);
+					int col_span = std::min(img1.cols+j, img2.cols);
+
+					pear = pearson_corr(img1(cv::Rect(0, 0, col_span, row_span)), 
+						img2(cv::Rect(img2.cols-col_span, img2.rows-row_span, col_span, row_span)));
 				}
 			}
 		}
 
-		return (img1.rows*img1.cols*sum_xy - sum_x*sum_y) / (std::sqrt(img1.rows*img1.cols*sum_x2 - sum_x*sum_x) * 
-			std::sqrt(img1.rows*img1.cols*sum_y2 - sum_y*sum_y));
+		return pear;
 	}
 
 	/*Create a copy of an image where the black pixels are replaced with the mean values of the image
@@ -605,6 +524,47 @@ namespace ba
 		cv::filter2D(img, autocorr, CV_32FC1, img, cv::Point(-1,-1), 0.0, cv::BORDER_CONSTANT);
 
 		return autocorr;
+	}
+
+	/*Calculate Pearson's normalised product moment correlation coefficient between 2 floating point same-size OpenCV mats
+	**img1: cv::Mat &, One of the mats
+	**img2: cv::Mat &, The other mat
+	**Returns,
+	**float, Pearson normalised product moment correlation coefficient between the 2 mats
+	*/
+	float pearson_corr(cv::Mat &img1, cv::Mat &img2)
+	{
+		//Sums for Pearson product moment correlation coefficient
+		float sum_xy = 0.0f;
+		float sum_x = 0.0f;
+		float sum_y = 0.0f;
+		float sum_x2 = 0.0f;
+		float sum_y2 = 0.0f;
+
+		//Reflect points across mirror line and compare them to the nearest pixel
+		float *p, *q;
+        #pragma omp parallel for reduction(sum:sum_xy), reduction(sum:sum_x), reduction(sum:sum_y), reduction(sum:sum_x2), reduction(sum:sum_y2)
+		for (int i = 0; i < img1.rows; i++)
+		{
+			p = img1.ptr<float>(i);
+			q = img2.ptr<float>(i);
+			for (int j = 0; j < img1.cols; j++)
+			{
+				//If the pixels are both not black - safegaurd against rows or columns with some black in the middle
+				if (p[j] && q[j])
+				{
+					//Contribute to Pearson correlation coefficient
+					sum_xy += p[i]*q[i];
+					sum_x += p[i];
+					sum_y += q[i];
+					sum_x2 += p[i]*p[i];
+					sum_y2 += q[i]*q[i];
+				}
+			}
+		}
+
+		return (img1.rows*img2.cols*sum_xy - sum_x*sum_y) / (std::sqrt(img1.rows*img2.cols*sum_x2 - sum_x*sum_x) * 
+			std::sqrt(img1.rows*img2.cols*sum_y2 - sum_y*sum_y));
 	}
 }
 

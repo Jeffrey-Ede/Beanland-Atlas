@@ -486,15 +486,16 @@ namespace ba
 	void order_indices_by_angle(std::vector<float> &angles, std::vector<int> &indices);
 
 	/*Calculate Pearson normalised product moment correlation coefficient between 2 OpenCV mats for some offset between them
+	**Beware: function needs debugging
 	**Inputs:
 	**img1: cv::Mat &, One of the mats
-	**img1: cv::Mat &, One of the mats
-	**col_offset: const int, Offset of the second mat's columnss from the first's
-	**row_offset: const int, Offset of the second mat's rows from the first's
+	**img2: cv::Mat &, The other mat
+	**j: const int, Offset of the second mat's columns from the first's
+	**i: const int, Offset of the second mat's rows from the first's
 	**Return:
 	**float, Pearson normalised product moment correlation coefficient between the 2 mats
 	*/
-	float pearson_corr(cv::Mat img1, cv::Mat img2, const int row_offset, const int col_offset);
+	float pearson_corr(cv::Mat &img1, cv::Mat &img2, const int j, const int i);
 
 	/*Decrease the size of the larger rectangular region of interest so that it is the same size as the smaller
 	**Inputs:
@@ -530,47 +531,11 @@ namespace ba
 	**Inputs:
 	**rot_to_align: std::vector<cv::Mat> &, Surveys that have been rotated so that they are all at the same angle to a horizontal line
 	**drawn through the brightest spot
+	**est_sym_centers: std::vector<cv::Point2f> &, Estimated symmetry center positions
 	**Returns:
 	**std::vector<std::vector<float>>, Pearson normalised product moment correlation coefficients and centres of symmetry, in that order
 	*/
-	std::vector<std::vector<float>> get_rotational_in_sym(std::vector<cv::Mat> &rot_to_align);
-
-	/*Calculate the symmetry of a 2 survey atlas
-	**Inputs:
-	**rot_to_align: std::vector<cv::Mat> &, Surveys that have been rotated so that they are all at the same angle to a horizontal line
-	**drawn through the brightest spot
-	**spot_pos: std::vector<cv::Point> &, Positions of spots on the aligned average image values diffraction pattern
-	**cascade: bool, If true, calculate Pearson normalised product moment correlation coefficients for all possible symmetries for a given
-	**number of surveys. If false, the calculation will be slightly faster
-	**Returns:
-	**struct atlas_sym, Atlas symmetries
-	*/
-	struct atlas_sym atlas_sym_2(std::vector<cv::Mat> &rot_to_align, std::vector<cv::Point> &spot_pos,
-		bool cascade);
-
-	/*Calculate the symmetry of a 3 survey atlas
-	**Inputs:
-	**rot_to_align: std::vector<cv::Mat> &, Surveys that have been rotated so that they are all at the same angle to a horizontal line
-	**drawn through the brightest spot
-	**spot_pos: std::vector<cv::Point> &, Positions of spots on the aligned average image values diffraction pattern
-	**cascade: bool, If true, calculate Pearson normalised product moment correlation coefficients for all possible symmetries for a given
-	**number of surveys. If false, the calculation will be slightly faster
-	**Returns:
-	**struct atlas_sym, Atlas symmetries
-	*/
-	struct atlas_sym atlas_sym_3(std::vector<cv::Mat> &rot_to_align, std::vector<cv::Point> &spot_pos, bool cascade);
-
-	/*Calculate the symmetry of a 4 or 6 survey atlas
-	**Inputs:
-	**rot_to_align: std::vector<cv::Mat> &, Surveys that have been rotated so that they are all at the same angle to a horizontal line
-	**drawn through the brightest spot
-	**spot_pos: std::vector<cv::Point> &, Positions of spots on the aligned average image values diffraction pattern
-	**cascade: bool, If true, calculate Pearson normalised product moment correlation coefficients for all possible symmetries for a given
-	**number of surveys. If false, the calculation will be slightly faster
-	**Returns:
-	**struct atlas_sym, Atlas symmetries
-	*/
-	struct atlas_sym atlas_sym_4_or_6(std::vector<cv::Mat> &rot_to_align, std::vector<cv::Point> &spot_pos, bool cascade);
+	std::vector<std::vector<float>> get_rotational_in_sym(std::vector<cv::Mat> &rot_to_align, std::vector<cv::Point2f> &est_sym_centers);
 
 	/*Rotates an image keeping the image the same size, embedded in a larger black rectangle
 	**Inputs:
@@ -637,11 +602,17 @@ namespace ba
 	**Inputs:
 	**img1: cv::Mat &, One of the images
 	**img1: cv::Mat &, The second image
+	**use_frac: const float, Fraction of extracted rectangular region of interest to use when calculating the sum of squared 
+	**differences to match it against another region
+	**wisdom: const int, Expected relative position of the symmetry center 
+	**grad_sym_use_frac: const float &, Threshold this portion of the gradient based symmetry values to constrain the regions of the
+	**sum of squared differences when calculating the relative shift
 	**Returns:
-	**std::vector<float>, Pearson normalised product moment correlation coefficients and relative row and column shift of the second 
+	**std::vector<float>, Pearson normalised product moment correlation coefficient and relative row and column shift of the second 
 	**image, in that order
 	*/
-	std::vector<float> quantify_rel_shift(cv::Mat &img1, cv::Mat &img2);
+	std::vector<float> quantify_rel_shift(cv::Mat &img1, cv::Mat &img2, const float use_frac = QUANT_SYM_USE_FRAC, 
+		const int wisdom = REL_SHIFT_WIS_NONE, const float grad_sym_use_frac = GRAD_SYM_USE);
 
 	/*Sum of squared differences between 2 images. The second images is correlated against the first in the Fourier domain
 	**src1: cv::Mat &, One of the images
@@ -878,6 +849,7 @@ namespace ba
 	**Inputs:
 	**mirror: std::vector<std::vector<float>> &, Mirror symmetry quantification
 	**rot_between: std::vector<std::vector<float>> &, Rotational symmetry between surveys quantification
+	**mir_in_radial: std::vector<std::vector<float>> &, Mirror symmetry in surveys when they are reflected radially outwards
 	**rot_in: std::vector<std::vector<float>> &, 180 deg rotational symmetry in surveys quantification
 	**symmetries: std::vector<bool> &, Symmetries present. By index: 0 - mir_in, 1 - mir_between, 2 - mir_between_2, 3 - rot_between, 
 	**4 - rot_in. Other symmetries, such as rotational mirror symmetry, are not used by this function
@@ -885,8 +857,29 @@ namespace ba
 	**rot_to_align: std::vector<cv::Mat> &, Surveys that have been rotated so that they are all at the same angle to a horizontal line
 	**drawn through the brightest spot
 	**Returns:
-	**std::vector<cv::Point2f>, Centers of symmetry for each of the surveys
+	**std::vector<cv::Point2f>, Centers of symmetry for each of the surveys (column, then row)
 	*/
 	std::vector<cv::Point2f> get_sym_centers(std::vector<std::vector<float>> &mirror, std::vector<std::vector<float>> &rot_between,
-		std::vector<std::vector<float>> &rot_in, std::vector<bool> &symmetries, const int num_surveys, std::vector<cv::Mat> &rot_to_align);
+		std::vector<std::vector<float>> &mir_in_radial, std::vector<std::vector<float>> &rot_in, std::vector<bool> &symmetries, 
+		const int num_surveys, std::vector<cv::Mat> &rot_to_align);
+
+	/*Calculate Pearson's normalised product moment correlation coefficient between 2 floating point same-size OpenCV mats
+	**img1: cv::Mat &, One of the mats
+	**img2: cv::Mat &, The other mat
+	**Returns,
+	**float, Pearson normalised product moment correlation coefficient between the 2 mats
+	*/
+	float pearson_corr(cv::Mat &img1, cv::Mat &img2);
+
+	/*Estimate the global symmetry center of an image by finding the pixel that has the closest to zero total Scharr filtrate
+	**when it it summed over equidistances in all directions from that point
+	**Inputs:
+	**img: cv::Mat &, Floating point greyscale OpenCV mat to find the global symmetry center of
+	**not_calc_val: const float, Value to set elements that do not have at least the minimum area to perform their calculation
+	**use_frac: const float, Only global symmetry centers at least this fraction of the image's area will be considered
+	**edges will be considered
+	**Returns:
+	**cv::Mat, Sums of gradients in the largest possible rectangular regions centred on each pixel
+	*/
+	cv::Mat est_global_sym(cv::Mat &img, const float not_calc_val = SYM_CENTER_NOT_CALC_VAL, const float use_frac = SYM_CENTER_USE_FRAC);
 }

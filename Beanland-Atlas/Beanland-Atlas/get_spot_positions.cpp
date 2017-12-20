@@ -184,7 +184,15 @@ namespace ba
 		//Free memory
 		free(xcorr_data);
 
-		return on_latt_spots;
+		//Return original positions for now - something wrong with lattice vector refinement and I don't feel I have time to fix it
+        #pragma omp parallel for
+		for (int i = 0; i < on_latt_spots.size(); i++)
+		{
+			positions[i].x = (positions[i].x * align_avg_cols) / cols;
+			positions[i].y = (positions[i].y * align_avg_rows) / rows;
+		}
+
+		return positions /*on_latt_spots*/;
 	}
 
 	/*Blackens the circle of pixels within a certain radius of a point in a floating point OpenCV mat

@@ -59,8 +59,8 @@ namespace ba
 	//Factor to convert radians to degrees
 	#define RAD_TO_DEG 57.29577951
 
-	//Portion of extracted rectangular region of interest to use when calculating the sum of squared differences to match it against another region
-	#define QUANT_SYM_USE_FRAC 0.6
+	//Fraction of extracted rectangular region of interest to use when calculating the sum of squared differences to match it against another region
+	#define QUANT_SYM_USE_FRAC 0.4
 
 	//Fraction of rectangular roi size to base blurring Gaussian standard deviation on when calculating the sum of squared differences
 	#define QUANT_GAUSS_FRAC 0.03
@@ -90,5 +90,28 @@ namespace ba
 
 	//Minimum fraction of the maximum mean Pearson normalised product moment correlation coefficient that a mean Pearson coefficient can be for
 	//it's symmetry to be registered as present
-    #define FRAC_FOR_SYM 0.7
+    #define FRAC_FOR_SYM 0.5
+
+	//Symmetry centers calculated from Scharr filtrates must use at least this fraction of the of the image area
+    #define SYM_CENTER_USE_FRAC 0.0f
+
+	//Default value to set symmetry centers when the minimum area is not available to perform their calculation
+    #define SYM_CENTER_NOT_CALC_VAL 0.0f
+
+	/* Information about images being compared when calculating their relative shift that can help constrain the shift */
+
+	//Approximate fraction of the gradient based symmetry calculation values to use
+    #define GRAD_SYM_USE 0.5
+
+	//Number of bins to use when calculating histogram to determine the which threshold to apply
+	#define GRAD_SYM_HIST_SIZE 100 
+
+    #define REL_SHIFT_WIS_NONE 0
+    #define REL_SHIFT_WIS_INTERNAL_MIR0 1 //Mirror is perpendicular to radially outwards directions
+    #define REL_SHIFT_WIS_INTERNAL_MIR1 2 //Mirror is in the radially outwards direction
+    #define REL_SHIFT_WIS_INTERNAL_ROT 3
+
+	//Fraction of extracted rectangular region of interest to use when calculating the sum of squared differences to match it against another region
+	//For internal rotational symmetry
+    #define INTERAL_ROT_SSD_FRAC 0.9
 }

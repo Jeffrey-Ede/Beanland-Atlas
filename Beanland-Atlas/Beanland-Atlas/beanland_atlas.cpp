@@ -22,10 +22,10 @@ int main()
 	std::vector<cv::Mat> mats;
 	imreadmulti(inputImagePath, mats, CV_LOAD_IMAGE_UNCHANGED);
 
-	//cv::Mat rot = in_plane_rotate(mats[0], 0.1, 0);
-
 	//Preprocess the image stack. At the moment, this just involves median filtering, resizing the images and converting them 
 	preprocess(mats, PREPROC_MED_FILT_SIZE);
+
+	//cv::Mat rot = in_plane_rotate(mats[0], 0.1, 0);
 
 	//Create OpenCL context and queue for GPU acceleration 
 	cl::Context context(CL_DEVICE_TYPE_GPU);
@@ -117,7 +117,7 @@ int main()
 
 	//Combine the compendiums of maps mapped out by each spot to create maps showing the whole k spaces surveyed by each of the spots,
 	//then combine these surveys into an atlas to show the whole k space mapped out
-	std::vector<cv::Mat> surveys = create_spot_maps(mats, spot_pos, refined_pos, 0.8*annulus_param[0], 
+	std::vector<cv::Mat> surveys = create_spot_maps(mats, spot_pos, refined_pos, 0.6*annulus_param[0], 
 		annulus_param[0]+2*annulus_param[1], -1);
 
 	struct atlas_sym atlas_symmetry = identify_symmetry(surveys, spot_pos, EQUIDST_THRESH, FRAC_FOR_SYM);

@@ -6,11 +6,17 @@ namespace ba
 	**Inputs:
 	**img1: cv::Mat &, One of the images
 	**img1: cv::Mat &, The second image
+	**use_frac: const float, Fraction of extracted rectangular region of interest to use when calculating the sum of squared 
+	**differences to match it against another region
+	**wisdom: Information about the images being compared to constrain the relative shift calculation
+	**grad_sym_use_frac: const float &, Threshold this portion of the gradient based symmetry values to constrain the regions of 
+	**the sum of squared differences when calculating the relative shift
 	**Returns:
 	**std::vector<float>, Pearson normalised product moment correlation coefficient and relative row and column shift of the second 
 	**image, in that order
 	*/
-	std::vector<float> quantify_rel_shift(cv::Mat &img1, cv::Mat &img2)
+	std::vector<float> quantify_rel_shift(cv::Mat &img1, cv::Mat &img2, const float use_frac, const int wisdom, 
+		const float grad_sym_use_frac)
 	{
 		//Trim padding from the survey region of interest
 		cv::Rect roi1 = biggest_not_black(img1);
@@ -21,21 +27,107 @@ namespace ba
 		//Resize the rois so that they share the smallest rows and smallers columns
 		std::vector<cv::Rect> resized_rois = same_size_rois(roi1, roi2);
 
-		//Gaussian blur the regions of interest
-		cv::Mat blur1 = blur_by_size(img1(resized_rois[0]));
-		cv::Mat blur2 = blur_by_size(img2(resized_rois[1]));
+		//Gaussian blur the regions of interest, dividing by the number of elements so that sum of squared differences values
+		//won't go too high
+		cv::Mat blur1 = blur_by_size(img1(resized_rois[0])) / (resized_rois[0].width * resized_rois[0].height);
+		cv::Mat blur2 = blur_by_size(img2(resized_rois[1])) / (resized_rois[1].width * resized_rois[1].height);
 
 		//Calculate the sum of squared differences
 		cv::Mat sum_sqr_diff = ssd(blur1, blur2);
 
-		//Find the minimum sum of squared differences
+		//Find the minimum sum of squared differences...
 		cv::Point minLoc;
-		cv::minMaxLoc(sum_sqr_diff, NULL, NULL, &minLoc, NULL);
 
+		//...applying wisdom to find the correct relative shift
+		if (wisdom == REL_SHIFT_WIS_NONE)
+		{
+			cv::minMaxLoc(sum_sqr_diff, NULL, NULL, &minLoc, NULL);
+		}
+		else
+		{
+			display_CV(blur1);
+			display_CV(blur2);
+
+			//Estimate the symmetry
+			cv::Mat est_sym = est_global_sym(blur1);
+
+			//Get maximum value
+			double max;
+			cv::minMaxLoc(est_sym, NULL, &max, NULL, NULL);
+
+			//Calculate the image histogram
+			cv::Mat hist;
+			int hist_size = GRAD_SYM_HIST_SIZE;
+			float range[] = { 0, max };
+			const float *ranges[] = { range };
+			cv::calcHist(&est_sym, 1, 0, cv::Mat(), hist, 1, &hist_size, ranges, true, false);
+
+			//Work from the top of the histogram to calculate the threshold to use
+			float thresh_val;
+			const int use_num = grad_sym_use_frac * blur1.rows * blur1.cols;
+			for (int i = hist_size-1, tot = 0; i >= 0; i--)
+			{
+				//Accumulate the histogram bins
+				tot += hist.at<float>(i, 1);
+
+				//If the desired total is exceeded, record the threshold
+				if (tot > use_num)
+				{
+					thresh_val = i * max / hist_size;
+					break;
+				}
+			}
+
+			//Threshold the estimated symmetry center values
+			cv::Mat thresh;
+			cv::threshold(est_sym, thresh, thresh_val, 1, cv::THRESH_BINARY_INV);
+
+			if (wisdom == REL_SHIFT_WIS_INTERNAL_MIR0)
+			{
+				//Not currently used as this affine transform is not likely to produce a high shift
+			}
+			else
+			{
+				if (wisdom == REL_SHIFT_WIS_INTERNAL_MIR1)
+				{
+					//Not currently used as this affine transform has not been implemented yet
+				}
+				else
+				{
+					//Calculate the minimum ssd allowed by the mask
+					if (wisdom == REL_SHIFT_WIS_INTERNAL_ROT)
+					{
+						//Calculate the minimum sum of squared differences that is allowed by the mask
+						float min_ssd = FLT_MAX;
+						float *s;
+						for (int i = 0; i < sum_sqr_diff.rows; i++) //Iterate over rows...
+						{
+							s = sum_sqr_diff.ptr<float>(i);
+							for (int j = 0; j < sum_sqr_diff.cols; j++) //...and iterate over columns
+							{
+								//Check if this is smaller than the minimum
+								if (s[j] < min_ssd)
+								{
+									//Check that this position is allowed by the mask
+									if (thresh.at<float>((int)((blur1.rows - i - 1) / 2), (int)((blur1.cols - j - 1) / 2)))
+									{
+										min_ssd = s[j];
+										minLoc.x = j;
+										minLoc.y = i;
+									}
+								}
+							}
+						}
+
+					}
+				}
+			}
+		}
+		
 		//Get the relative positions of the centres of highest symmetry
 		std::vector<float> sym_pos(3);
-		int pad_cols = (int)(QUANT_SYM_USE_FRAC*blur1.cols);
-		int pad_rows = (int)(QUANT_SYM_USE_FRAC*blur2.rows);
+		int pad_cols = (int)(use_frac*blur1.cols);
+		int pad_rows = (int)(use_frac*blur2.rows);
 		sym_pos[1] = roi2.x - roi1.x + pad_cols - minLoc.x;
 		sym_pos[2] = roi2.y - roi1.y + pad_rows - minLoc.y;
 
@@ -54,12 +146,14 @@ namespace ba
 
 		//Find the maximum Pearson normalised product moment correlation coefficient in the search range
 		float max_pear = -1.0f;
-		for (int i = llimx; i <= ulimx; i++)
+		for (int j = llimx; j <= ulimx; j++)
 		{
-			for (int j = llimy; j <= ulimy; j++)
+			for (int i = llimy; i <= ulimy; i++)
 			{
-				//Check if this coefficient is greater than the maximum
-				float pear = pearson_corr(img1, img2, i, j);
+				//Calculate Pearson's normalised product moment correlation coefficient
+				float pear = pearson_corr(img1, img2, j, i);
+
+				//Check if it is the highest
 				max_pear = pear > max_pear ? pear : max_pear;
 			}
 		}
@@ -172,7 +266,8 @@ namespace ba
 			}
 		}
 
-		return cv::Rect(max_row, max_col, max_rows, max_cols);
+		return cv::Rect(max_col, max_row, max_cols, max_rows);
+		//return cv::Rect(max_row, max_col, max_rows, max_cols);
 	}
 
 	/*Decrease the size of the larger rectangular region of interest so that it is the same size as the smaller
@@ -288,5 +383,65 @@ namespace ba
 			angles[i] = angls_idxs[i].angle ;
 			indices[i] = angls_idxs[i].idx;
 		}
+	}
+
+	/*Estimate the global symmetry center of an image by finding the pixel that has the closest to zero total Scharr filtrate
+	**when it it summed over equidistances in all directions from that point
+	**Inputs:
+	**img: cv::Mat &, Floating point greyscale OpenCV mat to find the global symmetry center of
+	**not_calc_val: const float, Value to set elements that do not have at least the minimum area to perform their calculation
+	**use_frac: const float, Only global symmetry centers at least this fraction of the image's area will be considered
+	**edges will be considered
+	**Returns:
+	**cv::Mat, Sums of gradients in the largest possible rectangular regions centred on each pixel
+	*/
+	cv::Mat est_global_sym(cv::Mat &img, const float not_calc_val, const float use_frac)
+	{
+		//Aquire the image's Sobel filtrate
+		cv::Mat gradx, grady;
+		cv::Sobel(img, gradx, CV_32FC1, 0, 1, CV_SCHARR, 1.0f / (img.rows*img.cols));
+		cv::Sobel(img, grady, CV_32FC1, 1, 0, CV_SCHARR, 1.0f / (img.rows*img.cols));
+
+		//Calculate the minimum distance from the edge
+		int min_area = (int)(use_frac * img.rows*img.cols);
+		int min_cols = min_area / img.rows;
+		int min_rows = min_area / img.cols;
+
+		//Initialise the global symmetry weightings matrix to store the ouput of the calculations
+		cv::Mat sym = cv::Mat(img.rows, img.cols, CV_32FC1, cv::Scalar(not_calc_val));
+
+		//Find the global symmetry values in the left half of the image
+		for (int i = min_cols; i < img.cols-min_cols; i++)
+		{
+			//Number of columns to sum over
+			int num_cols = std::min(i, img.cols-i-1);
+
+			for (int j = min_rows; j < img.rows-min_rows; j++)
+			{
+				//Number of rows to sum over
+				int num_rows = std::min(j, img.rows-j-1);
+
+				//Check that the area that gradient contributions will be summed over is greater than the minimum area
+				if ((2 * num_cols + 1) * (2 * num_rows + 1) >= min_area)
+				{
+					//Sum the gradients in all directions from the point, but not at the point
+					float sumx = -gradx.at<float>(j, i), sumy = -grady.at<float>(j, i);
+
+					//Sum gradients in symmetric region centered on the point of interest
+					for (int k = j-num_rows; k <= j+num_rows; k++)
+					{
+						for (int l = i-num_cols; l <= i+num_cols; l++)
+						{
+							sumx += gradx.at<float>(k, l);
+							sumy += grady.at<float>(k, l);
+						}
+					}
+
+					sym.at<float>(j, i) = std::abs(sumx) + std::abs(sumy);
+				}			
+			}
+		}
+
+		return sym;
 	}
 }
