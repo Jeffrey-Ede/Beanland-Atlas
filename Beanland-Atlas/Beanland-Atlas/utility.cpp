@@ -566,5 +566,68 @@ namespace ba
 		return (img1.rows*img2.cols*sum_xy - sum_x*sum_y) / (std::sqrt(img1.rows*img2.cols*sum_x2 - sum_x*sum_x) * 
 			std::sqrt(img1.rows*img2.cols*sum_y2 - sum_y*sum_y));
 	}
+
+	/*Calculate the average feature size in an image by summing the components of its 2D Fourier transform in quadrature to produce a 
+	**1D frequency spectrum and then finding its weighted centroid
+	**Inputs:
+	**img: cv::Mat &, Image to get the average feature size in
+	**Return:
+	**float, Average feature size
+	*/
+	float get_avg_feature_size(cv::Mat &img)
+	{
+		//Expand the input image to optimal size
+		cv::Mat padded;
+		int m = cv::getOptimalDFTSize( img.rows );
+		int n = cv::getOptimalDFTSize( img.cols );
+		cv::copyMakeBorder(img, padded, 0, m - img.rows, 0, n - img.cols, cv::BORDER_CONSTANT, cv::Scalar::all(0)); //On the border add zero values
+
+		cv::Mat planes[] = {cv::Mat_<float>(padded), cv::Mat::zeros(padded.size(), CV_32FC1)};
+		cv::Mat complexI;
+		cv::merge(planes, 2, complexI); //Add to the expanded another plane with zeros
+
+		cv::dft(complexI, complexI); //This way the result may fit in the source matrix
+
+	    //Compute the FFT magnitude
+		cv::split(complexI, planes); //planes[0] = Re(DFT(I), planes[1] = Im(DFT(I))
+		cv::magnitude(planes[0], planes[1], planes[0]); //planes[0] = magnitude
+		cv::Mat mag = planes[0];
+
+		std::cout << mag.type() << std::endl;
+
+		//Convert the 2D FFt magnitudes into a 1D frequency spectrum
+		cv::Mat spectrum1D = cv::Mat(1, std::max(img.rows, img.cols), CV_32FC1, cv::Scalar(0.0)); //1D spectrum
+		cv::Mat num_contrib = cv::Mat(1, std::max(img.rows, img.cols), CV_16UC1, cv::Scalar(0)); //Number of elements contributing to 1D spectrum components
+
+		float longest_diag = std::sqrt((mag.cols / 2 + mag.cols % 2 - 1)*(mag.cols / 2 + mag.cols % 2 - 1) + 
+			(mag.rows / 2 + mag.rows % 2 - 1)*(mag.rows / 2 + mag.rows % 2 - 1));
+		float *p;
+		for (int i = 0; i < mag.rows / 2 + mag.rows % 2; i++)
+		{
+			p = mag.ptr<float>(i);
+			for (int j = 0; j < mag.cols / 2 + mag.cols % 2; j++)
+			{
+				int bin_num = std::min((int)(std::sqrt(i*i + j*j) * spectrum1D.cols / longest_diag), 
+					spectrum1D.cols-1); //Take min in case of rounding errors
+
+				spectrum1D.at<float>(0, bin_num) += p[j];
+				num_contrib.at<uchar>(0, bin_num)++;
+			}
+		}
+
+		//Calculate the centroid of the 1D spectrum
+		p = spectrum1D.ptr<float>(0);
+		uchar *q; q = spectrum1D.ptr<uchar>(0);
+		float inv_feature_size = 0.0f;
+		float sum = p[0], sum_err = 1.0f / q[0];
+		for (int i = 1; i < spectrum1D.cols; i++)
+		{
+			sum += p[i];
+			sum_err += q[i] ? 1.0f / q[i] : 0;
+			inv_feature_size += q[i] ? p[i] * i / q[i] : 0;
+		}
+
+		return sum * sum_err / inv_feature_size;
+	}
 }
 

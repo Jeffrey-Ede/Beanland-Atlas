@@ -26,6 +26,10 @@ int main()
 	preprocess(mats, PREPROC_MED_FILT_SIZE);
 
 	//cv::Mat rot = in_plane_rotate(mats[0], 0.1, 0);
+	float i = get_avg_feature_size(mats[0]);
+
+	std::cout << i;
+	std::getchar();
 
 	//Create OpenCL context and queue for GPU acceleration 
 	cl::Context context(CL_DEVICE_TYPE_GPU);

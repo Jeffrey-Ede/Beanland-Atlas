@@ -882,4 +882,13 @@ namespace ba
 	**cv::Mat, Sums of gradients in the largest possible rectangular regions centred on each pixel
 	*/
 	cv::Mat est_global_sym(cv::Mat &img, const float not_calc_val = SYM_CENTER_NOT_CALC_VAL, const float use_frac = SYM_CENTER_USE_FRAC);
+
+	/*Calculate the average feature size in an image by summing the components of its 2D Fourier transform in quadrature to produce a 
+	**1D frequency spectrum and then finding its weighted centroid
+	**Inputs:
+	**img: cv::Mat &, Image to get the average feature size in
+	**Return:
+	**float, Average feature size
+	*/
+	float get_avg_feature_size(cv::Mat &img);
 }

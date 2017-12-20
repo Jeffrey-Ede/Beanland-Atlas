@@ -45,9 +45,6 @@ namespace ba
 		}
 		else
 		{
-			display_CV(blur1);
-			display_CV(blur2);
-
 			//Estimate the symmetry
 			cv::Mat est_sym = est_global_sym(blur1);
 
