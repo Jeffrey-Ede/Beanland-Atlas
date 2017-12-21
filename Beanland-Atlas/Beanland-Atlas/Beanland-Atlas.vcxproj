@@ -38,6 +38,7 @@
     <ClCompile Include="refine_mir_pos.cpp" />
     <ClCompile Include="repeating_max_loc.cpp" />
     <ClCompile Include="spot_extraction.cpp" />
+    <ClCompile Include="template_matching.cpp" />
     <ClCompile Include="utility.cpp" />
     <ClCompile Include="window_functions.cpp" />
   </ItemGroup>
@@ -48,6 +49,7 @@
     <ClInclude Include="developer_utility.h" />
     <ClInclude Include="developer_utility.hpp" />
     <ClInclude Include="includes.h" />
+    <ClInclude Include="utility.hpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="create_annulus.cl" />

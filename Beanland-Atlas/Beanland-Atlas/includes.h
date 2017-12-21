@@ -52,3 +52,5 @@
 
 //Solve systems of equations
 #include <Eigen/Dense>
+
+#include "utility.hpp"

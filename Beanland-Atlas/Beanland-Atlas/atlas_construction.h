@@ -594,7 +594,7 @@ namespace ba
 	**src1: cv::Mat &, One of the images
 	**src2: cv::Mat &, The second image
 	**Returns,
-	**cv::Mat, phase correlation spectrum
+	**cv::Mat, Phase correlation spectrum
 	*/
 	cv::Mat phase_corr_spectrum(cv::Mat &src1, cv::Mat &src2);
 
@@ -849,7 +849,6 @@ namespace ba
 	**Inputs:
 	**mirror: std::vector<std::vector<float>> &, Mirror symmetry quantification
 	**rot_between: std::vector<std::vector<float>> &, Rotational symmetry between surveys quantification
-	**mir_in_radial: std::vector<std::vector<float>> &, Mirror symmetry in surveys when they are reflected radially outwards
 	**rot_in: std::vector<std::vector<float>> &, 180 deg rotational symmetry in surveys quantification
 	**symmetries: std::vector<bool> &, Symmetries present. By index: 0 - mir_in, 1 - mir_between, 2 - mir_between_2, 3 - rot_between, 
 	**4 - rot_in. Other symmetries, such as rotational mirror symmetry, are not used by this function
@@ -860,8 +859,7 @@ namespace ba
 	**std::vector<cv::Point2f>, Centers of symmetry for each of the surveys (column, then row)
 	*/
 	std::vector<cv::Point2f> get_sym_centers(std::vector<std::vector<float>> &mirror, std::vector<std::vector<float>> &rot_between,
-		std::vector<std::vector<float>> &mir_in_radial, std::vector<std::vector<float>> &rot_in, std::vector<bool> &symmetries, 
-		const int num_surveys, std::vector<cv::Mat> &rot_to_align);
+		std::vector<std::vector<float>> &rot_in, std::vector<bool> &symmetries, const int num_surveys, std::vector<cv::Mat> &rot_to_align);
 
 	/*Calculate Pearson's normalised product moment correlation coefficient between 2 floating point same-size OpenCV mats
 	**img1: cv::Mat &, One of the mats
@@ -875,13 +873,15 @@ namespace ba
 	**when it it summed over equidistances in all directions from that point
 	**Inputs:
 	**img: cv::Mat &, Floating point greyscale OpenCV mat to find the global symmetry center of
+	**wisdom: const int, Information about the symmetry that allows a gradients to be summed over a larger area
 	**not_calc_val: const float, Value to set elements that do not have at least the minimum area to perform their calculation
 	**use_frac: const float, Only global symmetry centers at least this fraction of the image's area will be considered
 	**edges will be considered
 	**Returns:
 	**cv::Mat, Sums of gradients in the largest possible rectangular regions centred on each pixel
 	*/
-	cv::Mat est_global_sym(cv::Mat &img, const float not_calc_val = SYM_CENTER_NOT_CALC_VAL, const float use_frac = SYM_CENTER_USE_FRAC);
+	cv::Mat est_global_sym(cv::Mat &img, const int wisdom = REL_SHIFT_WIS_NONE, const float not_calc_val = SYM_CENTER_NOT_CALC_VAL,
+		const float use_frac = SYM_CENTER_USE_FRAC);
 
 	/*Calculate the average feature size in an image by summing the components of its 2D Fourier transform in quadrature to produce a 
 	**1D frequency spectrum and then finding its weighted centroid
@@ -891,4 +891,14 @@ namespace ba
 	**float, Average feature size
 	*/
 	float get_avg_feature_size(cv::Mat &img);
+
+	/*Pearson normalised product moment correlation coefficient between 2 images. The second images is correlated against the 
+	**first in the Fourier domain
+	**src1: cv::Mat &, One of the images
+	**src2: cv::Mat &, The second image
+	**frac: float, Proportion of the first image's dimensions to pad it by
+	**Returns,
+	**cv::Mat, Pearson normalised product moment correlation coefficients
+	*/
+	cv::Mat fourier_pearson_corr(cv::Mat &src1, cv::Mat &src2, float frac = FOURIER_PEARSON_USE_FRAC);
 }

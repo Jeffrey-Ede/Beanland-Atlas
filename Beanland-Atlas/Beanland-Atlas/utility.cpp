@@ -273,7 +273,7 @@ namespace ba
 	**src1: cv::Mat &, One of the images
 	**src2: cv::Mat &, The second image
 	**Returns,
-	**cv::Mat, phase correlation spectrum
+	**cv::Mat, Phase correlation spectrum
 	*/
 	cv::Mat phase_corr_spectrum(cv::Mat &src1, cv::Mat &src2)
 	{
@@ -333,184 +333,13 @@ namespace ba
 		cv::Mat D;
 		C.convertTo(D, CV_32FC1);
 
-		cv::idft(D, D); // gives us the nice peak shift location...
+		//Get the phase correlation spectrum...
+		cv::idft(D, D);
+
+		//...and shift its energy into the center
+		fftShift(D);
 
 		return D;
-	}
-
-	/*Sum of squared differences between 2 images. The second images is correlated against the first in the Fourier domain
-	**src1: cv::Mat &, One of the images
-	**src2: cv::Mat &, The second image
-	**frac: float, Proportion of the first image's dimensions to pad it by
-	**Returns,
-	**cv::Mat, Sum of the squared differences
-	*/
-	cv::Mat ssd(cv::Mat &src1, cv::Mat &src2, float frac)
-	{
-		//Pad the first matrix to prepare it for the second matrix being correlated accross it
-		cv::Mat pad1;
-		int pad_rows = (int)(frac*src1.rows);
-		int pad_cols = (int)(frac*src1.cols);
-		cv::copyMakeBorder(src1, pad1, pad_rows, pad_rows, pad_cols, pad_cols, cv::BORDER_CONSTANT, 0.0);
-
-		//Calculate the sum of squared differences in the Fourier domain
-		cv::Mat ssd;
-		cv::matchTemplate(pad1, src2, ssd, cv::TM_SQDIFF);
-
-		//Calculate the cumulative rowwise and columnwise sums of squares. These can be used to calculate additive corrections
-		//to the calculate sum of squared differences where the templates did not overlap
-		float *r, *s;
-
-		/* Left */
-		//Iterate across mat rows...
-		cv::Mat left = cv::Mat(src2.rows, pad_cols, CV_32FC1);
-		for (int i = 0; i < left.rows; i++)
-		{
-			//Initialise pointers
-			r = left.ptr<float>(i);
-			s = src2.ptr<float>(i);
-
-			//Calculate the square of the first column element
-			r[left.cols-1] = s[0]*s[0];
-
-			//Iterate across the remaining mat columns, accumulating the sum of squares
-			for (int j = left.cols-2, k = 1; j >= 0; j--, k++)
-			{
-				r[j] = s[k]*s[k] + r[j+1];
-			}
-		}
-
-		/* Right */
-		//Iterate across mat rows...
-		cv::Mat right = cv::Mat(src2.rows, pad_cols, CV_32FC1);
-		for (int i = 0; i < right.rows; i++)
-		{
-			//Initialise pointers
-			r = right.ptr<float>(i);
-			s = src2.ptr<float>(i);
-
-			//Calculate the square of the first column element
-			r[0] = s[src2.cols-1]*s[src2.cols-1];
-
-			//Iterate across the remaining mat columns, accumulating the sum of squares
-			for (int j = 1, k = src2.cols-2; j < right.cols; j++, k--)
-			{
-				r[j] = s[k]*s[k] + r[j-1];
-			}
-		}
-
-		/* Top */
-		//Iterate across mat cols
-		cv::Mat top = cv::Mat(pad_rows, src2.cols, CV_32FC1);
-		for (int i = 0; i < top.cols; i++)
-		{
-
-			//Calculate the square of the first row element
-			top.at<float>(top.rows-1, i) = src2.at<float>(0, i)*src2.at<float>(0, i);
-
-			//Iterate across the remaining mat rows, accumulating the sum of squares
-			for (int j = top.rows-2, k = 1; j >= 0; j--, k++)
-			{
-				top.at<float>(j, i) = src2.at<float>(k, i)*src2.at<float>(k, i) + top.at<float>(j+1, i);
-			}
-		}
-
-		/* Bottom */
-		//Iterate across mat cols...
-		cv::Mat bot = cv::Mat(pad_rows, src2.cols, CV_32FC1);
-		for (int i = 0; i < bot.cols; i++)
-		{
-			//Calculate the square of the first row element
-			bot.at<float>(0, i) = src2.at<float>(src2.rows-1, i)*src2.at<float>(src2.rows-1, i);
-
-			//Iterate across the remaining mat rows, accumulating the sum of squares
-			for (int j = 1, k = src2.rows-2; j < bot.rows; j++, k--)
-			{
-				bot.at<float>(j, i) = src2.at<float>(k, i)*src2.at<float>(k, i) + bot.at<float>(j-1, i);
-			}
-		}
-
-
-		//Calulate the linear map needed to map the ssd values from the Fourier analysis to the correct values
-		cv::Mat offset = cv::Mat(ssd.rows, ssd.cols, CV_32FC1, cv::Scalar(0.0));
-		cv::Mat scale = cv::Mat(ssd.rows, ssd.cols, CV_32FC1, cv::Scalar(0.0));
-
-		//Accumulate the top and bot accumulator rows
-		std::vector<float> vert_acc(2*pad_rows+1, 0);
-		for (int i = 0; i < top.rows; i++)
-		{
-			//Iterate across the accumulator columns
-			r = top.ptr<float>(i);
-			for (int j = 0; j < top.cols; j++)
-			{
-				vert_acc[i] += r[j];
-			}
-		}
-		for (int i = 0, k = top.rows+1; i < bot.rows; i++, k++)
-		{
-			//Iterate across the accumulator columns
-			r = bot.ptr<float>(i);
-			for (int j = 0; j < bot.cols; j++)
-			{
-				vert_acc[k] += r[j];
-			}
-		}
-
-		//Accumulate the left accumulator columns
-		for (int i = 0; i < left.cols; i++)
-		{
-			float acc = 0.0f;
-			for (int j = 0; j < top.rows; j++)
-			{
-				offset.at<float>(j, i) += acc + vert_acc[j];
-				acc += left.at<float>(j, i);
-			}
-
-			//Continue across the left rows
-			for (int j = 0, k = bot.rows; j < bot.rows; j++, k++)
-			{
-				offset.at<float>(k, i) += acc + vert_acc[k];
-				acc -= left.at<float>(j, i);
-			}
-		}
-
-		//Middle columns
-		for (int i = 0; i < top.rows + bot.rows + 1; i++)
-		{
-			offset.at<float>(i, left.cols) = vert_acc[i];
-		}
-
-		//Accumulate the right accumulator columns
-		for (int i = 0, l = right.cols+1; i < right.cols; i++, l++)
-		{
-			float acc = 0.0f;
-			for (int j = 0; j < top.rows; j++)
-			{
-				offset.at<float>(j, l) += acc + vert_acc[j];
-				acc += right.at<float>(j, i);
-			}
-
-			//Continue across the left rows
-			for (int j = 0, k = bot.rows; j < bot.rows; j++, k++)
-			{
-				offset.at<float>(k, l) += acc + vert_acc[k];
-				acc -= right.at<float>(j, i);
-			}
-		}
-
-		//Iterate across mat rows...
-		for (int m = 0; m < scale.rows; m++) 
-		{
-			//...and iterate across mat columns
-			s = scale.ptr<float>(m);
-			for (int n = 0; n < scale.cols; n++) 
-			{
-				s[n] = (src2.rows-std::abs(m-top.rows))*(src2.cols-std::abs(n-left.cols));
-			}
-		}
-
-		//Linearly map to the correct results
-		return (ssd - offset) / scale;
 	}
 
 	/*Calculate the autocorrelation of an OpenCV mat
@@ -568,11 +397,11 @@ namespace ba
 	}
 
 	/*Calculate the average feature size in an image by summing the components of its 2D Fourier transform in quadrature to produce a 
-	**1D frequency spectrum and then finding its weighted centroid
+	**1D frequency spectrum to find the weighted centroid of
 	**Inputs:
 	**img: cv::Mat &, Image to get the average feature size in
 	**Return:
-	**float, Average feature size
+	**float, Estimated average feature size in px
 	*/
 	float get_avg_feature_size(cv::Mat &img)
 	{
@@ -593,12 +422,11 @@ namespace ba
 		cv::magnitude(planes[0], planes[1], planes[0]); //planes[0] = magnitude
 		cv::Mat mag = planes[0];
 
-		std::cout << mag.type() << std::endl;
-
 		//Convert the 2D FFt magnitudes into a 1D frequency spectrum
 		cv::Mat spectrum1D = cv::Mat(1, std::max(img.rows, img.cols), CV_32FC1, cv::Scalar(0.0)); //1D spectrum
 		cv::Mat num_contrib = cv::Mat(1, std::max(img.rows, img.cols), CV_16UC1, cv::Scalar(0)); //Number of elements contributing to 1D spectrum components
 
+		/* Top left quadrant */
 		float longest_diag = std::sqrt((mag.cols / 2 + mag.cols % 2 - 1)*(mag.cols / 2 + mag.cols % 2 - 1) + 
 			(mag.rows / 2 + mag.rows % 2 - 1)*(mag.rows / 2 + mag.rows % 2 - 1));
 		float *p;
@@ -610,6 +438,24 @@ namespace ba
 				int bin_num = std::min((int)(std::sqrt(i*i + j*j) * spectrum1D.cols / longest_diag), 
 					spectrum1D.cols-1); //Take min in case of rounding errors
 
+				//Add contributions to 1D Fourier spectrum bins
+				spectrum1D.at<float>(0, bin_num) += p[j];
+				num_contrib.at<uchar>(0, bin_num)++;
+			}
+		}
+
+		/* Top right quadrant */
+		longest_diag = std::sqrt((mag.cols / 2 - mag.cols % 2 - 1)*(mag.cols / 2 - mag.cols % 2 - 1) + 
+			(mag.rows / 2 - mag.rows % 2 - 1)*(mag.rows / 2 - mag.rows % 2 - 1));
+		for (int i = mag.rows / 2 + mag.rows % 2; i < mag.rows; i++)
+		{
+			p = mag.ptr<float>(i);
+			for (int j = mag.cols / 2 + mag.cols % 2; j < mag.cols; j++)
+			{
+				int bin_num = std::min((int)(std::sqrt((i - mag.rows - 1)*(i - mag.rows - 1) + (j - mag.cols - 1)*(j - mag.cols - j)) *
+					spectrum1D.cols / longest_diag), spectrum1D.cols-1); //Take min in case of rounding errors
+
+				//Add contributions to 1D Fourier spectrum bins
 				spectrum1D.at<float>(0, bin_num) += p[j];
 				num_contrib.at<uchar>(0, bin_num)++;
 			}
@@ -627,7 +473,7 @@ namespace ba
 			inv_feature_size += q[i] ? p[i] * i / q[i] : 0;
 		}
 
-		return sum * sum_err / inv_feature_size;
+		return std::sqrt(m*m + n*n) * inv_feature_size / (sum * sum_err);
 	}
 }
 

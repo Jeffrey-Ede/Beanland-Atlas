@@ -16,6 +16,9 @@
     <Filter Include="kernels">
       <UniqueIdentifier>{b0d770fe-6d5d-47cd-a430-7bd16e418994}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Source Files">
+      <UniqueIdentifier>{9308c370-d50f-4d57-95d1-10ca4c09fed0}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="beanland_atlas.cpp">
@@ -81,6 +84,9 @@
     <ClCompile Include="beanland_commensuration_utility.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="template_matching.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="beanland_atlas.h">
@@ -95,11 +101,14 @@
     <ClInclude Include="atlas_construction.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="developer_utility.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="defines.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="utility.hpp">
+      <Filter>Header Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="developer_utility.hpp">
+      <Filter>Header Source Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

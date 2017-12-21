@@ -87,9 +87,6 @@ namespace ba
 		//Mirror symmetry Pearson normalised product moment coefficient spectrums between surveys
 		std::vector<std::vector<float>> mirror = get_mirror_sym(rot_to_align);
 
-		//Get the the mirror symmetry radially outwards from each survey
-		std::vector<std::vector<float>> mir_in_radial/* = get_mir_in_radial*/; /* FLAG */
-
 		//Rotation symmetry Pearson normalised product moment coefficient spectrums between surveys
 		std::vector<std::vector<float>> rot_between = get_rotational_between_sym(rot_to_align);
 
@@ -149,7 +146,7 @@ namespace ba
 
 		//Get an initial estimate of the symmetry centres to guide the internal rotational symmetry quantification
 		std::vector<std::vector<float>> rot_in;
-		std::vector<cv::Point2f> est_sym_centers = get_sym_centers(mirror, rot_between, mir_in_radial, rot_in, symmetries,
+		std::vector<cv::Point2f> est_sym_centers = get_sym_centers(mirror, rot_between, rot_in, symmetries,
 			rot_to_align.size(), rot_to_align);
 
 		for (int i = 0; i < est_sym_centers.size(); i++)
@@ -176,7 +173,7 @@ namespace ba
 		print_vect(symmetries);
 
 		//Solve an overconstrained system of simultaneous equations to get the symmetry centres
-		std::vector<cv::Point2f> sym_centers = get_sym_centers(mirror, rot_between, mir_in_radial, rot_in, symmetries, 
+		std::vector<cv::Point2f> sym_centers = get_sym_centers(mirror, rot_between, rot_in, symmetries, 
 			rot_to_align.size(), rot_to_align);
 
 	}
@@ -223,8 +220,22 @@ namespace ba
 		//Compare each matrix with...
 		for (int i = 0, k = 0; i < rot_to_align.size(); i++)
 		{
-			//...the higher index matrices
-			for (int j = i; j < rot_to_align.size(); j++, k++)
+			//...the mirror of itself...
+			{
+				int j = 0;
+
+				//Flip the second mat in the comparison
+				cv::Mat mir;
+				cv::flip(rot_to_align[j], mir, 0);
+
+				//Quantify the symmetry and record the shift of highest symmetry
+				sym_param[k] = quantify_rel_shift(rot_to_align[i], mir, INTERAL_MIR0_SSD_FRAC, REL_SHIFT_WIS_INTERNAL_MIR0);
+
+				k++;
+			}
+
+			//...and the higher index matrices
+			for (int j = i+1; j < rot_to_align.size(); j++, k++)
 			{
 				//Flip the second mat in the comparison
 				cv::Mat mir;
@@ -336,7 +347,6 @@ namespace ba
 	**Inputs:
 	**mirror: std::vector<std::vector<float>> &, Mirror symmetry quantification
 	**rot_between: std::vector<std::vector<float>> &, Rotational symmetry between surveys quantification
-	**mir_in_radial: std::vector<std::vector<float>> &, Mirror symmetry in surveys when they are reflected radially outwards
 	**rot_in: std::vector<std::vector<float>> &, 180 deg rotational symmetry in surveys quantification
 	**symmetries: std::vector<bool> &, Symmetries present. By index: 0 - mir_in, 1 - mir_between, 2 - mir_between_2, 3 - rot_between, 
 	**4 - rot_in. Other symmetries, such as rotational mirror symmetry, are not used by this function
@@ -347,8 +357,7 @@ namespace ba
 	**std::vector<cv::Point2f>, Centers of symmetry for each of the surveys (column, then row)
 	*/
 	std::vector<cv::Point2f> get_sym_centers(std::vector<std::vector<float>> &mirror, std::vector<std::vector<float>> &rot_between,
-		std::vector<std::vector<float>> &mir_in_radial, std::vector<std::vector<float>> &rot_in, std::vector<bool> &symmetries, 
-		const int num_surveys, std::vector<cv::Mat> &rot_to_align)
+		std::vector<std::vector<float>> &rot_in, std::vector<bool> &symmetries, const int num_surveys, std::vector<cv::Mat> &rot_to_align)
 	{
 		//Number of inter-comparisons between surveys for between symmetries
 		int num_inter_comp = (num_surveys-1) * num_surveys / 2;
@@ -365,23 +374,23 @@ namespace ba
 		Eigen::MatrixXf eqns = Eigen::MatrixXf::Constant(num_eqn, 2*num_surveys, 0.0f); //Express the coordinates of surveys being compared...
 		Eigen::VectorXf diff(num_eqn); //...in terms of the differences in symmetry center positions of the surveys or otherwise
 
+	   //Keep track of how many equations have beed added to the matrix
+		int eqn_num = 0;
+
 		//Add equations describing mirror symmetry in surveys
-		if (symmetries[0] && false)
+		if (symmetries[0])
 		{
-			for (int i = 0, k = 0; i < num_surveys; i++)
+			for (int i = 0, k = 0; i < num_surveys; i++, eqn_num++)
 			{
 				//Row estimate
-				eqns(i, i) = 1.0f;
-				diff(i) = (rot_to_align[0].rows - mirror[k][2]) / 2;
+				eqns(eqn_num, i) = 1.0f;
+				diff(eqn_num) = (rot_to_align[0].rows - mirror[k][2] - 1) / 2;
 				k += i;
 			}
 		}
 
-		//Keep track of how many equations have beed added to the matrix
-		int eqn_num = num_surveys;
-
 		//Add equations describing mirror symmetry between surveys
-		if (symmetries[1] && false)
+		if (symmetries[1])
 		{
 			for (int i = 0, k = 0; i < num_surveys; i++)
 			{
@@ -406,7 +415,7 @@ namespace ba
 		//Mirror symmetry between every second survey, not between all surveys
 		else
 		{
-			if (symmetries[2] && false)
+			if (symmetries[2])
 			{
 				for (int i = 0, k = 0; i < num_surveys; i++)
 				{

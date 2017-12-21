@@ -59,9 +59,6 @@ namespace ba
 	//Factor to convert radians to degrees
 	#define RAD_TO_DEG 57.29577951
 
-	//Fraction of extracted rectangular region of interest to use when calculating the sum of squared differences to match it against another region
-	#define QUANT_SYM_USE_FRAC 0.4
-
 	//Fraction of rectangular roi size to base blurring Gaussian standard deviation on when calculating the sum of squared differences
 	#define QUANT_GAUSS_FRAC 0.03
 
@@ -106,12 +103,29 @@ namespace ba
 	//Number of bins to use when calculating histogram to determine the which threshold to apply
 	#define GRAD_SYM_HIST_SIZE 100 
 
-    #define REL_SHIFT_WIS_NONE 0
-    #define REL_SHIFT_WIS_INTERNAL_MIR0 1 //Mirror is perpendicular to radially outwards directions
-    #define REL_SHIFT_WIS_INTERNAL_MIR1 2 //Mirror is in the radially outwards direction
-    #define REL_SHIFT_WIS_INTERNAL_ROT 3
+	typedef enum {
+		REL_SHIFT_WIS_NONE, //No symmetry point or it is not pragmatic/possible to information about the symmetry point
+		REL_SHIFT_WIS_INTERNAL_MIR0, //Mirror flip is perpendicular to radially outwards direction
+		REL_SHIFT_WIS_INTERNAL_MIR1, //Mirror flip is in the radially outwards direction
+		REL_SHIFT_WIS_INTERNAL_ROT //Rotation about point in the image
+	};
 
 	//Fraction of extracted rectangular region of interest to use when calculating the sum of squared differences to match it against another region
-	//For internal rotational symmetry
-    #define INTERAL_ROT_SSD_FRAC 0.9
+    #define QUANT_SYM_USE_FRAC 0.4
+
+	//Fraction of extracted rectangular region of interest to use when calculating the sum of squared differences to match it against another region
+	//for internal rotational symmetry
+    #define INTERAL_ROT_SSD_FRAC 1.0
+
+	//Fraction of extracted rectangular region of interest to use when calculating the sum of squared differences to match it against another region
+	//for internal mirror symmetry where the flip is perpendicular to radially outwards direction
+    #define INTERAL_MIR0_SSD_FRAC 0.7
+
+
+	//Fraction of extracted rectangular region of interest to use when calculating the sum of squared differences to match it against another region
+	//for internal mirror symmetry where the flip is in the radially outwards direction
+    #define INTERAL_MIR1_SSD_FRAC 1.0
+
+	//Default padding to apply when calculating Pearson's normalised product moment correlation coefficient in the Fourier domain
+    #define FOURIER_PEARSON_USE_FRAC 0.5
 }
