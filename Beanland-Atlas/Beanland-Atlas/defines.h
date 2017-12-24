@@ -1,5 +1,6 @@
 #pragma once
 
+
 //Enable use of older OpenCL APIs
 #define CL_USE_DEPRECATED_OPENCL_2_0_APIS
 #define __CL_ENABLE_EXCEPTIONS
@@ -111,9 +112,6 @@ namespace ba
 	};
 
 	//Fraction of extracted rectangular region of interest to use when calculating the sum of squared differences to match it against another region
-    #define QUANT_SYM_USE_FRAC 0.4
-
-	//Fraction of extracted rectangular region of interest to use when calculating the sum of squared differences to match it against another region
 	//for internal rotational symmetry
     #define INTERAL_ROT_SSD_FRAC 1.0
 
@@ -121,11 +119,7 @@ namespace ba
 	//for internal mirror symmetry where the flip is perpendicular to radially outwards direction
     #define INTERAL_MIR0_SSD_FRAC 0.7
 
-
 	//Fraction of extracted rectangular region of interest to use when calculating the sum of squared differences to match it against another region
 	//for internal mirror symmetry where the flip is in the radially outwards direction
     #define INTERAL_MIR1_SSD_FRAC 1.0
-
-	//Default padding to apply when calculating Pearson's normalised product moment correlation coefficient in the Fourier domain
-    #define FOURIER_PEARSON_USE_FRAC 0.5
 }

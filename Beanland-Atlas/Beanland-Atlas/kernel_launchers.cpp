@@ -1,4 +1,4 @@
-#include <beanland_atlas.h>
+#include <kernel_launchers.h>
 
 namespace ba
 {

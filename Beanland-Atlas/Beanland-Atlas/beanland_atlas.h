@@ -1,31 +1,25 @@
 #pragma once
 
-//Default parameters
-#include <defines.h>
+#include <defines.h> //Default parameters
+#include <includes.h> //External libraries
 
-//External libraries
-#include <includes.h>
-
-//Developer utility functions
-#include <developer_utility.h>
-
-//Atlas construction
-#include <atlas_construction.h>
-
-//Possible mirror symmetries
-static const std::array<int, 4> pos_mir_sym = {2, 3, 4, 6}; //Add to this - see Richard's paper on CBED atlas symmetry
-
-//Input data location
-static const char* inputImagePath = "D:/data/default2.tif";
-
-//Locations of kernels. Note: will update these to use an environmental variable based on where the user installs the software
-static const char* annulus_source = "D:/Beanland-Atlas/Beanland-Atlas/Beanland-Atlas/create_annulus.cl"; //Create padded annulus
-static const char* gauss_kernel_ext_source = "D:/Beanland-Atlas/Beanland-Atlas/Beanland-Atlas/gauss_kernel_padded.cl"; //Create padded Gaussian blurring kernel
-static const char* freq_spectrum1D_source = "D:/Beanland-Atlas/Beanland-Atlas/Beanland-Atlas/freq_spectrum1D.cl"; //Convert 2D r2c Fourier spectrum into 1D spetrum
-static const char* circle_source = "D:/Beanland-Atlas/Beanland-Atlas/Beanland-Atlas/create_circle.cl"; //Create padded circle
-
-//Names of kernels
-static const char* gauss_kernel_ext_kernel = "gauss_kernel_extended"; //Create padded annulus
-static const char* freq_spectrum1D_kernel = "freq_spectrum1D"; //Create padded Gaussian blurring kernel
-static const char* annulus_kernel = "create_annulus"; //Convert 2D r2c Fourier spectrum into 1D spetrum
-static const char* circle_kernel = "create_circle"; //Create padded circle
+#include <aberration_correction.h>
+#include <align_and_avg.h>
+#include <annulus_param.h>
+#include <approx_symmetry_axes.h>
+#include <beanland_commensuration.h>
+#include <beanland_commensuration_utility.h>
+#include <circ_size_upper_bound.h>
+#include <get_spot_positions.h>
+#include <ident_sym_utility.h> //Symmetry identification utility functions
+#include <identify_symmetry.h>
+#include <img_rel_pos.h>
+#include <kernel_launchers.h>
+#include <postprocessing.h>
+#include <preprocessing.h>
+#include <refine_mir_pos.h>
+#include <repeating_max_loc.h>
+#include <spot_extraction.h>
+#include <template_matching.h> //Matching images of the same size
+#include <utility.h>
+#include <window_functions.h>

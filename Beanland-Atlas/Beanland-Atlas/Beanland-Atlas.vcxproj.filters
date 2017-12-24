@@ -5,10 +5,6 @@
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
-    <Filter Include="Header Files">
-      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
-      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
-    </Filter>
     <Filter Include="Resource Files">
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
@@ -18,6 +14,13 @@
     </Filter>
     <Filter Include="Header Source Files">
       <UniqueIdentifier>{9308c370-d50f-4d57-95d1-10ca4c09fed0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Main Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{fe02c061-0eca-4a48-aa1f-04b87afa8313}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -90,25 +93,82 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="beanland_atlas.h">
-      <Filter>Header Files</Filter>
+      <Filter>Main Header Files</Filter>
     </ClInclude>
     <ClInclude Include="includes.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="developer_utility.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="atlas_construction.h">
-      <Filter>Header Files</Filter>
+      <Filter>Main Header Files</Filter>
     </ClInclude>
     <ClInclude Include="defines.h">
-      <Filter>Header Files</Filter>
+      <Filter>Main Header Files</Filter>
     </ClInclude>
     <ClInclude Include="utility.hpp">
       <Filter>Header Source Files</Filter>
     </ClInclude>
     <ClInclude Include="developer_utility.hpp">
       <Filter>Header Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="template_matching.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ident_sym_utility.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="developer_helper_func.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="aberration_correction.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="align_and_avg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="annulus_param.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="approx_symmetry_axes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="beanland_commensuration.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="beanland_commensuration_utility.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="circ_size_upper_bound.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="get_spot_positions.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="identify_symmetry.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="img_rel_pos.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="utility.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="kernel_launchers.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="postprocessing.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="preprocessing.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="refine_mir_pos.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="repeating_max_loc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="spot_extraction.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="window_functions.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

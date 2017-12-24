@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -43,13 +43,32 @@
     <ClCompile Include="window_functions.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="atlas_construction.h" />
+    <ClInclude Include="aberration_correction.h" />
+    <ClInclude Include="align_and_avg.h" />
+    <ClInclude Include="annulus_param.h" />
+    <ClInclude Include="approx_symmetry_axes.h" />
     <ClInclude Include="beanland_atlas.h" />
+    <ClInclude Include="beanland_commensuration.h" />
+    <ClInclude Include="beanland_commensuration_utility.h" />
+    <ClInclude Include="circ_size_upper_bound.h" />
     <ClInclude Include="defines.h" />
-    <ClInclude Include="developer_utility.h" />
+    <ClInclude Include="developer_helper_func.h" />
     <ClInclude Include="developer_utility.hpp" />
+    <ClInclude Include="get_spot_positions.h" />
+    <ClInclude Include="identify_symmetry.h" />
+    <ClInclude Include="ident_sym_utility.h" />
+    <ClInclude Include="img_rel_pos.h" />
     <ClInclude Include="includes.h" />
+    <ClInclude Include="kernel_launchers.h" />
+    <ClInclude Include="postprocessing.h" />
+    <ClInclude Include="preprocessing.h" />
+    <ClInclude Include="refine_mir_pos.h" />
+    <ClInclude Include="repeating_max_loc.h" />
+    <ClInclude Include="spot_extraction.h" />
+    <ClInclude Include="template_matching.h" />
+    <ClInclude Include="utility.h" />
     <ClInclude Include="utility.hpp" />
+    <ClInclude Include="window_functions.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="create_annulus.cl" />

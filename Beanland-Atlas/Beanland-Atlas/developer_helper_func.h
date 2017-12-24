@@ -1,5 +1,8 @@
 #pragma once
 
+#include <defines.h>
+#include <includes.h>
+
 namespace ba
 {
 	/*Display C++ API ArrayFire array

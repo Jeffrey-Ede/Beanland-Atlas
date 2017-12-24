@@ -1,4 +1,4 @@
-#include <beanland_atlas.h>
+#include <utility.h>
 
 namespace ba
 {
@@ -85,7 +85,7 @@ namespace ba
 	**Return:
 	**float, Measure of the autocorrelation. 2-2*<return value> approximates the Durbin-Watson statistic for large datasets
 	*/
-	float wighted_pearson_autocorr(std::vector<float> data, std::vector<float> err, const int NUM_THREADS) 
+	float weighted_pearson_autocorr(std::vector<float> data, std::vector<float> err, const int NUM_THREADS) 
 	{
 		//sums for pearson product moment correlation coefficient
 		//x - data; e - error, 1 - lagged data, 2 - forward data
@@ -269,79 +269,6 @@ namespace ba
 		return blurred;
 	}
 
-	/*Create phase correlation specturm
-	**src1: cv::Mat &, One of the images
-	**src2: cv::Mat &, The second image
-	**Returns,
-	**cv::Mat, Phase correlation spectrum
-	*/
-	cv::Mat phase_corr_spectrum(cv::Mat &src1, cv::Mat &src2)
-	{
-		cv::Mat window;
-		CV_Assert( src1.type() == src2.type());
-		CV_Assert( src1.type() == CV_32FC1 || src1.type() == CV_64FC1 );
-		CV_Assert( src1.size == src2.size);
-
-		if(!window.empty())
-		{
-			CV_Assert( src1.type() == window.type());
-			CV_Assert( src1.size == window.size);
-		}
-
-		int M = cv::getOptimalDFTSize(src1.rows);
-		int N = cv::getOptimalDFTSize(src1.cols);
-
-		cv::Mat padded1, padded2, paddedWin;
-
-		if(M != src1.rows || N != src1.cols)
-		{
-			cv::copyMakeBorder(src1, padded1, 0, M - src1.rows, 0, N - src1.cols, cv::BORDER_CONSTANT, cv::Scalar::all(0));
-			cv::copyMakeBorder(src2, padded2, 0, M - src2.rows, 0, N - src2.cols, cv::BORDER_CONSTANT, cv::Scalar::all(0));
-
-			if(!window.empty())
-			{
-				cv::copyMakeBorder(window, paddedWin, 0, M - window.rows, 0, N - window.cols, cv::BORDER_CONSTANT, cv::Scalar::all(0));
-			}
-		}
-		else
-		{
-			padded1 = src1;
-			padded2 = src2;
-			paddedWin = window;
-		}
-
-		cv::Mat FFT1, FFT2, P, Pm, C;
-
-		// perform window multiplication if available
-		if(!paddedWin.empty())
-		{
-			// apply window to both images before proceeding...
-			cv::multiply(paddedWin, padded1, padded1);
-			cv::multiply(paddedWin, padded2, padded2);
-		}
-
-		//Execute phase correlation equation
-		cv::dft(padded1, FFT1, cv::DFT_REAL_OUTPUT);
-		cv::dft(padded2, FFT2, cv::DFT_REAL_OUTPUT);
-
-		//Compute FF* / |FF*|
-		cv::mulSpectrums(FFT1, FFT2, P, 0, true);
-		cv::mulSpectrums(P, 1 / (cv::abs(P)+1) , C, 0, false);
-
-		//cv::divide(P, cv::abs(P), C, 0, false); 
-
-		cv::Mat D;
-		C.convertTo(D, CV_32FC1);
-
-		//Get the phase correlation spectrum...
-		cv::idft(D, D);
-
-		//...and shift its energy into the center
-		fftShift(D);
-
-		return D;
-	}
-
 	/*Calculate the autocorrelation of an OpenCV mat
 	**img: cv::Mat &, Image to calculate the autocorrelation of
 	**Returns,
@@ -463,7 +390,7 @@ namespace ba
 
 		//Calculate the centroid of the 1D spectrum
 		p = spectrum1D.ptr<float>(0);
-		uchar *q; q = spectrum1D.ptr<uchar>(0);
+		uchar *q; q = num_contrib.ptr<uchar>(0);
 		float inv_feature_size = 0.0f;
 		float sum = p[0], sum_err = 1.0f / q[0];
 		for (int i = 1; i < spectrum1D.cols; i++)

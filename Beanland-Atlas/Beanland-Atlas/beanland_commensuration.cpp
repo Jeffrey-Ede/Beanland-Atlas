@@ -1,4 +1,4 @@
-#include <beanland_atlas.h>
+#include <beanland_commensuration.h>
 
 namespace ba
 {
@@ -244,7 +244,7 @@ namespace ba
 	**Returns:
 	**cv::Mat, Homographically perspective warped image
 	*/
-	cv::Mat ewald_homographic_perspective_warp(cv::Mat &img)
+	cv::Mat homographic_perspective_warp(cv::Mat &img)
 	{
 		//Move this to utility? It will be called by the main perspective warp finding function
 

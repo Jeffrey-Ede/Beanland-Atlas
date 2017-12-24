@@ -1,4 +1,4 @@
-#include <beanland_atlas.h>
+#include <ident_sym_utility.h>
 
 namespace ba
 {
@@ -40,12 +40,6 @@ namespace ba
 		{
 			//Calculate the sum of squared differences
 			cv::Mat sum_sqr_diff = ssd(blur1, blur2);
-
-			display_CV(blur1);
-			display_CV(blur2);
-			cv::Mat phase_corr = phase_corr_spectrum(blur1, blur2);
-			std::cout << blur1.cols << ", " << blur1.rows << ", " << phase_corr.cols << ", " << phase_corr.rows << std::endl;
-			display_CV(phase_corr);
 
 			//Find the minimum sum of squared differences location
 			cv::minMaxLoc(sum_sqr_diff, NULL, NULL, &minLoc, NULL);

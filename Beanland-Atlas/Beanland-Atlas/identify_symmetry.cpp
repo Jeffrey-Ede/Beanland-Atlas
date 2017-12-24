@@ -1,4 +1,4 @@
-#include <beanland_atlas.h>
+#include <identify_symmetry.h>
 
 namespace ba
 {

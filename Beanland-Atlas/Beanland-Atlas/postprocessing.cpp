@@ -1,4 +1,4 @@
-#include <beanland_atlas.h>
+#include <postprocessing.h>
 
 namespace ba
 {

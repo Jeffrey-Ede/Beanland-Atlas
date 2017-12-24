@@ -1,4 +1,4 @@
-#include <beanland_atlas.h>
+#include <get_spot_positions.h>
 
 namespace ba
 {

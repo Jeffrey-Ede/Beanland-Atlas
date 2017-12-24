@@ -1,4 +1,4 @@
-#include <beanland_atlas.h>
+#include <circ_size_upper_bound.h>
 
 namespace ba
 {
@@ -83,7 +83,7 @@ namespace ba
 
 		//Use a lagged, weighted Pearson normalised product moment correlation coefficient as a proxy for the Durbin-Watson
 		//autocorrelation statistic, which is approx 2*(1-r_p)
-		float spectrum_autocorr = wighted_pearson_autocorr(spectrum_host, spectrum_err, NUM_THREADS);
+		float spectrum_autocorr = weighted_pearson_autocorr(spectrum_host, spectrum_err, NUM_THREADS);
 
 		//Use the weighted centroid of the 1D Fourier spectrum to estimate the spot separation
 		float weighted_sum = 0.0f, sum_err = spectrum_host[0] / spectrum_err[0];
