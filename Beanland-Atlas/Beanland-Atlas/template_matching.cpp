@@ -123,6 +123,11 @@ namespace ba
 		for (int i = 0; i < left.cols; i++)
 		{
 			float acc = 0.0f;
+			for (int k = src1.rows-1; k >= top.rows; k--)
+			{
+				acc += left.at<float>(k, i);
+			}
+
 			for (int j = 0, k = top.rows-1; j < top.rows; j++, k--)
 			{
 				offset.at<float>(j, i) += acc + vert_acc[j];
@@ -130,10 +135,10 @@ namespace ba
 			}
 
 			//Continue across the left rows
-			for (int j = 0, k = bot.rows; j < bot.rows; j++, k++)
+			for (int j = 0, k = bot.rows, m = src1.rows-1; j < bot.rows; j++, k++, m--)
 			{
 				offset.at<float>(k, i) += acc + vert_acc[k];
-				acc -= left.at<float>(j, i);
+				acc -= left.at<float>(m, i);
 			}
 		}
 
@@ -144,9 +149,14 @@ namespace ba
 		}
 
 		//Accumulate the right accumulator columns
-		for (int i = 0, l = right.cols+1; i < right.cols; i++, l++)
+		for (int i = 0, l = left.cols+1; i < right.cols; i++, l++)
 		{
 			float acc = 0.0f;
+			for (int k = src1.rows-1; k >= top.rows; k--)
+			{
+				acc += right.at<float>(k, i);
+			}
+
 			for (int j = 0, k = top.rows-1; j < top.rows; j++, k--)
 			{
 				offset.at<float>(j, l) += acc + vert_acc[j];
@@ -154,10 +164,10 @@ namespace ba
 			}
 
 			//Continue across the left rows
-			for (int j = 0, k = bot.rows; j < bot.rows; j++, k++)
+			for (int j = 0, k = bot.rows, m = src1.rows-1; j < bot.rows; j++, k++, m--)
 			{
 				offset.at<float>(k, l) += acc + vert_acc[k];
-				acc -= right.at<float>(j, i);
+				acc -= right.at<float>(m, i);
 			}
 		}
 
@@ -180,7 +190,8 @@ namespace ba
 	**first in the Fourier domain
 	**src1: cv::Mat &, One of the images
 	**src2: cv::Mat &, The second image
-	**frac: float, Proportion of the first image's dimensions to pad it by
+	**frac: float, Proportion of the first image's dimensions to pad it by. Must be smaller than 1.0f so that there is at 
+	**least some overlap
 	**Returns,
 	**cv::Mat, Pearson normalised product moment correlation coefficients. The result is not normalised.
 	*/
@@ -190,14 +201,15 @@ namespace ba
 		cv::Mat pad1;
 		int pad_rows = (int)(frac*src1.rows);
 		int pad_cols = (int)(frac*src1.cols);
-		cv::copyMakeBorder(src1, pad1, pad_rows, pad_rows, pad_cols, pad_cols, cv::BORDER_CONSTANT, 0.0);
+		float src1_mean = cv::mean(src1).val[0];
+		cv::copyMakeBorder(src1, pad1, pad_rows, pad_rows, pad_cols, pad_cols, cv::BORDER_CONSTANT, cv::Scalar(src1_mean));
 
 		//Calculate the Pearson product moment correlation coefficients in the Fourier domain
 		cv::Mat pear;
 		cv::matchTemplate(pad1, src2, pear, CV_TM_CCOEFF);
 
 		//Subtract the mean of the images so that it can be subtracted from them during the correction
-		cv::Mat sub1 = src1 - cv::mean(src1).val[0];
+		cv::Mat sub1 = src1 - src1_mean;
 		cv::Mat sub2 = src2 - cv::mean(src2).val[0];
 
 		//Calculate the cumulative rowwise and columnwise sums of squares. These can be used to calculate additive corrections
@@ -392,17 +404,22 @@ namespace ba
 		for (int i = 0; i < left.cols; i++)
 		{
 			float acc = 0.0f;
+			for (int k = src1.rows-1; k >= top.rows; k--)
+			{
+				acc += left.at<float>(k, i);
+			}
+
 			for (int j = 0, k = top.rows-1; j < top.rows; j++, k--)
 			{
 				scale.at<float>(j, i) += acc + vert_acc[j];
-				acc += left.at<float>(j, i);
+				acc += left.at<float>(k, i);
 			}
 
 			//Continue across the left rows
-			for (int j = 0, k = bot.rows; j < bot.rows; j++, k++)
+			for (int j = 0, k = bot.rows, m = src1.rows-1; j < bot.rows; j++, k++, m--)
 			{
 				scale.at<float>(k, i) += acc + vert_acc[k];
-				acc -= left.at<float>(j, i);
+				acc -= left.at<float>(m, i);
 			}
 		}
 
@@ -416,17 +433,22 @@ namespace ba
 		for (int i = 0, l = left.cols+1; i < left.cols; i++, l++)
 		{
 			float acc = 0.0f;
-			for (int j = 0; j < top.rows; j++)
+			for (int k = src1.rows-1; k >= top.rows; k--)
+			{
+				acc += right.at<float>(k, i);
+			}
+
+			for (int j = 0, k = top.rows-1; j < top.rows; j++, k--)
 			{
 				scale.at<float>(j, l) += acc + vert_acc[j];
-				acc += right.at<float>(j, i);
+				acc += right.at<float>(k, i);
 			}
 
 			//Continue across the left rows
-			for (int j = 0, k = bot.rows; j < bot.rows; j++, k++)
+			for (int j = 0, k = bot.rows, m = src1.rows-1; j < bot.rows; j++, k++, m--)
 			{
 				scale.at<float>(k, l) += acc + vert_acc[k];
-				acc -= right.at<float>(j, i);
+				acc -= right.at<float>(m, i);
 			}
 		}
 
@@ -434,17 +456,22 @@ namespace ba
 		for (int i = 0; i < left2.cols; i++)
 		{
 			float acc2 = 0.0f;
+			for (int k = src2.rows-1; k >= top2.rows; k--)
+			{
+				acc2 += left2.at<float>(k, i);
+			}
+
 			for (int j = 0, k = top2.rows-1; j < top2.rows; j++, k--)
 			{
 				scale2.at<float>(j, i) += acc2 + vert_acc_2[j];
-				acc2 += left2.at<float>(j, i);
+				acc2 += left2.at<float>(k, i);
 			}
 
 			//Continue across the left rows
-			for (int j = 0, k = bot2.rows; j < bot2.rows; j++, k++)
+			for (int j = 0, k = bot2.rows, m = src2.rows-1; j < bot2.rows; j++, k++, m--)
 			{
 				scale2.at<float>(k, i) += acc2 + vert_acc_2[k];
-				acc2 -= left2.at<float>(j, i);
+				acc2 -= left2.at<float>(m, i);
 			}
 		}
 
@@ -458,17 +485,22 @@ namespace ba
 		for (int i = 0, l = right2.cols+1; i < right2.cols; i++, l++)
 		{
 			float acc2 = 0.0f;
+			for (int k = src2.rows-1; k >= top2.rows; k--)
+			{
+				acc2 += right2.at<float>(k, i);
+			}
+
 			for (int j = 0, k = top2.rows-1; j < top2.rows; j++, k--)
 			{
 				scale2.at<float>(j, l) += acc2 + vert_acc_2[j];
-				acc2 += right2.at<float>(j, i);
+				acc2 += right2.at<float>(k, i);
 			}
 
 			//Continue across the left rows
-			for (int j = 0, k = bot2.rows; j < bot2.rows; j++, k++)
+			for (int j = 0, k = bot2.rows, m = src2.rows-1; j < bot2.rows; j++, k++, m--)
 			{
 				scale2.at<float>(k, l) += acc2 + vert_acc_2[k];
-				acc2 -= right2.at<float>(j, i);
+				acc2 -= right2.at<float>(m, i);
 			}
 		}
 
@@ -498,6 +530,9 @@ namespace ba
 			}
 		}
 
+		display_CV(scale);
+		display_CV(scale2);
+
 		double min2, max2;
 		cv::minMaxLoc(scale, &min2, &max2, NULL, NULL);
 		std::cout << min2 << ", " << max2 << std::endl;
@@ -506,23 +541,29 @@ namespace ba
 		std::cout << min2 << ", " << max2 << std::endl;
 
 		//Calculate the elements of the linear map needed to correct the Pearson correlation values
-		for (int i = 0, k = scale.rows-1; i < scale.rows; i++, k--)
+		for (int i = 0; i < scale.rows; i++)
 		{
+			r = scale.ptr<float>(i);
 			s = scale2.ptr<float>(i);
-			for (int j = 0, l = scale.cols-1; j < scale.cols; j++, l--)
+			for (int j = 0; j < scale.cols; j++)
 			{
-				s[j] = std::sqrt(sum_sqr - scale.at<float>(k, l) + 1) * 
-					std::sqrt(sum_sqr_2 - s[j] + 1) + 1; // +1 to prevent divide by 0 errors
+				r[j] = std::sqrt(sum_sqr > r[j] ? sum_sqr - r[j] : 0) * 
+					std::sqrt(sum_sqr_2 > s[j] ? sum_sqr_2 - s[j] : 0); //Ternary operations safeguard against rounding errors
 			}
 		}
 
+		display_CV(scale);
+
+		cv::Mat p = pear / scale;
+
+		display_CV(p);
+
 		cv::Point y;
 		double min, max;
-		cv::minMaxLoc(pear / scale, &min, &max, &y, NULL);
+		cv::minMaxLoc(p, &min, &max, &y, NULL);
 		std::cout << min << ", " << max << ", " << y << std::endl;
 		std::cout << scale.rows << ", " << scale.cols << std::endl;
-		std::cout << pear.at<float>(y.y, y.x) << ", " << scale.
-			at<float>(y.y, y.x) << ", " << scale2.at<float>(y.y, y.x) << std::endl;
+		std::cout << pear.at<float>(y.y, y.x) << ", " << scale.at<float>(y.y, y.x) << ", " << scale2.at<float>(y.y, y.x) << std::endl;
 		std::cout << sum_sqr << ", " << sum_sqr_2 << std::endl;
 		std::getchar();
 

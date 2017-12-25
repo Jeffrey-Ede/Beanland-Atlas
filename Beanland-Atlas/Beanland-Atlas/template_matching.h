@@ -26,7 +26,8 @@ namespace ba
 	**first in the Fourier domain
 	**src1: cv::Mat &, One of the images
 	**src2: cv::Mat &, The second image
-	**frac: float, Proportion of the first image's dimensions to pad it by
+	**frac: float, Proportion of the first image's dimensions to pad it by. Must be smaller than 1.0f so that there is at 
+	**least some overlap
 	**Returns,
 	**cv::Mat, Pearson normalised product moment correlation coefficients. The result is not normalised
 	*/

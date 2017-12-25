@@ -26,8 +26,8 @@ int main()
 	preprocess(mats, PREPROC_MED_FILT_SIZE);
 
 	//cv::Mat rot = in_plane_rotate(mats[0], 0.1, 0);
-	cv::Mat sum_sqr_diff = ssd(mats[0], mats[400], 0.5);
-	cv::Mat pear = fourier_pearson_corr(mats[0], mats[400], 1.0);
+	cv::Mat sum_sqr_diff = ssd(mats[0], mats[400], 1.0);
+	cv::Mat pear = fourier_pearson_corr(mats[0], mats[400], 0.5);
 	
 	//Create OpenCL context and queue for GPU acceleration 
 	cl::Context context(CL_DEVICE_TYPE_GPU);
