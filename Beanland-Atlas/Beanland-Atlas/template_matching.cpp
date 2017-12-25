@@ -530,62 +530,20 @@ namespace ba
 			}
 		}
 
-		display_CV(scale);
-		display_CV(scale2);
-
-		double min2, max2;
-		cv::minMaxLoc(scale, &min2, &max2, NULL, NULL);
-		std::cout << min2 << ", " << max2 << std::endl;
-
-		cv::minMaxLoc(scale2, &min2, &max2, NULL, NULL);
-		std::cout << min2 << ", " << max2 << std::endl;
-
 		//Calculate the elements of the linear map needed to correct the Pearson correlation values
-		for (int i = 0; i < scale.rows; i++)
+		for (int i = 0, k = scale.rows-1; i < scale.rows; i++, k--)
 		{
-			r = scale.ptr<float>(i);
+			r = scale.ptr<float>(k);
 			s = scale2.ptr<float>(i);
-			for (int j = 0; j < scale.cols; j++)
+			for (int j = 0, l = scale.cols-1; j < scale.cols; j++, l--)
 			{
-				r[j] = std::sqrt(sum_sqr > r[j] ? sum_sqr - r[j] : 0) * 
+				s[j] = std::sqrt(sum_sqr > r[l] ? sum_sqr - r[l] : 0) * 
 					std::sqrt(sum_sqr_2 > s[j] ? sum_sqr_2 - s[j] : 0); //Ternary operations safeguard against rounding errors
 			}
 		}
 
-		display_CV(scale);
-
-		cv::Mat p = pear / scale;
-
-		display_CV(p);
-
-		cv::Point y;
-		double min, max;
-		cv::minMaxLoc(p, &min, &max, &y, NULL);
-		std::cout << min << ", " << max << ", " << y << std::endl;
-		std::cout << scale.rows << ", " << scale.cols << std::endl;
-		std::cout << pear.at<float>(y.y, y.x) << ", " << scale.at<float>(y.y, y.x) << ", " << scale2.at<float>(y.y, y.x) << std::endl;
-		std::cout << sum_sqr << ", " << sum_sqr_2 << std::endl;
-		std::getchar();
-
 		//Linearly map to the correct results
-		return pear / scale;
-
-		//cv::Mat scale = cv::Mat(pear.rows, pear.cols, CV_32FC1, cv::Scalar(0.0));
-
-		////Iterate across mat rows...
-		//float *s;
-		//for (int m = 0; m < scale.rows; m++) 
-		//{
-		//	//...and iterate across mat columns
-		//	s = scale.ptr<float>(m);
-		//	for (int n = 0; n < scale.cols; n++) 
-		//	{
-		//		s[n] = (src2.rows-std::abs(m-pad_rows))*(src2.cols-std::abs(n-pad_cols));
-		//	}
-		//}
-
-		////Linearly map to the correct results
-		//return pear / scale;
+		return pear / scale2;
 	}
 
 	/*Create phase correlation specturm
