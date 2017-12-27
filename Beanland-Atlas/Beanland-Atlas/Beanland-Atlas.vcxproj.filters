@@ -90,6 +90,12 @@
     <ClCompile Include="template_matching.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="bright_field_sym.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="commensuration_tilts.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="beanland_atlas.h">
@@ -168,6 +174,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="window_functions.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="bright_field_sym.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="commensuration_tilts.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

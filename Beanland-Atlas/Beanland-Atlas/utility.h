@@ -7,6 +7,9 @@
 
 namespace ba
 {
+	//Fraction of rectangular roi size to base blurring Gaussian standard deviation on when calculating the sum of squared differences
+    #define QUANT_GAUSS_FRAC 0.03
+
 	/*Calculate Pearson normalised product moment correlation coefficient between 2 vectors of floats
 	**Inputs:
 	**vect1: std::vector<float>, One of the datasets to use in the calculation

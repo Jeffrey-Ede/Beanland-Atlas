@@ -23,8 +23,6 @@ namespace ba
 		cv::Mat rotated;
 		cv::warpPerspective(img, rotated, rot_mat, img.size(), cv::INTER_CUBIC | cv::WARP_INVERSE_MAP);
 
-		std::cout << rotated;
-
 		//cv::convertPointsFromHomogeneous(rotated, rotated);
 		//display_CV(rotated);
 

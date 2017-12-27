@@ -262,11 +262,21 @@ namespace ba
 	cv::Mat blur_by_size(cv::Mat &img, float blur_frac)
 	{
 		cv::Mat blurred;
-		int k_size = (int)(blur_frac*std::min(img.rows, img.cols)) < 1 ? 1 : (int)(blur_frac*std::min(img.rows, img.cols));
 
-		cv::filter2D(img, blurred, img.depth(), cv::getGaussianKernel(k_size, -1, CV_32F));
+		if (blur_frac != 0.0f)
+		{
+			//Make sure the kernel size is at least one
+			int k_size = (int)(blur_frac*std::min(img.rows, img.cols)) < 1 ? 1 : (int)(blur_frac*std::min(img.rows, img.cols));
 
-		return blurred;
+			//Blur the image
+			cv::filter2D(img, blurred, img.depth(), cv::getGaussianKernel(k_size, -1, CV_32F));
+
+			return blurred;
+		}
+		else
+		{
+			return img;
+		}
 	}
 
 	/*Calculate the autocorrelation of an OpenCV mat

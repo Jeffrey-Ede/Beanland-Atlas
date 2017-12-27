@@ -26,7 +26,9 @@
     <ClCompile Include="beanland_atlas.cpp" />
     <ClCompile Include="beanland_commensuration.cpp" />
     <ClCompile Include="beanland_commensuration_utility.cpp" />
+    <ClCompile Include="bright_field_sym.cpp" />
     <ClCompile Include="circ_size_upper_bound.cpp" />
+    <ClCompile Include="commensuration_tilts.cpp" />
     <ClCompile Include="developer_helper_func.cpp" />
     <ClCompile Include="get_spot_positions.cpp" />
     <ClCompile Include="identify_symmetry.cpp" />
@@ -50,7 +52,9 @@
     <ClInclude Include="beanland_atlas.h" />
     <ClInclude Include="beanland_commensuration.h" />
     <ClInclude Include="beanland_commensuration_utility.h" />
+    <ClInclude Include="bright_field_sym.h" />
     <ClInclude Include="circ_size_upper_bound.h" />
+    <ClInclude Include="commensuration_tilts.h" />
     <ClInclude Include="defines.h" />
     <ClInclude Include="developer_helper_func.h" />
     <ClInclude Include="developer_utility.hpp" />

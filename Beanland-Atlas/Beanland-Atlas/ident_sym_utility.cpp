@@ -299,6 +299,8 @@ namespace ba
 			}
 		}
 
+		display_CV(img(cv::Rect(max_row, max_col, max_rows, max_cols)));
+
 		//return cv::Rect(max_col, max_row, max_cols, max_rows);
 		return cv::Rect(max_row, max_col, max_rows, max_cols);
 	}
@@ -375,6 +377,9 @@ namespace ba
 		//Rotate the image
 		cv::Mat dst;
 		cv::warpAffine(src, dst, rot, bbox.size());
+
+		display_CV(src);
+		display_CV(dst);
 
 		return dst;
 	}
@@ -535,7 +540,6 @@ namespace ba
 				if (wisdom == REL_SHIFT_WIS_INTERNAL_MIR1)
 				{
 					std::vector<float> sum_cols(img.cols, 0); //Sum of all the y gradient elements in a row
-					float *p;
 					//Iterate over columns...
 					for (int i = 0; i < img.cols; i++)
 					{

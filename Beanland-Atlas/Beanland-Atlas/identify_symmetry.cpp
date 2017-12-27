@@ -85,27 +85,43 @@ namespace ba
 		std::vector<cv::Mat> rot_to_align = rotate_to_align(surveys, equidst.angles, equidst.indices);
 
 		//Mirror symmetry Pearson normalised product moment coefficient spectrums between surveys
-		std::vector<std::vector<float>> mirror = get_mirror_sym(rot_to_align);
+		std::vector<std::vector<float>> mirror_between = get_mirror_between_sym(rot_to_align);
+
+		//Mirror symmetry Pearson normalised product moment coefficient spectrums in surveys
+		std::vector<std::vector<float>> mirror_in0 = get_mirror_in_sym(rot_to_align);
+
+		//Mirror radially outwards symmetry Pearson normalised product moment coefficient spectrums in surveys
+		std::vector<std::vector<float>> mirror_in1 = get_mirror_in_rad_sym(rot_to_align);
 
 		//Rotation symmetry Pearson normalised product moment coefficient spectrums between surveys
 		std::vector<std::vector<float>> rot_between = get_rotational_between_sym(rot_to_align);
 
-		//Caclulate the average mirror symmetry quantifications between and in all spots
+		//Caclulate the average mirror symmetry quantifications between spots
 		float mean_mir_between = 0.0f;
-		float mean_mir_in = 0.0f;
 		for (int i = 0, k = 0; i < rot_to_align.size(); i++)
 		{
-			mean_mir_in += mirror[k][0];
-			k++;
-
 			for (int j = i+1; j < rot_to_align.size(); j++, k++)
 			{
-				mean_mir_between += mirror[k][0];
-				std::cout << mirror[k][0] << std::endl;
+				mean_mir_between += mirror_between[k][0];
 			}
 		}
-		mean_mir_in /= rot_to_align.size();
 		mean_mir_between /= rot_to_align.size() * (rot_to_align.size()-1) / 2;
+
+		//Caclulate the average mirror symmetry quantifications in spots for mirroring perpendicularly to the radially outwards direction
+		float mean_mir_in0 = 0.0f;
+		for (int i = 0; i < rot_to_align.size(); i++)
+		{
+			mean_mir_in0 += mirror_in0[i][0];
+		}
+		mean_mir_in0 /= rot_to_align.size();
+
+		//Caclulate the average mirror symmetry quantifications in spots for mirroring radially outwards
+		float mean_mir_in1 = 0.0f;
+		for (int i = 0; i < rot_to_align.size(); i++)
+		{
+			mean_mir_in1 += mirror_in1[i][0];
+		}
+		mean_mir_in1 /= rot_to_align.size();
 
 		//Calculate the average symmetry quantification for spots multiples of 2; not 1, apart
 		float mean_mir_between_2 = 0.0f; //Only present for 4 or 6 equidistant spots
@@ -113,7 +129,7 @@ namespace ba
 		{
 			for (int j = i+2; j < rot_to_align.size(); j += 2, k += 2)
 			{
-				mean_mir_between_2 += mirror[k][0];
+				mean_mir_between_2 += mirror_between[k][0];
 			}
 		}
 		mean_mir_between_2 /= rot_to_align.size() * (rot_to_align.size()-1) / 4;
@@ -130,12 +146,12 @@ namespace ba
 		mean_rot_between /= rot_to_align.size() * (rot_to_align.size()-1) / 2;
 
 		//Decide which symmetries are present
-		float max_pear = std::max(mean_mir_in, std::max(mean_mir_between, std::max(mean_mir_between_2, mean_rot_between)));
+		float max_pear = std::max(mean_mir_in0, std::max(mean_mir_between, std::max(mean_mir_between_2, mean_rot_between)));
 
 		//Record the symmetries present. By index: 0 - mir_in, 1 - mir_between, 2 - mir_between_2, 3 - rot_between, 4 - rot_in, 
 		//5 - mirror rotational symmetry (will be calculated later)
 		std::vector<bool> symmetries(6);
-		symmetries[0] = mean_mir_in > frac_for_sym * max_pear;
+		symmetries[0] = mean_mir_in0 > frac_for_sym * max_pear;
 		symmetries[1] = mean_mir_between > frac_for_sym * max_pear;
 		symmetries[2] = symmetries[1] || mean_mir_between_2 > frac_for_sym * max_pear;
 		symmetries[3] = mean_rot_between > frac_for_sym * max_pear;
@@ -146,7 +162,7 @@ namespace ba
 
 		//Get an initial estimate of the symmetry centres to guide the internal rotational symmetry quantification
 		std::vector<std::vector<float>> rot_in;
-		std::vector<cv::Point2f> est_sym_centers = get_sym_centers(mirror, rot_between, rot_in, symmetries,
+		std::vector<cv::Point2f> est_sym_centers = get_sym_centers(mirror_between, rot_between, rot_in, symmetries,
 			rot_to_align.size(), rot_to_align);
 
 		for (int i = 0; i < est_sym_centers.size(); i++)
@@ -173,7 +189,7 @@ namespace ba
 		print_vect(symmetries);
 
 		//Solve an overconstrained system of simultaneous equations to get the symmetry centres
-		std::vector<cv::Point2f> sym_centers = get_sym_centers(mirror, rot_between, rot_in, symmetries, 
+		std::vector<cv::Point2f> sym_centers = get_sym_centers(mirror_between, rot_between, rot_in, symmetries, 
 			rot_to_align.size(), rot_to_align);
 
 	}
@@ -209,10 +225,10 @@ namespace ba
 	**std::vector<std::vector<float>>, Pearson normalised product moment correlation coefficients and relative row and column shift of the 
 	**second image, in that order
 	*/
-	std::vector<std::vector<float>> get_mirror_sym(std::vector<cv::Mat> &rot_to_align)
+	std::vector<std::vector<float>> get_mirror_between_sym(std::vector<cv::Mat> &rot_to_align)
 	{
 		//Use sum of squares formula to get the number of comparisons
-		int num_comp = rot_to_align.size() * (rot_to_align.size()+1) / 2;
+		int num_comp = rot_to_align.size() * (rot_to_align.size()-1) / 2;
 
 		//Assign vectors to hold the symmetry parameters
 		std::vector<std::vector<float>> sym_param(num_comp);
@@ -220,21 +236,7 @@ namespace ba
 		//Compare each matrix with...
 		for (int i = 0, k = 0; i < rot_to_align.size(); i++)
 		{
-			//...the mirror of itself...
-			{
-				int j = 0;
-
-				//Flip the second mat in the comparison
-				cv::Mat mir;
-				cv::flip(rot_to_align[j], mir, 0);
-
-				//Quantify the symmetry and record the shift of highest symmetry
-				sym_param[k] = quantify_rel_shift(rot_to_align[i], mir, INTERAL_MIR0_SSD_FRAC, REL_SHIFT_WIS_INTERNAL_MIR0);
-
-				k++;
-			}
-
-			//...and the higher index matrices
+			//...the higher index matrices
 			for (int j = i+1; j < rot_to_align.size(); j++, k++)
 			{
 				//Flip the second mat in the comparison
@@ -244,6 +246,62 @@ namespace ba
 				//Quantify the symmetry and record the shift of highest symmetry
 				sym_param[k] = quantify_rel_shift(rot_to_align[i], mir);
 			}
+		}
+
+		return sym_param;
+	}
+
+	/*Calculate Pearson nomalised product moment correlation coefficients between the surveys and reflections of themselves perpendicular
+	**to the radially outwards direction
+	**Inputs:
+	**rot_to_align: std::vector<cv::Mat> &, Surveys that have been rotated so that they are all at the same angle to a horizontal line
+	**drawn through the brightest spot
+	**Returns:
+	**std::vector<std::vector<float>>, Pearson normalised product moment correlation coefficients and relative row and column shift of the 
+	**second image, in that order
+	*/
+	std::vector<std::vector<float>> get_mirror_in_sym(std::vector<cv::Mat> &rot_to_align)
+	{
+		//Assign vectors to hold the symmetry parameters
+		std::vector<std::vector<float>> sym_param(rot_to_align.size());
+
+		//Compare each matrix with...
+		for (int i = 0, k = 0; i < rot_to_align.size(); i++)
+		{
+			//Flip the second mat in the comparison
+			cv::Mat mir;
+			cv::flip(rot_to_align[i], mir, 0);
+
+			//Quantify the symmetry and record the shift of highest symmetry
+			sym_param[i] = quantify_rel_shift(rot_to_align[i], mir, INTERAL_MIR0_SSD_FRAC, REL_SHIFT_WIS_INTERNAL_MIR0);
+		}
+
+		return sym_param;
+	}
+
+	/*Calculate Pearson nomalised product moment correlation coefficients between the surveys and reflections of themselves parallel
+	**to the radially outwards direction
+	**Inputs:
+	**rot_to_align: std::vector<cv::Mat> &, Surveys that have been rotated so that they are all at the same angle to a horizontal line
+	**drawn through the brightest spot
+	**Returns:
+	**std::vector<std::vector<float>>, Pearson normalised product moment correlation coefficients and relative row and column shift of the 
+	**second image, in that order
+	*/
+	std::vector<std::vector<float>> get_mirror_in_rad_sym(std::vector<cv::Mat> &rot_to_align)
+	{
+		//Assign vectors to hold the symmetry parameters
+		std::vector<std::vector<float>> sym_param(rot_to_align.size());
+
+		//Compare each matrix with...
+		for (int i = 0, k = 0; i < rot_to_align.size(); i++)
+		{
+			//Flip the second mat in the comparison
+			cv::Mat mir;
+			cv::flip(rot_to_align[i], mir, 1);
+
+			//Quantify the symmetry and record the shift of highest symmetry
+			sym_param[i] = quantify_rel_shift(rot_to_align[i], mir, INTERAL_MIR1_SSD_FRAC, REL_SHIFT_WIS_INTERNAL_MIR1);
 		}
 
 		return sym_param;
@@ -490,57 +548,4 @@ namespace ba
 
 		return sym_centers;
 	}
-
-	///*Get the position of the central spot's symmetry center, whatever it's symmetry may be
-	//**Inputs:
-	//**img: cv::Mat &, Rotated central survey so that the symmetry center is easier to extract
-	//**num_equidst: const int, Number of equidistant spots on the aligned diffraction pattern
-	//**Returns:
-	//**cv::Point, Position of the symmetry center
-	//*/
-	//cv::Point2f center_sym_pos(cv::Mat &img, int num_spots)
-	//{
-	//	//Since we just want the center of symmetry, we only have to check the rotational symmetry
-	//	std::vector<cv::Mat> surveys(num_spots);
-	//	surveys[0] = img;
-	//	for (int i = 1; i < num_spots; i++)
-	//	{
-	//		surveys[i] = rotate_CV(img, i * 2*PI / num_spots);
-	//	}
-
-	//	std::vector<std::vector<float>> sym = get_rotational_between_sym(surveys);
-
-	//	//All possible 3-fold symmetries have rotational symmetry between surveys
-	//	if (num_spots == 3)
-	//	{
-	//		//Find the absolute positions of the symmetry centers of the rotated images from their relative positions
-	//		Eigen::MatrixXf pairs(3, 3); //Combinations of rotated images' separations
-	//		Eigen::VectorXf dist_rows(3); //Row separations
-	//		Eigen::VectorXf dist_cols(3); //Column separations
-
-	//									  //Dictate the rotation between combinations
-	//		pairs << -1, 1, 0,
-	//			-1, 0, 1,
-	//			0, -1, 1;
-
-	//		//Add the row separations to the vector
-	//		dist_rows << sym[0][2], sym[1][2], sym[2][2];
-
-	//		//Add the column separations to the vector
-	//		dist_cols << sym[0][1], sym[1][1], sym[2][1];
-
-	//		//Solve to get the row positions of the symmetry centre
-	//		Eigen::VectorXf rows = pairs.colPivHouseholderQr().solve(dist_rows);
-
-	//		//Solve to get the columns positions of the symmetry centre
-	//		Eigen::VectorXf cols = pairs.colPivHouseholderQr().solve(dist_cols);
-	//	}
-	//	//4 and 6 fold symmetries always have rotational symmetry between spots 2 apart
-	//	else
-	//	{
-
-	//	}
-
-	//	return cv::Point(sym[0][1], sym[0][2]);
-	//}
 }

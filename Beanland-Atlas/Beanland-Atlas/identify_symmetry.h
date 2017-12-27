@@ -62,7 +62,29 @@ namespace ba
 	**std::vector<std::vector<float>>, Pearson normalised product moment correlation coefficients and relative row and column shift of the 
 	**second image, in that order
 	*/
-	std::vector<std::vector<float>> get_mirror_sym(std::vector<cv::Mat> &rot_to_align);
+	std::vector<std::vector<float>> get_mirror_between_sym(std::vector<cv::Mat> &rot_to_align);
+
+	/*Calculate Pearson nomalised product moment correlation coefficients between the surveys and reflections of themselves perpendicular
+	**to the radially outwards direction
+	**Inputs:
+	**rot_to_align: std::vector<cv::Mat> &, Surveys that have been rotated so that they are all at the same angle to a horizontal line
+	**drawn through the brightest spot
+	**Returns:
+	**std::vector<std::vector<float>>, Pearson normalised product moment correlation coefficients and relative row and column shift of the 
+	**second image, in that order
+	*/
+	std::vector<std::vector<float>> get_mirror_in_sym(std::vector<cv::Mat> &rot_to_align);
+
+	/*Calculate Pearson nomalised product moment correlation coefficients between the surveys and reflections of themselves parallel
+	**to the radially outwards direction
+	**Inputs:
+	**rot_to_align: std::vector<cv::Mat> &, Surveys that have been rotated so that they are all at the same angle to a horizontal line
+	**drawn through the brightest spot
+	**Returns:
+	**std::vector<std::vector<float>>, Pearson normalised product moment correlation coefficients and relative row and column shift of the 
+	**second image, in that order
+	*/
+	std::vector<std::vector<float>> get_mirror_in_rad_sym(std::vector<cv::Mat> &rot_to_align);
 
 	/*Calculate Pearson nomalised product moment correlation coefficients between the surveys when rotated to the positions of the other
 	**surveys

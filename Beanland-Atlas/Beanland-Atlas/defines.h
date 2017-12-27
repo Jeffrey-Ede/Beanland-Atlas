@@ -60,9 +60,6 @@ namespace ba
 	//Factor to convert radians to degrees
 	#define RAD_TO_DEG 57.29577951
 
-	//Fraction of rectangular roi size to base blurring Gaussian standard deviation on when calculating the sum of squared differences
-	#define QUANT_GAUSS_FRAC 0.03
-
 	//Size of Gaussian blurring filter when preprocessing individual spots to find the Bragg profile
 	#define BRAGG_PROF_PREPROC_GAUSS 3
 

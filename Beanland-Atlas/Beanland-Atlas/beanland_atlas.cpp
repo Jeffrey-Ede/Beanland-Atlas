@@ -122,8 +122,6 @@ int main()
 
 	struct atlas_sym atlas_symmetry = identify_symmetry(surveys, spot_pos, EQUIDST_THRESH, FRAC_FOR_SYM);
 
-	//display_CV(raw_atlas, 7.5e-4);
-
 	//Free OpenCL resources
 	clFlush(af_queue);	
 	clFinish(af_queue);
