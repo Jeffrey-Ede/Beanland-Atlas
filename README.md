@@ -18,7 +18,8 @@ Libraries and acceleration packages that the code is built upon include:
 * [OpenCL 2.2](https://www.khronos.org/opencl/)
 * [OpenCV 3.3](https://opencv.org/opencv-3-3.html)
 * [OpenMP](https://msdn.microsoft.com/en-us/library/tt15eb9t.aspx)
+* [Eigen 3.3.4](http://eigen.tuxfamily.org/index.php?title=Main_Page)
 
-A full list of dependencies can be found in the [includes header](https://github.com/Jeffrey-Ede/Beanland-Atlas/blob/master/Beanland-Atlas/Beanland-Atlas/includes.h). The function prototypes are documented in the [atlas_construction header](https://github.com/Jeffrey-Ede/Beanland-Atlas/blob/master/Beanland-Atlas/Beanland-Atlas/atlas_construction.h).
+A full list of external dependencies can be found in [includes.h](https://github.com/Jeffrey-Ede/Beanland-Atlas/blob/master/Beanland-Atlas/Beanland-Atlas/includes.h). The function prototypes are documented across multiple headers; however, they can all be accessed by including [beanland_atlas.h](https://github.com/Jeffrey-Ede/Beanland-Atlas/blob/master/Beanland-Atlas/Beanland-Atlas/beanland_atlas.h).
 
 The Beanland Atlas project is in a pre-release state: critical portions of the code are still in development and the reposited code has not been fully optimised. Nevertheless, the reposited code may be used without restriction, as described by the MIT license.
