@@ -100,36 +100,9 @@ namespace ba
 						//Estimate the symmetry
 						cv::Mat est_sym = est_global_sym(blur1, wisdom);
 
-						//Get maximum value
-						double max;
-						cv::minMaxLoc(est_sym, NULL, &max, NULL, NULL);
-
-						//Calculate the image histogram
-						cv::Mat hist;
-						int hist_size = GRAD_SYM_HIST_SIZE;
-						float range[] = { 0, max };
-						const float *ranges[] = { range };
-						cv::calcHist(&est_sym, 1, 0, cv::Mat(), hist, 1, &hist_size, ranges, true, false);
-
-						//Work from the top of the histogram to calculate the threshold to use
-						float thresh_val;
-						const int use_num = grad_sym_use_frac * blur1.rows * blur1.cols;
-						for (int i = hist_size-1, tot = 0; i >= 0; i--)
-						{
-							//Accumulate the histogram bins
-							tot += hist.at<float>(i, 1);
-
-							//If the desired total is exceeded, record the threshold
-							if (tot > use_num)
-							{
-								thresh_val = i * max / hist_size;
-								break;
-							}
-						}
-
-						//Threshold the estimated symmetry center values
+						//Threshold the lowest proportion of values from the symmetry space
 						cv::Mat thresh;
-						cv::threshold(est_sym, thresh, thresh_val, 1, cv::THRESH_BINARY_INV);
+						threshold_proportion(est_sym, thresh, grad_sym_use_frac, cv::THRESH_BINARY_INV);
 
 						//Calculate the minimum sum of squared differences that is allowed by the mask
 						float min_ssd = FLT_MAX;

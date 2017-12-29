@@ -82,7 +82,4 @@ namespace ba
 
 	//Spots not at least a minimum distance from the boundary of the aligned diffraction patterns are discarded
 	#define DISCARD_SPOTS_DEFAULT -1 //-1 indicates that spots within 1 radius of the boundary should be discarded. Otherwised, the value is specified in px
-
-	//Number of bins to use when calculating histogram to determine the which threshold to apply to gradient-based symmetry space
-	#define GRAD_SYM_HIST_SIZE 100 
 }
