@@ -2,64 +2,6 @@
 
 namespace ba
 {
-	/*Get the surveys made by spots equidistant from the central spot in the aligned images average px values diffraction pattern. These 
-	**will be used to identify the atlas symmetry
-	**Inputs:
-	**positions: std::vector<cv::Point> &, Relative positions of the individual spots in the aligned images average px values diffraction 
-	**pattern
-	**threshold: float, Maximum proportion of the distance between the brightest spot and the spot least distant from it that a spot can be
-	**and still be considered to be one of the equidistant spots
-	**Returns:
-	**struct equidst_surveys, Indices of the spots nearest to and equidistant from the brightest spot and their angles to a horizontal
-	**line drawn horizontally through the brightest spot
-	*/
-	struct equidst_surveys equidistant_surveys(std::vector<cv::Point> &spot_pos, float threshold)
-	{
-		//Find the minimum distance from the central spot
-		int min_dst = INT_MAX;
-        #pragma omp parallel for reduction(min:min_dst)
-		for (int i = 1; i < spot_pos.size(); i++)
-		{
-			//Get position relative to the central spot
-			int dx = spot_pos[i].x - spot_pos[0].x;
-			int dy = spot_pos[i].y - spot_pos[0].y;
-
-			//Check if the distance of the spot is smaller than the minimum
-			if (std::sqrt(dx*dx + dy*dy) < min_dst)
-			{
-				//Make distance the new minimum
-				min_dst = std::sqrt(dx*dx + dy*dy);
-			}
-		}
-
-		//Find the indices of the surveys equidistant from the central spot, within the threshold
-		std::vector<int> equidst_surveys;
-		std::vector<float> survey_angles;
-		for (int i = 1; i < spot_pos.size(); i++)
-		{
-			//Get position relative to the central spot
-			int dx = spot_pos[i].x - spot_pos[0].x;
-			int dy = spot_pos[i].y - spot_pos[0].y;
-
-			//Check if the distance of the spot is smaller than the threshold
-			if (std::sqrt(dx*dx + dy*dy) < (1.0+threshold)*min_dst)
-			{
-				//Note the position's index
-				equidst_surveys.push_back(i);
-
-				//Get the angle to the horizontal drawn through the brightest spot
-				float angle = std::acos(dx / std::sqrt(dx*dx + dy*dy));
-				survey_angles.push_back(dy > 0 ? angle : 2*PI-angle);
-			}
-		}
-
-		struct equidst_surveys survey_param;
-		survey_param.indices = equidst_surveys;
-		survey_param.angles = survey_angles;
-
-		return survey_param;
-	}
-
 	/*Identifies the symmetry of the Beanland Atlas using Fourier analysis and Pearson normalised product moment correlation
 	**Inputs:
 	**surveys: std::vector<cv::Mat> &, Surveys of k space made by individual spots, some of which will be compared to identify the symmetry 
@@ -69,20 +11,22 @@ namespace ba
 	**frac_for_sym: const float, Mean Pearson product moment correlation coefficients for each symmetry must be at least this fraction of 
 	**the maximum Pearson coefficient for that symmetry to be considered present
 	**Returns:
-	**struct atlas_sym, Atlas symmetries
+	**atlas_sym, Atlas symmetries
 	*/
-	struct atlas_sym identify_symmetry(std::vector<cv::Mat> &surveys, std::vector<cv::Point> &spot_pos, const float threshold,
+	atlas_sym identify_symmetry(std::vector<cv::Mat> &surveys, std::vector<cv::Point> &spot_pos, const float threshold,
 		const float frac_for_sym)
 	{
 		//Get the indices of the surveys to compare to identify the atlas symmetry and the angles of the spots used to create surveys
 		//relative to a horizontal line drawn through the brightest spot
-		struct equidst_surveys equidst = equidistant_surveys(spot_pos, threshold);
+		std::vector<int> indices; 
+		std::vector<float> angles;
+		equidistant_surveys(spot_pos, threshold, indices, angles);
 
 		//Order the indices into order order of increasing position angle from the horizontal
-		order_indices_by_angle(equidst.angles, equidst.indices);
+		order_indices_by_angle(angles, indices);
 
 		//Rotate the surveys so that they all have the same angle relative to a horizontal line drawn through the brightest spot
-		std::vector<cv::Mat> rot_to_align = rotate_to_align(surveys, equidst.angles, equidst.indices);
+		std::vector<cv::Mat> rot_to_align = rotate_to_align(surveys, angles, indices);
 
 		//Mirror symmetry Pearson normalised product moment coefficient spectrums between surveys
 		std::vector<std::vector<float>> mirror_between = get_mirror_between_sym(rot_to_align);
@@ -149,7 +93,7 @@ namespace ba
 		float max_pear = std::max(mean_mir_in0, std::max(mean_mir_between, std::max(mean_mir_between_2, mean_rot_between)));
 
 		//Record the symmetries present. By index: 0 - mir_in, 1 - mir_between, 2 - mir_between_2, 3 - rot_between, 4 - rot_in, 
-		//5 - mirror rotational symmetry (will be calculated later)
+		//5 - mir_in_rad (mirrored outwards, in radial direction)
 		std::vector<bool> symmetries(6);
 		symmetries[0] = mean_mir_in0 > frac_for_sym * max_pear;
 		symmetries[1] = mean_mir_between > frac_for_sym * max_pear;
@@ -183,7 +127,7 @@ namespace ba
 
 		symmetries[4] = mean_rot_in > frac_for_sym * max_pear;
 
-		std::cout << mean_mir_in << ", " << mean_mir_between << ", " << mean_mir_between_2 << ", " << mean_rot_between << ", " << mean_rot_in << std::endl;
+		std::cout << mean_mir_in0 << ", " << mean_mir_between << ", " << mean_mir_between_2 << ", " << mean_rot_between << ", " << mean_rot_in << std::endl;
 
 		std::cout << "***" << std::endl;
 		print_vect(symmetries);
@@ -192,6 +136,57 @@ namespace ba
 		std::vector<cv::Point2f> sym_centers = get_sym_centers(mirror_between, rot_between, rot_in, symmetries, 
 			rot_to_align.size(), rot_to_align);
 
+		atlas_sym a;
+		return a;
+	}
+
+	/*Get the surveys made by spots equidistant from the central spot in the aligned images average px values diffraction pattern. These 
+	**will be used to identify the atlas symmetry
+	**Inputs:
+	**positions: std::vector<cv::Point> &, Relative positions of the individual spots in the aligned images average px values diffraction 
+	**pattern
+	**threshold: float, Maximum proportion of the distance between the brightest spot and the spot least distant from it that a spot can be
+	**and still be considered to be one of the equidistant spots
+	**indices: std::vector<int> &, Output indices of the spots nearest to and equidistant from the brightest spot 
+	**angles: std::vector<int> &, Output angles of the spots to a horizontal line drawn horizontally through the brightest spot
+	*/
+	void equidistant_surveys(std::vector<cv::Point> &spot_pos, float threshold, std::vector<int> &indices, std::vector<float> &angles)
+	{
+		//Find the minimum distance from the central spot
+		int min_dst = INT_MAX;
+        #pragma omp parallel for reduction(min:min_dst)
+		for (int i = 1; i < spot_pos.size(); i++)
+		{
+			//Get position relative to the central spot
+			int dx = spot_pos[i].x - spot_pos[0].x;
+			int dy = spot_pos[i].y - spot_pos[0].y;
+
+			//Check if the distance of the spot is smaller than the minimum
+			if (std::sqrt(dx*dx + dy*dy) < min_dst)
+			{
+				//Make distance the new minimum
+				min_dst = std::sqrt(dx*dx + dy*dy);
+			}
+		}
+
+		//Find the indices of the surveys equidistant from the central spot, within the threshold
+		for (int i = 1; i < spot_pos.size(); i++)
+		{
+			//Get position relative to the central spot
+			int dx = spot_pos[i].x - spot_pos[0].x;
+			int dy = spot_pos[i].y - spot_pos[0].y;
+
+			//Check if the distance of the spot is smaller than the threshold
+			if (std::sqrt(dx*dx + dy*dy) < (1.0+threshold)*min_dst)
+			{
+				//Note the position's index
+				indices.push_back(i);
+
+				//Get the angle to the horizontal drawn through the brightest spot
+				float angle = std::acos(dx / std::sqrt(dx*dx + dy*dy));
+				angles.push_back(dy > 0 ? angle : 2*PI-angle);
+			}
+		}
 	}
 
 	/*Rotate the surveys so that they are all aligned at the same angle to a horizontal line drawn through the brightest spot
@@ -201,7 +196,7 @@ namespace ba
 	**angles: std::vector<float> &, Angles between the survey spots and a line drawn horizontally through the brightest spot
 	**indices: std::vector<int> &, Indices of the surveys to compare to identify the atlas symmetry
 	**Returns:
-	**std::vector<cv::Mat>, Images rotated so that they are all aligned. 
+	**std::vector<cv::Mat>, Images rotated so that they are all aligned.
 	*/
 	std::vector<cv::Mat> rotate_to_align(std::vector<cv::Mat> &surveys, std::vector<float> &angles, std::vector<int> &indices)
 	{
@@ -365,7 +360,8 @@ namespace ba
 		return sym_param;
 	}
 
-	/*Calculate Pearson nomalised product moment correlation coefficients for mirror rotational symmetry inside the surveys
+	/*Calculate Pearson nomalised product moment correlation coefficients for mirror rotational symmetry inside an image. This function
+	**is not currently being used as this symmetry does not need to be detected in surveys
 	**Inputs:
 	**rot_to_align: std::vector<cv::Mat> &, Surveys that have been rotated so that they are all at the same angle to a horizontal line
 	**drawn through the brightest spot
@@ -407,7 +403,7 @@ namespace ba
 	**rot_between: std::vector<std::vector<float>> &, Rotational symmetry between surveys quantification
 	**rot_in: std::vector<std::vector<float>> &, 180 deg rotational symmetry in surveys quantification
 	**symmetries: std::vector<bool> &, Symmetries present. By index: 0 - mir_in, 1 - mir_between, 2 - mir_between_2, 3 - rot_between, 
-	**4 - rot_in. Other symmetries, such as rotational mirror symmetry, are not used by this function
+	**4 - rot_in, 5 - mir_in_rad
 	**num_surveys: const int, Number of surveys
 	**rot_to_align: std::vector<cv::Mat> &, Surveys that have been rotated so that they are all at the same angle to a horizontal line
 	**drawn through the brightest spot
@@ -424,7 +420,7 @@ namespace ba
 		int num_eqn;
 		num_eqn = symmetries[0] ? num_surveys : 0;
 		num_eqn += symmetries[1] ? 2*num_inter_comp : 0;
-		num_eqn += symmetries[1] ? 0 : (symmetries[2] ? num_inter_comp : 0); //Only use mirrors between spots 2 apart if there is none 1 apart
+		num_eqn += symmetries[1] ? 0 : (symmetries[2] ? num_inter_comp : 0); //Only use mirrors between spots 2 apart if there are none 1 apart
 		num_eqn += symmetries[3] ? num_inter_comp : 0;
 		num_eqn += symmetries[4] ? 2*num_surveys : 0;
 

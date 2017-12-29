@@ -308,4 +308,61 @@ namespace ba
 			}
 		}
 	}
+
+	/*Commensurate the images using homographic perspective warps, homomorphic warps and intensity rescaling
+	**Input:
+	**input: cv::Mat &, Input image to perspective warp
+	**inputQuad: cv::point2f [4], 4 input quadilateral or image plane coordinates, from top-left in clockwise order
+	**outputQuad: cv::point2f [4], 4 output quadilateral or world plane coordinates, from top-left in clockwise order
+	*/
+	cv::Mat indv_perspective_warp(cv::Mat &input, cv::Point2f inputQuad[4], cv::Point2f outputQuad[4])
+	{
+		//Lambda matrix i.e. the perspective warping matrix
+		cv::Mat lambda( 2, 4, CV_32FC1 );
+
+		//Output Image
+		cv::Mat output;
+
+		// Set the lambda matrix the same type and size as input
+		lambda = cv::Mat::zeros( input.rows, input.cols, input.type() );
+
+		// Get the Perspective Transform Matrix i.e. lambda 
+		lambda = cv::getPerspectiveTransform( inputQuad, outputQuad );
+
+		// Apply the Perspective Transform just found to the src image
+		cv::warpPerspective( input, output, lambda, output.size() );
+
+		//Rescale intensities so that the sum of the intensities in the original and warped image are the same
+		double input_tot = cv::sum( input )[0];
+		double output_tot = cv::sum( output )[0];
+
+		return ( input_tot / output_tot ) * output;
+	}
+
+	/*
+	**Input:
+	**
+	*/
+	cv::Mat ellipse_perspective_warp(cv::Mat &input)
+	{
+		// Input Quadilateral or Image plane coordinates
+		cv::Point2f inputQuad[4]; 
+		// Output Quadilateral or World plane coordinates
+		cv::Point2f outputQuad[4];
+
+		//The 4 points that select quadilateral on the input, from top-left in clockwise order
+		//These four pts are the sides of the rect box used as input 
+		inputQuad[0] = cv::Point2f( -30,-60 );
+		inputQuad[1] = cv::Point2f( input.cols+50,-50 );
+		inputQuad[2] = cv::Point2f( input.cols+100,input.rows+50 );
+		inputQuad[3] = cv::Point2f( -50,input.rows+50  );
+
+		//The 4 points where the mapping is to be done , from top-left in clockwise order
+		outputQuad[0] = cv::Point2f( 0,0 );
+		outputQuad[1] = cv::Point2f( input.cols-1,0 );
+		outputQuad[2] = cv::Point2f( input.cols-1,input.rows-1 );
+		outputQuad[3] = cv::Point2f( 0,input.rows-1 );
+
+		return indv_perspective_warp( input, inputQuad, outputQuad );
+	}
 }

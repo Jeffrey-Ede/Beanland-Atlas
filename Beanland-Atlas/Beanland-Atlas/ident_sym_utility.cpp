@@ -439,8 +439,8 @@ namespace ba
 	{
 		//Aquire the image's Sobel filtrate
 		cv::Mat gradx, grady;
-		cv::Sobel(img, gradx, CV_32FC1, 0, 1, CV_SCHARR, 1.0f / (img.rows*img.cols));
-		cv::Sobel(img, grady, CV_32FC1, 1, 0, CV_SCHARR, 1.0f / (img.rows*img.cols));
+		cv::Sobel(img, gradx, CV_32FC1, 0, 1, CV_SCHARR, 1.0f / (img.rows*img.cols)); //Division helps safeguard against overflow
+		cv::Sobel(img, grady, CV_32FC1, 1, 0, CV_SCHARR, 1.0f / (img.rows*img.cols)); //Division helps safeguard against overflow
 
 		//Calculate the minimum distance from the edge
 		int min_area = (int)(use_frac * img.rows*img.cols);

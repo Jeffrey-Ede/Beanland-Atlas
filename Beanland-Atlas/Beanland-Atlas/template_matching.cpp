@@ -546,7 +546,7 @@ namespace ba
 		return pear / scale2;
 	}
 
-	/*Create phase correlation specturm
+	/*Create phase correlation specturm between 2 same-size images
 	**src1: cv::Mat &, One of the images
 	**src2: cv::Mat &, The second image
 	**Returns,
@@ -616,6 +616,10 @@ namespace ba
 		//...and shift its energy into the center
 		fftShift(D);
 
-		return D;
+		//Resize the spectrum to commensurate it with the original image dimensions
+		cv::Mat resized_spectrum;
+		cv::resize(D, resized_spectrum, src1.size(), 0.0, 0.0, CV_INTER_LANCZOS4);
+
+		return resized_spectrum;
 	}
 }

@@ -83,40 +83,6 @@ namespace ba
 	//Spots not at least a minimum distance from the boundary of the aligned diffraction patterns are discarded
 	#define DISCARD_SPOTS_DEFAULT -1 //-1 indicates that spots within 1 radius of the boundary should be discarded. Otherwised, the value is specified in px
 
-	//Minimum fraction of the maximum mean Pearson normalised product moment correlation coefficient that a mean Pearson coefficient can be for
-	//it's symmetry to be registered as present
-    #define FRAC_FOR_SYM 0.5
-
-	//Symmetry centers calculated from Scharr filtrates must use at least this fraction of the of the image area
-    #define SYM_CENTER_USE_FRAC 0.0f
-
-	//Default value to set symmetry centers when the minimum area is not available to perform their calculation
-    #define SYM_CENTER_NOT_CALC_VAL 0.0f
-
-	/* Information about images being compared when calculating their relative shift that can help constrain the shift */
-
-	//Approximate fraction of the gradient based symmetry calculation values to use
-    #define GRAD_SYM_USE 0.5
-
-	//Number of bins to use when calculating histogram to determine the which threshold to apply
+	//Number of bins to use when calculating histogram to determine the which threshold to apply to gradient-based symmetry space
 	#define GRAD_SYM_HIST_SIZE 100 
-
-	typedef enum {
-		REL_SHIFT_WIS_NONE, //No symmetry point or it is not pragmatic/possible to information about the symmetry point
-		REL_SHIFT_WIS_INTERNAL_MIR0, //Mirror flip is perpendicular to radially outwards direction
-		REL_SHIFT_WIS_INTERNAL_MIR1, //Mirror flip is in the radially outwards direction
-		REL_SHIFT_WIS_INTERNAL_ROT //Rotation about point in the image
-	};
-
-	//Fraction of extracted rectangular region of interest to use when calculating the sum of squared differences to match it against another region
-	//for internal rotational symmetry
-    #define INTERAL_ROT_SSD_FRAC 1.0
-
-	//Fraction of extracted rectangular region of interest to use when calculating the sum of squared differences to match it against another region
-	//for internal mirror symmetry where the flip is perpendicular to radially outwards direction
-    #define INTERAL_MIR0_SSD_FRAC 0.7
-
-	//Fraction of extracted rectangular region of interest to use when calculating the sum of squared differences to match it against another region
-	//for internal mirror symmetry where the flip is in the radially outwards direction
-    #define INTERAL_MIR1_SSD_FRAC 1.0
 }

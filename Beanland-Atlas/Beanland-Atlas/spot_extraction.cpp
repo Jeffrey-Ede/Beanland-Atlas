@@ -16,7 +16,7 @@ namespace ba
 	**std::vector<cv::Mat>, Regions of k space surveys by the spots
 	*/
 	std::vector<cv::Mat> create_spot_maps(std::vector<cv::Mat> &mats, std::vector<cv::Point> &spot_pos, std::vector<std::vector<int>> &rel_pos,
-		const int radius, const int ns_radius, const int inpainting_method)
+		cv::Mat &acc, const int radius, const int ns_radius, const int inpainting_method)
 	{
 		//Initialise vectors of OpenCV mats to hold individual paths and number of contributions to those paths
 		std::vector<cv::Mat> indv_maps(spot_pos.size());
@@ -68,11 +68,12 @@ namespace ba
 			indv_num_mappers[j] = cv::Mat::zeros(mats[j].size(), CV_16UC1);
 		}
 
+		//Get the ellipses described by each spot so that they can be homomorphically corrected
+		std::vector<cv::point> ellipses;
+		get_spot_ellipses(mats, spot_pos, acc, ellipses);
+
 		//Perform background subtraction using Navier-Stokes infilling or otherwise
 		subtract_background(mats, spot_pos, rel_pos, inpainting_method, col_max, row_max, ns_radius);
-
-		//Get the approximate radius and orientation of the sample-to-detector sphere
-		//float ewald_rad = ewald_radius(spot_pos);
 
 		//For each spot...
         #pragma omp parallel for

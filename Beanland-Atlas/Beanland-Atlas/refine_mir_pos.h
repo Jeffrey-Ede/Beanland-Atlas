@@ -15,7 +15,8 @@ namespace ba
 	**Returns:
 	**std::vector<cv::Vec3f>, Refined origin position and angle of each mirror line, in the same order as the input maxima
 	*/
-	std::vector<cv::Vec3f> refine_mir_pos(cv::Mat amalg, std::vector<int> max_pos, size_t num_angles, int origin_x, int origin_y, int range);
+	std::vector<cv::Vec3f> refine_mir_pos(cv::Mat amalg, std::vector<int> max_pos, size_t num_angles, int origin_x,
+		int origin_y, int range);
 
 	/*Calculate the mean estimate for the centre of symmetry
 	**Input:

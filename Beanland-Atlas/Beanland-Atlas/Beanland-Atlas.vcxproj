@@ -29,6 +29,7 @@
     <ClCompile Include="bright_field_sym.cpp" />
     <ClCompile Include="circ_size_upper_bound.cpp" />
     <ClCompile Include="commensuration_tilts.cpp" />
+    <ClCompile Include="correct_distortions.cpp" />
     <ClCompile Include="developer_helper_func.cpp" />
     <ClCompile Include="get_spot_positions.cpp" />
     <ClCompile Include="identify_symmetry.cpp" />
@@ -55,6 +56,7 @@
     <ClInclude Include="bright_field_sym.h" />
     <ClInclude Include="circ_size_upper_bound.h" />
     <ClInclude Include="commensuration_tilts.h" />
+    <ClInclude Include="correct_distortions.h" />
     <ClInclude Include="defines.h" />
     <ClInclude Include="developer_helper_func.h" />
     <ClInclude Include="developer_utility.hpp" />

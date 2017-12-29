@@ -5,18 +5,14 @@
 
 namespace ba
 {
-	struct align_avg_mats {
-		cv::Mat acc;
-		cv::Mat num_overlap;
-	};
 	/*Align the diffraction patterns using their known relative positions and average over the aligned px
 	**mats: std::vector<cv::Mat> &, Diffraction patterns to average over the aligned pixels of
-	**redined_pos: std::vector<std::vector<int>> &, Relative positions of the images to the first image
-	**Return:
-	**struct align_avg_mats, The first OpenCV mat is the average of the aligned diffraction patterns, the 2nd is the number of OpenCV mats
-	**that contributed to each pixel
+	**redined_pos: std::vector<std::vector<int>> &, Relative positions of the images
+	**acc: cv::Mat &, Average of the aligned diffraction patterns
+	**num_overlap: cv::Mat &, Number of images that contributed to each pixel
 	*/
-	struct align_avg_mats align_and_avg(std::vector<cv::Mat> &mats, std::vector<std::vector<int>> &refined_pos);
+	void align_and_avg(std::vector<cv::Mat> &mats, std::vector<std::vector<int>> &refined_pos, cv::Mat &acc, 
+		cv::Mat &num_overlap);
 
 	/*Refine the relative positions of the images using all the known relative positions
 	**Inputs:

@@ -8,7 +8,7 @@
 namespace ba
 {
 	//Fraction of extracted rectangular region of interest to use when calculating the sum of squared differences to match it against another region
-    #define QUANT_SYM_USE_FRAC 0.4
+    #define QUANT_SYM_USE_FRAC 0.7
 
 	//Default padding to apply when calculating Pearson's normalised product moment correlation coefficient in the Fourier domain
     #define FOURIER_PEARSON_USE_FRAC 0.5
@@ -33,7 +33,7 @@ namespace ba
 	*/
 	cv::Mat fourier_pearson_corr(cv::Mat &src1, cv::Mat &src2, float frac = FOURIER_PEARSON_USE_FRAC);
 
-	/*Create phase correlation specturm
+	/*Create phase correlation specturm between 2 same-size images
 	**src1: cv::Mat &, One of the images
 	**src2: cv::Mat &, The second image
 	**Returns,

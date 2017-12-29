@@ -96,6 +96,9 @@
     <ClCompile Include="commensuration_tilts.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="correct_distortions.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="beanland_atlas.h">
@@ -180,6 +183,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="commensuration_tilts.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="correct_distortions.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

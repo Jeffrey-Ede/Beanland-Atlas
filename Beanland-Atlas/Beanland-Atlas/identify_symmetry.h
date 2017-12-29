@@ -8,10 +8,29 @@
 
 namespace ba
 {
-	struct equidst_surveys {
-		std::vector<int> indices;
-		std::vector<float> angles;
+	enum {
+		REL_SHIFT_WIS_NONE, //No symmetry point or it is not pragmatic/possible to information about the symmetry point
+		REL_SHIFT_WIS_INTERNAL_MIR0, //Mirror flip is perpendicular to radially outwards direction
+		REL_SHIFT_WIS_INTERNAL_MIR1, //Mirror flip is in the radially outwards direction
+		REL_SHIFT_WIS_INTERNAL_ROT //Rotation about point in the image
 	};
+
+	//Minimum fraction of the maximum mean Pearson normalised product moment correlation coefficient that a mean Pearson coefficient can be for
+	//it's symmetry to be registered as present. A more sophisticated metric will be devised later
+    #define FRAC_FOR_SYM 0.5
+
+	//Fraction of extracted rectangular region of interest to use when calculating the sum of squared differences to match it against another region
+	//for internal rotational symmetry
+    #define INTERAL_ROT_SSD_FRAC 0.7
+
+	//Fraction of extracted rectangular region of interest to use when calculating the sum of squared differences to match it against another region
+	//for internal mirror symmetry where the flip is perpendicular to radially outwards direction
+    #define INTERAL_MIR0_SSD_FRAC 0.7
+
+	//Fraction of extracted rectangular region of interest to use when calculating the sum of squared differences to match it against another region
+	//for internal mirror symmetry where the flip is in the radially outwards direction
+    #define INTERAL_MIR1_SSD_FRAC 0.7
+
 	/*Get the surveys made by spots equidistant from the central spot in the aligned images average px values diffraction pattern. These 
 	**will be used to identify the atlas symmetry
 	**Inputs:
@@ -19,15 +38,18 @@ namespace ba
 	**pattern
 	**threshold: float, Maximum proportion of the distance between the brightest spot and the spot least distant from it that a spot can be
 	**and still be considered to be one of the equidistant spots
-	**Returns:
-	**struct equidst_surveys, Indices of the spots nearest to and equidistant from the brightest spot and their angles to a horizontal
-	**line drawn horizontally through the brightest spot
+	**indices: std::vector<int> &, Output indices of the spots nearest to and equidistant from the brightest spot 
+	**angles: std::vector<int> &, Output angles of the spots to a horizontal line drawn horizontally through the brightest spot
 	*/
-	struct equidst_surveys equidistant_surveys(std::vector<cv::Point> &spot_pos, float threshold);
+	void equidistant_surveys(std::vector<cv::Point> &spot_pos, float threshold, std::vector<int> &indices, std::vector<float> &angles);
 
-	struct atlas_sym {
+	//Custom data structure to hold atlas symmetry
+	struct atlas_sym_struct {
 		//parameters
+		int x;
 	};
+	typedef atlas_sym_struct atlas_sym;
+
 	/*Identifies the symmetry of the Beanland Atlas using Fourier analysis and Pearson normalised product moment correlation
 	**Inputs:
 	**surveys: std::vector<cv::Mat> &, Surveys of k space made by individual spots, some of which will be compared to identify the symmetry 
@@ -39,7 +61,7 @@ namespace ba
 	**Returns:
 	**struct atlas_sym, Atlas symmetries
 	*/
-	struct atlas_sym identify_symmetry(std::vector<cv::Mat> &surveys, std::vector<cv::Point> &spot_pos, const float threshold,
+	atlas_sym identify_symmetry(std::vector<cv::Mat> &surveys, std::vector<cv::Point> &spot_pos, const float threshold,
 		const float frac_for_sym);
 
 	/*Rotate the surveys so that they are all aligned at the same angle to a horizontal line drawn through the brightest spot
@@ -106,7 +128,8 @@ namespace ba
 	*/
 	std::vector<std::vector<float>> get_rotational_in_sym(std::vector<cv::Mat> &rot_to_align, std::vector<cv::Point2f> &est_sym_centers);
 
-	/*Calculate Pearson nomalised product moment correlation coefficients for mirror rotational symmetry inside the surveys
+	/*Calculate Pearson nomalised product moment correlation coefficients for mirror rotational symmetry inside an image. This function
+	**is not currently being used as this symmetry does not need to be detected in surveys
 	**Inputs:
 	**rot_to_align: std::vector<cv::Mat> &, Surveys that have been rotated so that they are all at the same angle to a horizontal line
 	**drawn through the brightest spot
@@ -123,7 +146,7 @@ namespace ba
 	**rot_between: std::vector<std::vector<float>> &, Rotational symmetry between surveys quantification
 	**rot_in: std::vector<std::vector<float>> &, 180 deg rotational symmetry in surveys quantification
 	**symmetries: std::vector<bool> &, Symmetries present. By index: 0 - mir_in, 1 - mir_between, 2 - mir_between_2, 3 - rot_between, 
-	**4 - rot_in. Other symmetries, such as rotational mirror symmetry, are not used by this function
+	**4 - rot_in, 5 - rot_in_rad
 	**num_surveys: const int, Number of surveys
 	**rot_to_align: std::vector<cv::Mat> &, Surveys that have been rotated so that they are all at the same angle to a horizontal line
 	**drawn through the brightest spot

@@ -3,11 +3,21 @@
 #include <defines.h>
 #include <includes.h>
 
+#include <identify_symmetry.h>
 #include <template_matching.h>
 #include <utility.h>
 
 namespace ba
 {
+	//Symmetry centers calculated from Scharr filtrates must use at least this fraction of the of the image area
+    #define SYM_CENTER_USE_FRAC 0.0f
+
+	//Default value to set symmetry centers when the minimum area is not available to perform their calculation
+    #define SYM_CENTER_NOT_CALC_VAL 0.0f
+
+	//Approximate fraction of the gradient-based symmetry calculation values to use
+    #define GRAD_SYM_USE 0.5
+
 	/*Get the shift of a second image relative to the first
 	**Inputs:
 	**img1: cv::Mat &, One of the images

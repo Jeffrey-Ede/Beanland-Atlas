@@ -260,10 +260,9 @@ namespace ba
 	**grouped_idx: std::vector<std::vector<int>> &, Spots where they are grouped if they are consecutively in the same position
 	**circ_mask: cv::Mat &, Mask indicating the spot pixels
 	**max_dst: const float &, The maximum distance between 2 instances of a spot for the overlap between them to be considered
-	**ewald_rad: const float &, Estimated Ewald radius
 	*/
-	void perspective_warp(std::vector<cv::Mat> &commensuration, std::vector<std::vector<int>> &rel_pos, cv::Mat &circ_mask, 
-		std::vector<std::vector<int>> &grouped_idx, const float &max_dist, const float &ewald_rad)
+	void commensuration_perspective_warp(std::vector<cv::Mat> &commensuration, std::vector<std::vector<int>> &rel_pos, cv::Mat &circ_mask, 
+		std::vector<std::vector<int>> &grouped_idx, const float &max_dist)
 	{
 		//Find all the overlaps that must be considered between the groups of consecutive spots that are in the same position
 		std::vector<std::vector<std::vector<int>>> overlaps = get_spot_overlaps(rel_pos, grouped_idx, max_dist);

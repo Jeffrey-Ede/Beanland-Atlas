@@ -9,7 +9,9 @@
 #include <approx_symmetry_axes.h>
 #include <beanland_commensuration.h>
 #include <beanland_commensuration_utility.h>
+#include <bright_field_sym.h>
 #include <circ_size_upper_bound.h>
+#include <correct_distortions.h>
 #include <get_spot_positions.h>
 #include <ident_sym_utility.h> //Symmetry identification utility functions
 #include <identify_symmetry.h>
