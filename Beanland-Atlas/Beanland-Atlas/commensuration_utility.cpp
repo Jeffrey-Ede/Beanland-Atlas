@@ -1,4 +1,4 @@
-#include <beanland_commensuration_utility.h>
+#include <commensuration_utility.h>
 
 namespace ba
 {
@@ -113,22 +113,6 @@ namespace ba
 		return refined_pos;
 	}
 
-
-	/*Estimate the angular separation between spots using the differences between their overlapping regions
-	**Input:
-	**img1: cv::Mat &, An image containing a circle or ellipse
-	**img2: cv::Mat &, A second image containing a circle or ellipse
-	**Returns:
-	**cv::Vec2f, Estimated angular position of the second ellipse relative to the first
-	*/
-	cv::Vec2f est_rel_homography(std::vector<cv::Point> &spot_pos)
-	{
-
-
-
-		cv::Vec2f angles;
-		return angles;
-	}
 
 	/*Creat a Beanland atlas survey by using pixels from the nearest spot to each survey position
 	**Input:

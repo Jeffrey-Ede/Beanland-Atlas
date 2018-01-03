@@ -1,21 +1,20 @@
-#include <beanland_commensuration.h>
+#include <commensuration.h>
 
 namespace ba
 {
 	/*Commensurate the individual images so that the Beanland atlas can be constructed
 	**Inputs:
-	**mats: std::vector<cv::Mat> &, Individual floating point images to extract spots from
-	**spot_pos: std::vector<cv::Point>, Positions of located spots in aligned diffraction pattern
+	**mats: std::vector<cv::Mat> &, Individual floating point images that have been stereographically corrected to extract spots from
+	**spot_pos: cv::Point2d, Position of located spot in the aligned diffraction pattern
 	**rel_pos: std::vector<std::vector<int>> &, Relative positions of images
 	**col_max: int, Maximum column difference between spot positions
 	**row_max: int, Maximum row difference between spot positions
 	**radius: const int, Radius about the spot locations to extract pixels from
-	**samp_to_detect_sphere: cv::Vec2f, Initial estimate of the sample-to-detector sphere radius of curvature and average direction, respectively
 	**Returns:
-	**
+	**std::vector<cv::Mat>, Dynamical diffraction effect decoupled Bragg profile
 	*/
-	std::vector<cv::Mat> beanland_commensurate(std::vector<cv::Mat> &mats, cv::Point &spot_pos, std::vector<std::vector<int>> &rel_pos,
-		int col_max, int row_max, int radius, cv::Vec2f &samp_to_detect_sphere)
+	std::vector<cv::Mat> condenser_profile(std::vector<cv::Mat> &mats, cv::Point2d &spot_pos, std::vector<std::vector<int>> &rel_pos,
+		int col_max, int row_max, int radius)
 	{
 		//Find the non-consecutively same position spots and record the indices of multiple spots with the same positions
 		std::vector<std::vector<int>> grouped_idx = consec_same_pos_spots(rel_pos);
@@ -23,79 +22,27 @@ namespace ba
 		//Create collection of the spot images at different positions, averaging the consecutively same position spots. Also, slightly blur the 
 		//spots to reduce high frequency noise
 		int diam = 2*radius+1;
-		std::vector<cv::Mat> commensuration = bragg_profile_preproc(mats, grouped_idx, spot_pos, rel_pos, col_max, row_max, radius, 
+		std::vector<cv::Mat> grouped = grouping_preproc(mats, grouped_idx, spot_pos, rel_pos, col_max, row_max, radius, 
 			diam, BRAGG_PROF_PREPROC_GAUSS);
 
 		//Create a mask to indicate which pixels in the square are circle pixels to reduce calculations
-		cv::Mat circ_mask = cv::Mat(commensuration[0].size(), CV_8UC1, cv::Scalar(0));
+		cv::Mat circ_mask = cv::Mat(grouped[0].size(), CV_8UC1, cv::Scalar(0));
 
 		//Draw circle at the position of the spot on the mask
 		cv::circle(circ_mask, cv::Point(radius, radius), radius+1, cv::Scalar(1), -1, 8, 0);
 
-		//Separation parameter needs to be calculated properly later ************************FLAG***************************
-		float max_sep = 1.0*radius/*bragg_get_max_sep()*/;
+		//Calculate which difference spectra overlap with each other
+		std::vector<int> unique_overlaps = get_unique_overlaps(spot_pos, rel_pos, radius);
+		
+		//Use difference spectrum asymmetry to calculate the condenser lens profiles
 
-		//Commensurate the angles and intensities
-		//perspective_warp(commensuration, rel_pos, circ_mask, grouped_idx, max_sep, ewald_rad); 
-
-		//Calculate the smallest radii of the spots that can be used when constructing the Beanland atlas. We want to use the smallest possible
-		//radii of each circle to minimise the effect of the dark field decoupled Bragg profile curvature
-		//get_smallest_spot_radii() - This will be written later. I need to calculate what the perspective warped spots look like first
-
-		//Create a 3D mat to store the data
-		//
-		//int dims[] = {diam, diam, grouped_idx.size()};
-		//cv::Mat intensities = cv::Mat(3, dims, CV_32FC1);
-
-
-
-		////...and extract the spot from each micrograph
-		//for (int j = 0; j < mats.size(); j++)
-		//{		
-		//	if (spot_pos.y >= row_max-rel_pos[1][j] && spot_pos.y < row_max-rel_pos[1][j]+mats[j].rows &&
-		//		spot_pos.x >= col_max-rel_pos[0][j] && spot_pos.x < col_max-rel_pos[0][j]+mats[j].cols)
-		//	{
-
-
-
-		//		///Mask to extract spot from micrograph
-		//		cv::Mat circ_mask = cv::Mat::zeros(mats[j].size(), CV_8UC1);
-
-		//		//Draw circle at the position of the spot on the mask
-		//		cv::Point circleCenter(spot_pos[k].x-col_max+rel_pos[0][j], spot_pos[k].y-row_max+rel_pos[1][j]);
-		//		cv::circle(circ_mask, circleCenter, radius, cv::Scalar(1), -1, 8, 0);
-
-		//		//Copy the part of the micrograph containing the spot
-		//		cv::Mat imagePart = cv::Mat::zeros(mats[j].size(), mats[j].type());
-		//		mats[j].copyTo(imagePart, circ_mask);
-
-		//		//Compend spot to map
-		//		float *r;
-		//		ushort *s;
-		//		ushort *t;
-		//		byte *u;
-		//		for (int m = 0; m < indv_num_mappers[k].rows; m++) 
-		//		{
-		//			r = indv_maps[k].ptr<float>(m);
-		//			s = indv_num_mappers[k].ptr<ushort>(m);
-		//			t = imagePart.ptr<ushort>(m);
-		//			u = circ_mask.ptr<byte>(m);
-		//			for (int n = 0; n < indv_num_mappers[k].cols; n++) 
-		//			{
-		//				//Add contributing pixels to maps
-		//				r[n] += t[n];
-		//				s[n] += u[n];
-		//			}
-		//		}
-		//	}
-		//}
 
 		std::vector<cv::Mat> something;
 		return something;
 	}
 
 	/*Identify groups of consecutive spots that all have the same position
-	**Inputs:
+	**Input:
 	**rel_pos: std::vector<std::vector<int>> &, Relative positions of the spots in the image stack
 	**Returns:
 	**std::vector<std::vector<int>>, Groups of spots with the same location
@@ -143,7 +90,7 @@ namespace ba
 	**Inputs:
 	**mats: std::vector<cv::Mat> &, Images to extract the spots from
 	**grouped_idx: std::vector<std::vector<int>> &, Groups of consecutive image indices where the spots are all in the same position
-	**spot_pos: cv::Point &, Position of the spot on the aligned images average px values diffraction pattern
+	**spot_pos: cv::Point2d &, Position of the spot on the aligned images average px values diffraction pattern
 	**rel_pos: std::vector<std::vector<int>> &, Relative positions of the spots in the input images to the first image
 	**col_max: const int &, Maximum column difference between spot positions
 	**row_max: const int &, Maximum row difference between spot positions
@@ -153,9 +100,9 @@ namespace ba
 	**Returns:
 	**std::vector<cv::Mat>, Preprocessed Bragg peaks, ready for dark field decoupled profile extraction
 	*/
-	std::vector<cv::Mat> bragg_profile_preproc(std::vector<cv::Mat> &mats, std::vector<std::vector<int>> &grouped_idx, cv::Point &spot_pos, 
-		std::vector<std::vector<int>> &rel_pos, const int &col_max, const int &row_max, const int &radius, const int &diam, 
-		const int &gauss_size)
+	std::vector<cv::Mat> grouping_preproc(std::vector<cv::Mat> &mats, std::vector<std::vector<int>> &grouped_idx, 
+		cv::Point2d &spot_pos, std::vector<std::vector<int>> &rel_pos, const int &col_max, const int &row_max, const int &radius,
+		const int &diam, const int &gauss_size)
 	{
 		//Assign memory to store the preprocessed Bragg peaks
 		std::vector<cv::Mat> blur_not_consec;
@@ -236,20 +183,6 @@ namespace ba
 				q[l] += p[j];
 			}
 		}
-	}
-
-	/*Homographic perspective warp of an OpenCV mat. The returned mat is cropped down to a size specified by the user
-	**Input:
-	**img: cv::Mat &, Image to homagraphically warp
-	**Returns:
-	**cv::Mat, Homographically perspective warped image
-	*/
-	cv::Mat homographic_perspective_warp(cv::Mat &img)
-	{
-		//Move this to utility? It will be called by the main perspective warp finding function
-
-		cv::Mat warped;
-		return warped;
 	}
 
 	/*Commensurate the images using homographic perspective warps, homomorphic warps and intensity rescaling
@@ -333,5 +266,110 @@ namespace ba
 		}
 
 		return profile;
+	}
+
+	/*Get the unique overlaps of each spot
+	**Inputs:
+	**mats: cv::Mat &, Images the spots were extracted from
+	**spot_pos: cv::Point2d, Position of located spot in the aligned diffraction pattern
+	**rel_pos: std::vector<std::vector<int>> &, Relative positions of images
+	**radius: const int, Radius of the spots
+	**col_max: const int &, Maximum column difference between spot positions
+	**row_max: const int &, Maximum row difference between spot positions
+	**Returns:
+	**std::vector<std::vector<int>>, Spots that each spot overlaps with
+	*/
+	std::vector<std::vector<int>> get_unique_overlaps(cv::Mat &mats, cv::Point2d &spot_pos, std::vector<std::vector<int>> &rel_pos, 
+		std::vector<std::vector<int>> &grouped_idx, const int radius, const int &col_max, const int &row_max)
+	{
+		//Store the indexes of the spots that each spot overlaps with
+		std::vector<std::vector<int>> overlaps(grouped_idx.size());
+
+		//Get the spots that are fully in images
+		std::vector<bool> in_img(grouped_idx.size());
+		for (int i = 0; i < grouped_idx.size(); i++)
+		{
+			//Index of the first image in the group
+			int j = grouped_idx[i][0];
+
+			//
+			in_img[0] = spot_pos.y >= row_max-rel_pos[1][j] && spot_pos.y < row_max-rel_pos[1][j]+mats.rows &&
+				spot_pos.x >= col_max-rel_pos[0][j] && spot_pos.x < col_max-rel_pos[0][j]+mats.cols;
+		}
+
+		//Check each spot group against every other spot group to see if there is at least one pixel of overlap
+		for (int i = 0; i < grouped_idx.size(); i++)
+		{
+			//Index of the first image in the group
+			int j = grouped_idx[i][0];
+
+			//Check that the overlapping region of the spot is in the image
+			if (spot_pos.y >= row_max-rel_pos[1][j] && spot_pos.y < row_max-rel_pos[1][j]+mats.rows &&
+				spot_pos.x >= col_max-rel_pos[0][j] && spot_pos.x < col_max-rel_pos[0][j]+mats.cols)
+			{
+				for (int k = i+1; k < grouped_idx.size(); k++)
+				{
+					//Index of the first image in the group
+					int l = grouped_idx[k][0];
+
+					//Check that the overlapping region of the spot is in the image
+					if (spot_pos.y >= row_max-rel_pos[1][l] && spot_pos.y < row_max-rel_pos[1][j]+mats.rows &&
+						spot_pos.x >= col_max-rel_pos[0][l] && spot_pos.x < col_max-rel_pos[0][j]+mats.cols)
+					{
+
+					}
+				}
+			}
+		}
+
+		return overlaps;
+	}
+
+	/*Calculates the center of and the 2 points closest to and furthest away from the center of the overlapping regions 
+	**of 2 spots
+	**Inputs:
+	**spot_pos: cv::Point2d, Position of located spot in the aligned diffraction pattern
+	**rel_pos: std::vector<std::vector<int>> &, Relative positions of images
+	**col_max: const int &, Maximum column difference between spot positions
+	**row_max: const int &, Maximum row difference between spot positions
+	**radius: const int, Radius of the spots
+	**m: const int, Index of one of the images to compate
+	**n: const int, Index of the other image to compate
+	**Returns:
+	**circ_overlap, Structure describing the region where the circles overlap
+	*/
+	circ_overlap get_overlap_extrema(cv::Point2d &spot_pos, std::vector<std::vector<int>> &rel_pos, 
+		const int &col_max, const int &row_max, const int radius, const int m, const int n)
+	{
+		//Get the positions of the spots in each image
+		circ_overlap co;
+		co.P1 = cv::Point2d( spot_pos.x-col_max+rel_pos[0][m], spot_pos.y-row_max+rel_pos[1][m] );
+		co.P2 = cv::Point2d( spot_pos.x-col_max+rel_pos[0][n], spot_pos.y-row_max+rel_pos[1][n] );
+
+		//Check that there is overlap between these 2 circles
+		double dist = std::sqrt((co.P1.x-co.P2.x)*(co.P1.x-co.P2.x) + (co.P1.y-co.P2.y)*(co.P1.y-co.P2.y));
+		co.overlap = dist < 2*radius;
+		if (co.overlap)
+		{
+			//Calculate the center
+			co.center = 0.5 * (co.P1 + co.P2);
+
+			//Calculate the positions at minimal distances from the overlap center
+			std::vector<cv::Point2d> minima(2);
+			minima[1] = co.P1 + (1.0 - radius/dist) * (co.P2 - co.P1);
+			minima[2] = co.P2 - (1.0 - radius/dist) * (co.P2 - co.P1);
+			co.minima = minima;
+
+			//Calculate the positions at maximal distances from the overlap center
+			std::vector<cv::Point2d> maxima(2);
+			double delta = 0.5 * std::sqrt( (dist + 2*radius) * dist * dist * (2*radius - dist) );
+			maxima[3] = co.center + cv::Point2d( delta * (co.P1.y - co.P2.y) / (dist*dist), 
+				-delta * (co.P1.x - co.P2.x) / (dist*dist));
+			maxima[4] = co.center + cv::Point2d( -delta * (co.P1.y - co.P2.y) / (dist*dist), 
+				delta * (co.P1.x - co.P2.x) / (dist*dist));
+			co.maxima = maxima;
+		}
+
+		return co;
 	}
 }

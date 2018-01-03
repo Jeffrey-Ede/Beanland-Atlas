@@ -351,9 +351,6 @@ namespace ba
 		cv::Mat dst;
 		cv::warpAffine(src, dst, rot, bbox.size());
 
-		display_CV(src);
-		display_CV(dst);
-
 		return dst;
 	}
 

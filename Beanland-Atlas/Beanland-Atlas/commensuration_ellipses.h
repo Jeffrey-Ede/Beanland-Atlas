@@ -4,6 +4,7 @@
 #include <defines.h>
 
 #include <Eigen/Eigenvalues>
+#include <ident_sym_utility.h>
 
 namespace ba
 {
@@ -12,6 +13,11 @@ namespace ba
 
 	//Proportion of Schaar filtrate in the region use to get an initial estimage of the ellipse to use
     #define ELLIPSE_THRESH_FRAC 0.4
+
+	//Hyper-renormalisation ellipse fitting defaults
+    #define HYPER_RENORM_DEFAULT_SCALE 1 //Scale of the ellipe. 1 is arbitrary. Choosing a better value will reduce numberical errors
+    #define HYPER_RENORM_DEFAULT_THRESH 0.9 //Cosine of angle between eigenvectors divided by ratio of higher sized to smaller for conclusion of iterations
+    #define HYPER_RENORM_DEFAULT_ITER 15 //Maximum number of iterations
 
 	/*Get ellipses describing each spot from their Scharr filtrates. Ellipses are checked using heuristic arguments:
 	**ellipse shapes vary smoothly with time and ellipse shaps must be compatible with a projection of an array of
@@ -46,7 +52,7 @@ namespace ba
 	**homomorphic warps. The nesting is each spot in the order of their positions in the positions vector, set of 3 points
 	**(1 is extra) desctribing the ellipse, in that order
 	*/
-	void ellipse_sizes(cv::Mat &img, std::vector<cv::Point> spot_pos, std::vector<cv::Vec3f> est_rad, const float est_frac,
+	void get_ellipses(cv::Mat &img, std::vector<cv::Point> spot_pos, std::vector<cv::Vec3f> est_rad, const float est_frac,
 		std::vector<std::vector<cv::Point>> &ellipses, const float ellipse_thresh_frac = ELLIPSE_THRESH_FRAC);
 
 	/*Create annular mask
@@ -93,10 +99,50 @@ namespace ba
 	**to the correct size reduces numerical errors
 	**thresh: const float, Iterations will be concluded if the cosine of the angle between successive eigenvectors divided
 	**by the amplitude ratio (larger divided by the smaller) is larger than the threshold
-	**max_iter: const int, The maximum number of iterations to perform
+	**max_iter: const int, The maximum number of iterations to perform. If this limit is reached, the last iteration's conic
+	**coefficients will be returned
 	**Returns:
 	**std::vector<double>, Coefficients of the conic equation
 	*/
-	std::vector<double> hyper_renorm_conic(cv::Mat &mask, cv::Mat weights, const double f0, const float thresh, 
-		const int max_iter);
+	std::vector<double> hyper_renorm_conic(cv::Mat &mask, cv::Mat weights, const double f0 = HYPER_RENORM_DEFAULT_SCALE,
+		const float thresh = HYPER_RENORM_DEFAULT_THRESH, const int max_iter = HYPER_RENORM_DEFAULT_ITER);
+
+	//Custom data structure to hold ellipse parameters
+	struct ellipse_param {
+		cv::Point2d center;
+		std::vector<cv::Point2d> extrema;
+		double a, b, angle;
+	};
+	typedef ellipse_param ellipse;
+
+	/*Calculate the center and 4 extremal points of an ellipse (at maximum and minimum distances from the center) from
+	**the coefficients of the conic equation A*x*x + B*x*y + Cy*y + D*x + E*y + F = 0
+	**Input:
+	**conic: std::vector<double> &, Coefficients of the conic equation
+	**Returns:
+	**Ellipse, Points describing the ellipse. If the conic does not describe an ellipse, the ellipse is
+	**returned empty
+	*/
+	ellipse ellipse_points_from_conic(std::vector<double> &conic);
+
+	/*Rotate a point anticlockwise
+	**Inputs:
+	**point: cv::Point &, Point to rotate
+	**angle: const double, Angle to rotate the point anticlockwise
+	**Returns:
+	**cv::Point2d, Rotated point
+	*/
+	cv::Point2d rotate_point2D(cv::Point2d &point, const double angle);
+
+	/*Exploit the inverse square law to find the sign of the inciding angle from an image's bacgkround
+	**Inputs:
+	**img: cv::Mat, Diffraction pattern to find which side the electron beam is inciding from
+	**img_spot_pos: std::vector<cv::Point2d> &, Approximate positions of the spots on the image
+	**fear: const float, Only use background at least this distance from the spots
+	**dir: cv::Vec2d &, Vector indicating direction of maximum elongation due to the incidence angularity
+	**Returns:
+	**double, +/- 1.0: +1 means that elongation is in the same direction as decreasing intensity
+	*/
+	double inv_sqr_inciding_sign(cv::Mat img, std::vector<ellipse> &ellipses, const float fear, 
+		cv::Vec2d &dir);
 }

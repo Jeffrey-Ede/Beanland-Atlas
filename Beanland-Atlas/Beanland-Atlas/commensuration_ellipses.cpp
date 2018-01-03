@@ -1,4 +1,4 @@
-#include <commensuration_tilts.h>
+#include <commensuration_ellipses.h>
 
 namespace ba
 {
@@ -70,7 +70,7 @@ namespace ba
 	**ellipse_thresh_frac: const float, Proportion of Schaar filtrate in the region use to get an initial estimage of the ellipse
 	**to use
 	*/
-	void ellipse_sizes(cv::Mat &img, std::vector<cv::Point> spot_pos, std::vector<cv::Vec3f> est_rad, const float est_frac,
+	void get_ellipses(cv::Mat &img, std::vector<cv::Point> spot_pos, std::vector<cv::Vec3f> est_rad, const float est_frac,
 		std::vector<std::vector<cv::Point>> &ellipses, const float ellipse_thresh_frac)
 	{
 		//Calculate the amplitude of the image's Scharr filtrate
@@ -87,7 +87,7 @@ namespace ba
 			create_annular_mask(mask, 2*est_rad[i][1]+1, est_rad[i][0], est_rad[i][1]);
 			get_mask_values( img, annulus, mask, cv::Point2i( spot_pos[i].y-est_rad[i][1], spot_pos[i].y-est_rad[i][1] ) );
 
-			hyper_renorm_ellipse(annulus, mask, annulus);
+			std::vector<double> conic = hyper_renorm_conic(mask, annulus, 0.5*(est_rad[i][0]+est_rad[i][1]));
 
 			////Threshold the 50% highest Scharr filtrate values to get an initial estimate for the ellipse
 			//cv::Mat thresh;
@@ -263,7 +263,8 @@ namespace ba
 	**to the correct size reduces numerical errors
 	**thresh: const float, Iterations will be concluded if the cosine of the angle between successive eigenvectors divided
 	**by the amplitude ratio (larger divided by the smaller) is larger than the threshold
-	**max_iter: const int, The maximum number of iterations to perform
+	**max_iter: const int, The maximum number of iterations to perform. If this limit is reached, the last iteration's conic
+	**coefficients will be returned
 	**Returns:
 	**std::vector<double>, Coefficients of the conic equation
 	*/
@@ -453,13 +454,13 @@ namespace ba
 				}
 			}
 			//Find the eigenvector with the highest eigenvalue
-			max_eigenvalue = solution.eigenvalues()[0].real;
+			max_eigenvalue = solution.eigenvalues()[0].real();
 			max_eigenvalue_idx = 0;
 			for (int i = 1; i < 6; i++)
 			{
 				if (solution.eigenvalues()[i].real > max_eigenvalue)
 				{
-					max_eigenvalue = solution.eigenvalues()[i].real;
+					max_eigenvalue = solution.eigenvalues()[i].real();
 					max_eigenvalue_idx = i;
 				}
 			}
@@ -489,6 +490,181 @@ namespace ba
 			{
 				break;
 			}
+		}
+
+		//Return the conic coefficients in an easy-to-use vector
+		std::vector<double> conic_coeff(6);
+		for (int i = 0; i < 6; i++)
+		{
+			conic_coeff[i] = theta0[i].real();
+		}
+		
+		return conic_coeff;
+	}
+
+	/*Calculate the center and 4 extremal points of an ellipse (at maximum and minimum distances from the center) from
+	**the coefficients of the conic equation A*x*x + B*x*y + Cy*y + D*x + E*y + F = 0
+	**Input:
+	**conic: std::vector<double> &, Coefficients of the conic equation
+	**Returns:
+	**Ellipse, Points describing the ellipse. If the conic does not describe an ellipse, the ellipse is
+	**returned empty
+	*/
+	ellipse ellipse_points_from_conic(std::vector<double> &conic)
+	{
+		//Check that the conic equation describes an ellipse
+		if (4.0*conic[0] * conic[2] - conic[1] * conic[1] > 0)
+		{
+			ellipse empty;
+			return empty;
+		}
+
+		//Get 2 times the ellipse's angle of rotatation
+		double theta_times_2 = std::atan( conic[1] / ( conic[0]-conic[2] ) );
+		
+		//Get the rotation angle in the first quadrant
+		if (theta_times_2 < 0)
+		{
+			theta_times_2 += 0.5*PI;
+		}
+
+		//Construct the ellipse
+		ellipse el;
+		
+		//Record the angle of rotation
+		el.angle = 0.5*theta_times_2;
+
+		//Get the sine and cosine of theta 
+		double cos_theta = std::cos(el.angle);
+		double sin_theta = std::sin(el.angle);
+
+		//Create an alternative set of coefficients where the rectangular term B = 0
+		double A, C, D, E, F;
+
+		A = conic[0]*cos_theta*cos_theta + conic[1]*cos_theta*sin_theta + conic[2]*sin_theta*sin_theta;
+		C = conic[0]*sin_theta*sin_theta - conic[1]*cos_theta*sin_theta + conic[2]*cos_theta*cos_theta;
+		D = conic[3]*cos_theta + conic[4]*sin_theta;
+		E = conic[4]*cos_theta - conic[3]*sin_theta;
+		F = conic[5];
+
+		//Get the ellipse center for these alternative coefficients
+		double x = -0.5 * D / A;
+		double y = -0.5 * E / C;
+
+		//Record the actual center of the ellipse
+		el.center = cv::Point2d( x*cos_theta - y*sin_theta, x*sin_theta + y*cos_theta );
+
+		//Get the elongation factors for the alternative coefficients (a = b when there is no rectangular term)
+		double num = -4.0*F*A*C + C*D*D + A*E*E;
+		el.a = std::sqrt( num / ( 4.0*A*C*C ) );
+		el.b = std::sqrt( num / ( 4.0*A*A*C ) );
+
+		//Rotate anticlockwisely back to the original frame to get the positions of the points from the bottom
+		//left, going clockwise
+		std::vector<cv::Point2d> extrema(4);
+		extrema[1] = el.center + cv::Point2d( -el.b*sin_theta, el.b*cos_theta );
+		extrema[2] = el.center + cv::Point2d( el.a*cos_theta, el.a*sin_theta );
+		extrema[3] = el.center + cv::Point2d( el.b*sin_theta, -el.b*cos_theta );
+		extrema[4] = el.center + cv::Point2d( -el.a*cos_theta, -el.a*sin_theta );
+
+		return el;
+	}
+
+	/*Rotate a point anticlockwise
+	**Inputs:
+	**point: cv::Point &, Point to rotate
+	**angle: const double, Angle to rotate the point anticlockwise
+	**Returns:
+	**cv::Point2d, Rotated point
+	*/
+	cv::Point2d rotate_point2D(cv::Point2d &point, const double angle)
+	{
+		return cv::Point2d(point.x * std::cos(angle) - point.y * std::sin(angle), 
+			point.x * std::sin(angle) + point.y * std::cos(angle));
+	}
+
+	/*Exploit the inverse square law to find the sign of the inciding angle from an image's bacgkround
+	**Inputs:
+	**img: cv::Mat, Diffraction pattern to find which side the electron beam is inciding from
+	**img_spot_pos: std::vector<cv::Point2d> &, Approximate positions of the spots on the image
+	**fear: const float, Only use background at least this distance from the spots
+	**dir: cv::Vec2d &, Vector indicating direction of maximum elongation due to the incidence angularity
+	**Returns:
+	**double, +/- 1.0: +1 means that elongation is in the same direction as decreasing intensity
+	*/
+	double inv_sqr_inciding_sign(cv::Mat img, std::vector<ellipse> &ellipses, const float fear, 
+		cv::Vec2d &dir)
+	{
+		//Calculate angle between the elongation vector and the horizontal
+		double angle = std::asin( dir[0] / std::abs(dir[0]*dir[0] + dir[1]*dir[1]) );
+
+		//Rotate the image so that sums are less complicated
+		cv::Mat rot = rotate_CV (img, dir[1] > 0 ? angle : 2*PI-angle );
+
+		//Draw black circles over the spots
+		for (int i = 0; i < ellipses.size(); i++)
+		{
+			double rad = std::max(ellipses[i].a, ellipses[i].b) + fear;
+			cv::Point2d loc = rotate_point2D(ellipses[i].center-cv::Point2d(img.cols/2, img.rows/2), -angle) + 
+				cv::Point2d((rot.cols-img.cols)/2, (rot.rows-img.rows)/2);
+			cv::circle(img, loc, rad, cv::Scalar(0.0), -1, 8, 0);
+		}
+
+		//Sum along the rows of the rotated matrix, skipping zero-valued elements
+		float *p;
+		std::vector<float> row_sums;
+        #pragma omp parallel for
+		for (int i = 0; i < rot.rows; i++)
+		{
+			int num_contrib = 0;
+			p = rot.ptr<float>(i);
+			for (int j = 0; j < rot.cols; j++)
+			{
+				//If the element is non-zero
+				if (p[j])
+				{
+					row_sums[i] += p[j];
+					num_contrib++;
+				}
+			}
+
+			row_sums[i] /= num_contrib;
+		}
+
+		/* Set up matrices to find the least squares solution that fits the intensity profile */
+
+		Eigen::VectorXd x(row_sums.size());
+		for (int i = 0; i < row_sums.size(); i++)
+		{
+			x(i) = i;
+		}
+
+		Eigen::MatrixXd X(row_sums.size(), 2);
+		Eigen::VectorXd Xtemp(2);
+		for (int i = 0; i < row_sums.size(); i++)
+		{
+			Xtemp << std::pow(x(i),2), 1;
+			X.row(i) = Xtemp;
+		}
+
+		Eigen::VectorXd D(row_sums.size());
+		for (int i = 0; i < row_sums.size(); i++)
+		{
+			D(i) = row_sums[i];
+		}
+
+		//Find the least squares solutions
+		Eigen::VectorXd a = X.colPivHouseholderQr().solve(D);
+
+		//Direction is the same as that of decreasing intensity
+		if (a(1) < 0)
+		{
+			return 1.0;
+		}
+		//Direction is opposite that of decreasing intensity
+		else
+		{
+			return -1.0;
 		}
 	}
 }

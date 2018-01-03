@@ -46,15 +46,6 @@ namespace ba
 	std::vector<cv::Point2f> refine_spot_pos(std::vector<cv::Point> &spot_pos, cv::Mat &xcorr, const int col, const int row,
 		const int centroid_size);
 
-	/*Estimate the angular separation between spots using the differences between their overlapping regions
-	**Input:
-	**img1: cv::Mat &, An image containing a circle or ellipse
-	**img2: cv::Mat &, A second image containing a circle or ellipse
-	**Returns:
-	**cv::Vec2f, Estimated angular position of the second ellipse relative to the first
-	*/
-	cv::Vec2f est_rel_homography(std::vector<cv::Point> &spot_pos);
-
 	/*Creat a Beanland atlas survey by using pixels from the nearest spot to each survey position
 	**Input:
 	**rel_pos: std::vector<std::vector<int>> &, Relative positions of the images
@@ -94,5 +85,4 @@ namespace ba
 	*/
 	void get_diff_overlap(cv::Mat &img1, cv::Mat &img2, cv::Point &origin1, cv::Point &origin2, const int &dx, const int &dy,
 		cv::Mat &circ_mask, cv::Mat &diff, cv::Mat &mask);
-
 }

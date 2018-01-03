@@ -145,16 +145,18 @@ namespace ba
 		//Crop maps so that they only contain the paths mapped out by the spots
 		std::vector<cv::Mat> surveys(spot_pos.size());
         #pragma omp parallel for
-		for (int k = 0; k < spot_pos.size(); k++) {
-				
+		for (int k = 0; k < spot_pos.size(); k++) 
+		{		
 			//Minimum row
 			int x;
 			int x_pad;
-			if (spot_pos[k].x >= rows_diff+radius) {
+			if (spot_pos[k].x >= rows_diff+radius) 
+			{
 				x = spot_pos[k].x - rows_diff - radius;
 				x_pad = 0;
 			}
-			else {
+			else 
+			{
 				x = 0;
 				x_pad = rows_diff + radius - spot_pos[k].x;
 			}
@@ -162,30 +164,36 @@ namespace ba
 			//Minimum column
 			int y;
 			int y_pad;
-			if (spot_pos[k].y >= cols_diff+radius) {
+			if (spot_pos[k].y >= cols_diff+radius) 
+			{
 				y = spot_pos[k].y - cols_diff - radius;
 				y_pad = 0;
 			}
-			else {
+			else
+			{
 				y = 0;
 				y_pad = cols_diff + radius - spot_pos[k].y;
 			}
 				
 			//Maximum row
 			int x_2;
-			if (spot_pos[k].x + radius <= mats[0].rows) {
+			if (spot_pos[k].x + radius <= mats[0].rows)
+			{
 				x_2 = spot_pos[k].x + radius;
 			}
-			else {
+			else
+			{
 				x_2 = mats[0].rows;
 			}
 		
 			//Maximum column
 			int y_2;
-			if (spot_pos[k].y + radius <= mats[0].cols) {
+			if (spot_pos[k].y + radius <= mats[0].cols) 
+			{
 				y_2 = spot_pos[k].y + radius;
 			}
-			else {
+			else
+			{
 				y_2 = mats[0].cols;
 			}
 		

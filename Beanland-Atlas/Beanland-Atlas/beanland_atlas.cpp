@@ -116,6 +116,8 @@ int main()
 	std::vector<cv::Point> spot_pos = get_spot_pos(acc, annulus_param[0], annulus_param[0], create_annulus_kernel, 
 		circle_creator, gauss_kernel, af_queue, acc.cols, acc.rows, samp_to_detect_sphere);
 
+	//Get the positions of the spots on each image
+
 	//Combine the compendiums of maps mapped out by each spot to create maps showing the whole k spaces surveyed by each of the spots,
 	//then combine these surveys into an atlas to show the whole k space mapped out
 	std::vector<cv::Mat> surveys = create_spot_maps(mats, spot_pos, refined_pos, 0.6*annulus_param[0], 

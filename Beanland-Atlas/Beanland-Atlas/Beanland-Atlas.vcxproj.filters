@@ -78,13 +78,7 @@
     <ClCompile Include="ident_sym_utility.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="beanland_commensuration.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="postprocessing.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="beanland_commensuration_utility.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="template_matching.cpp">
@@ -93,10 +87,16 @@
     <ClCompile Include="bright_field_sym.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="commensuration_tilts.cpp">
+    <ClCompile Include="correct_distortions.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="correct_distortions.cpp">
+    <ClCompile Include="commensuration_ellipses.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="commensuration.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="commensuration_utility.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -135,12 +135,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="approx_symmetry_axes.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="beanland_commensuration.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="beanland_commensuration_utility.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="circ_size_upper_bound.h">
@@ -182,10 +176,16 @@
     <ClInclude Include="bright_field_sym.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="commensuration_tilts.h">
+    <ClInclude Include="correct_distortions.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="correct_distortions.h">
+    <ClInclude Include="commensuration_ellipses.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="commensuration.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="commensuration_utility.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

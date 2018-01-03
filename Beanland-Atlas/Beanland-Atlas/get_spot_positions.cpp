@@ -155,7 +155,7 @@ namespace ba
 		//Remove or correct any outlier spots
 		std::vector<cv::Point> on_latt_spots = correct_spot_pos(positions, lattice_vectors, cols, rows, radius);
 
-		////Refine the lattice vectors
+		//Refine the lattice vectors
 		float latt_vect_range = LATT_REF_RANGE * std::max( std::sqrt(lattice_vectors[0][0]*lattice_vectors[0][0] +
 			lattice_vectors[0][1]*lattice_vectors[0][1]), std::sqrt(lattice_vectors[1][0]*lattice_vectors[1][0] +
 				lattice_vectors[1][1]*lattice_vectors[1][1]) );
@@ -175,14 +175,11 @@ namespace ba
 		}
 
 		//Discard spots that are not at least a specified distance from the peripheries of the image
-		on_latt_spots = discard_outer_spots(on_latt_spots, cols, rows, discard_outer == -1 ? initial_radius : discard_outer);
+		positions = discard_outer_spots(on_latt_spots, cols, rows, discard_outer == -1 ? initial_radius : discard_outer);
 
 		//Estimate the parameters decribing the sample-to-detector sphere
 		samp_to_detect_sphere = get_sample_to_detector_sphere(on_latt_spots, xcorr, discard_outer == -1 || discard_outer >= initial_radius ? 0 : initial_radius,
 			cols, rows);
-
-		//Free memory
-		free(xcorr_data);
 
 		//Return original positions for now - something wrong with lattice vector refinement and I don't feel I have time to fix it
         #pragma omp parallel for
@@ -191,6 +188,9 @@ namespace ba
 			positions[i].x = (positions[i].x * align_avg_cols) / cols;
 			positions[i].y = (positions[i].y * align_avg_rows) / rows;
 		}
+
+		//Free memory
+		free(xcorr_data);
 
 		return positions /*on_latt_spots*/;
 	}

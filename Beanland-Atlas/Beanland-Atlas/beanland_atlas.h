@@ -7,8 +7,9 @@
 #include <align_and_avg.h>
 #include <annulus_param.h>
 #include <approx_symmetry_axes.h>
-#include <beanland_commensuration.h>
-#include <beanland_commensuration_utility.h>
+#include <commensuration.h>
+#include <commensuration_utility.h>
+#include <commensuration_ellipses.h>
 #include <bright_field_sym.h>
 #include <circ_size_upper_bound.h>
 #include <correct_distortions.h>
