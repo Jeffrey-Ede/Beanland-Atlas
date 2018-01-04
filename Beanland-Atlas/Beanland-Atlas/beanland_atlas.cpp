@@ -8,10 +8,12 @@ int main()
 	//Get number of concurrent processors. Use same number of threads
 	int NUM_THREADS;
 	unsigned concurentThreadsSupported = std::thread::hardware_concurrency();
-	if (concurentThreadsSupported) {
+	if (concurentThreadsSupported) 
+	{
 		NUM_THREADS = concurentThreadsSupported;
 	}
-	else {
+	else
+	{
 		NUM_THREADS = 1; //OpenMP will use 1 thread
 	}
 
@@ -116,11 +118,9 @@ int main()
 	std::vector<cv::Point> spot_pos = get_spot_pos(acc, annulus_param[0], annulus_param[0], create_annulus_kernel, 
 		circle_creator, gauss_kernel, af_queue, acc.cols, acc.rows, samp_to_detect_sphere);
 
-	//Get the positions of the spots on each image
-
 	//Combine the compendiums of maps mapped out by each spot to create maps showing the whole k spaces surveyed by each of the spots,
 	//then combine these surveys into an atlas to show the whole k space mapped out
-	std::vector<cv::Mat> surveys = create_spot_maps(mats, spot_pos, refined_pos, 0.6*annulus_param[0], 
+	std::vector<cv::Mat> surveys = create_spot_maps(mats, spot_pos, refined_pos, acc, 0.8*annulus_param[0], 
 		annulus_param[0]+2*annulus_param[1], -1);
 
 	atlas_sym atlas_symmetry = identify_symmetry(surveys, spot_pos, EQUIDST_THRESH, FRAC_FOR_SYM);

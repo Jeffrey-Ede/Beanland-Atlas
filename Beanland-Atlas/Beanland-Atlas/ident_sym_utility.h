@@ -10,6 +10,14 @@
 
 namespace ba
 {
+	//Additiona information that can be used to enhance symmetry detection
+	typedef enum {
+		REL_SHIFT_WIS_NONE, //No symmetry point or it is not pragmatic/possible to get information about the symmetry point
+		REL_SHIFT_WIS_INTERNAL_MIR0, //Mirror flip is perpendicular to radially outwards direction
+		REL_SHIFT_WIS_INTERNAL_MIR1, //Mirror flip is in the radially outwards direction
+		REL_SHIFT_WIS_INTERNAL_ROT //Rotation about point in the image
+	};
+
 	//Symmetry centers calculated from Scharr filtrates must use at least this fraction of the of the image area
     #define SYM_CENTER_USE_FRAC 0.0f
 

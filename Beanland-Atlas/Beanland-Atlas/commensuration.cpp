@@ -2,7 +2,7 @@
 
 namespace ba
 {
-	/*Commensurate the individual images so that the Beanland atlas can be constructed
+	/*Calculate the condenser lens profile using the overlapping regions of spots
 	**Inputs:
 	**mats: std::vector<cv::Mat> &, Individual floating point images that have been stereographically corrected to extract spots from
 	**spot_pos: cv::Point2d, Position of located spot in the aligned diffraction pattern
@@ -22,17 +22,18 @@ namespace ba
 		//Create collection of the spot images at different positions, averaging the consecutively same position spots. Also, slightly blur the 
 		//spots to reduce high frequency noise
 		int diam = 2*radius+1;
-		std::vector<cv::Mat> grouped = grouping_preproc(mats, grouped_idx, spot_pos, rel_pos, col_max, row_max, radius, 
+		std::vector<cv::Mat> groups = grouping_preproc(mats, grouped_idx, spot_pos, rel_pos, col_max, row_max, radius, 
 			diam, BRAGG_PROF_PREPROC_GAUSS);
 
-		//Create a mask to indicate which pixels in the square are circle pixels to reduce calculations
-		cv::Mat circ_mask = cv::Mat(grouped[0].size(), CV_8UC1, cv::Scalar(0));
+		////Create a mask to indicate which pixels in the square are circle pixels to reduce calculations
+		//cv::Mat circ_mask = cv::Mat(grouped[0].size(), CV_8UC1, cv::Scalar(0));
 
-		//Draw circle at the position of the spot on the mask
-		cv::circle(circ_mask, cv::Point(radius, radius), radius+1, cv::Scalar(1), -1, 8, 0);
+		////Draw circle at the position of the spot on the mask
+		//cv::circle(circ_mask, cv::Point(radius, radius), radius+1, cv::Scalar(1), -1, 8, 0);
 
-		//Calculate which difference spectra overlap with each other
-		std::vector<int> unique_overlaps = get_unique_overlaps(spot_pos, rel_pos, radius);
+		//Get the condenser lens profile
+		std::vector<double> rad_profile = get_condenser_lens_profile(groups, spot_pos, rel_pos, grouped_idx, radius, 
+			col_max, row_max, mats[0].cols, mats[0].rows);
 		
 		//Use difference spectrum asymmetry to calculate the condenser lens profiles
 
@@ -185,42 +186,6 @@ namespace ba
 		}
 	}
 
-	/*Commensurate the images using homographic perspective warps, homomorphic warps and intensity rescaling
-	**Input:
-	**commensuration: std::vector<cv::Mat>> &, Preprocessed Bragg peaks. Consecutive Bragg peaks in the same position have been averaged
-	**and they have been Gaussian blurred to remove unwanted high frequency noise
-	**rel_pos: std::vector<std::vector<int>> &, Relative positions of the spots
-	**grouped_idx: std::vector<std::vector<int>> &, Spots where they are grouped if they are consecutively in the same position
-	**circ_mask: cv::Mat &, Mask indicating the spot pixels
-	**max_dst: const float &, The maximum distance between 2 instances of a spot for the overlap between them to be considered
-	*/
-	void commensuration_perspective_warp(std::vector<cv::Mat> &commensuration, std::vector<std::vector<int>> &rel_pos, cv::Mat &circ_mask, 
-		std::vector<std::vector<int>> &grouped_idx, const float &max_dist)
-	{
-		//Find all the overlaps that must be considered between the groups of consecutive spots that are in the same position
-		std::vector<std::vector<std::vector<int>>> overlaps = get_spot_overlaps(rel_pos, grouped_idx, max_dist);
-
-		//The positions of the spot centres in the preprocessed images are all the same: they are in the middle of the images
-		cv::Point spot_centre = cv::Point(circ_mask.cols/2 + 1, circ_mask.rows/2 + 1);
-
-		//For each of the significant overlaps, calculate the homographic warps and homomorphisms needed for perspective correction
-		for (int i = 0; i < overlaps.size(); i++)
-		{
-			//For each of the spots the spot overlaps with
-			for (int j = 0; j < overlaps[i].size(); j++)
-			{
-				//Calculate the difference between the overlapping regions of the significantly overlapping groups of spots
-				cv::Mat diff_overlap, mask;
-				get_diff_overlap(commensuration[i], commensuration[overlaps[i][j][0]], spot_centre,	spot_centre, 
-					overlaps[i][j][1], overlaps[i][j][2], circ_mask, diff_overlap, mask);
-
-				/*Use the difference between the overlapping regions to estimate the perspective warping parameters needed to commensurate
-				  the spots*/
-
-			}
-		}
-	}
-
 	/*Calculate an initial estimate for the dark field decoupled Bragg profile using the preprocessed Bragg peaks. This function is redundant.
 	**It remains in case I need to generate data from it for my thesis, etc. in the future
 	**Input:
@@ -268,78 +233,112 @@ namespace ba
 		return profile;
 	}
 
-	/*Get the unique overlaps of each spot
+	/*Use the unique overlaps of each group of spots to determine the condenser lens profile
 	**Inputs:
-	**mats: cv::Mat &, Images the spots were extracted from
 	**spot_pos: cv::Point2d, Position of located spot in the aligned diffraction pattern
 	**rel_pos: std::vector<std::vector<int>> &, Relative positions of images
 	**radius: const int, Radius of the spots
-	**col_max: const int &, Maximum column difference between spot positions
-	**row_max: const int &, Maximum row difference between spot positions
+	**col_max: const int, Maximum column difference between spot positions
+	**row_max: const int, Maximum row difference between spot positions
+	**cols: const int, Number of columns in the image
+	**rows: const int, Number of rows in the image
 	**Returns:
-	**std::vector<std::vector<int>>, Spots that each spot overlaps with
+	**std::vector<double>, Radial condenser lens profile
 	*/
-	std::vector<std::vector<int>> get_unique_overlaps(cv::Mat &mats, cv::Point2d &spot_pos, std::vector<std::vector<int>> &rel_pos, 
-		std::vector<std::vector<int>> &grouped_idx, const int radius, const int &col_max, const int &row_max)
+	std::vector<double> get_condenser_lens_profile(std::vector<cv::Mat> &groups, cv::Point2d &spot_pos,
+		std::vector<std::vector<int>> &rel_pos, std::vector<std::vector<int>> &grouped_idx, const int radius, 
+		const int col_max, const int row_max, const int cols, const int rows)
 	{
-		//Store the indexes of the spots that each spot overlaps with
-		std::vector<std::vector<int>> overlaps(grouped_idx.size());
+		//Information from overlapping circle pixels needed to determine the condenser lens profile
+		std::vector<cv::Vec3d> overlap_px_info;
 
 		//Get the spots that are fully in images
-		std::vector<bool> in_img(grouped_idx.size());
-		for (int i = 0; i < grouped_idx.size(); i++)
+		int num_comp = grouped_idx.size() * (grouped_idx.size()-1) / 2; //Use sum of squares formula to get the number of comparisons
+		for (int m = 0, k = 0; m < grouped_idx.size(); m++)
 		{
-			//Index of the first image in the group
-			int j = grouped_idx[i][0];
-
-			//
-			in_img[0] = spot_pos.y >= row_max-rel_pos[1][j] && spot_pos.y < row_max-rel_pos[1][j]+mats.rows &&
-				spot_pos.x >= col_max-rel_pos[0][j] && spot_pos.x < col_max-rel_pos[0][j]+mats.cols;
-		}
-
-		//Check each spot group against every other spot group to see if there is at least one pixel of overlap
-		for (int i = 0; i < grouped_idx.size(); i++)
-		{
-			//Index of the first image in the group
-			int j = grouped_idx[i][0];
-
-			//Check that the overlapping region of the spot is in the image
-			if (spot_pos.y >= row_max-rel_pos[1][j] && spot_pos.y < row_max-rel_pos[1][j]+mats.rows &&
-				spot_pos.x >= col_max-rel_pos[0][j] && spot_pos.x < col_max-rel_pos[0][j]+mats.cols)
+			for (int n = m + 1; n < grouped_idx.size(); n++, k++)
 			{
-				for (int k = i+1; k < grouped_idx.size(); k++)
+				//Find the overlapping region between the circles
+				circ_overlap co = get_overlap(spot_pos, rel_pos, col_max, row_max, radius, m, n, cols, rows);
+
+				//Check if they overlap and the overlapping region is fully in the image
+				if (co.overlap)
 				{
-					//Index of the first image in the group
-					int l = grouped_idx[k][0];
-
-					//Check that the overlapping region of the spot is in the image
-					if (spot_pos.y >= row_max-rel_pos[1][l] && spot_pos.y < row_max-rel_pos[1][j]+mats.rows &&
-						spot_pos.x >= col_max-rel_pos[0][l] && spot_pos.x < col_max-rel_pos[0][j]+mats.cols)
+					//Find if the overlapping region is entirely on the image
+					if (on_img(co.minima[0], cols, rows) && on_img(co.minima[1], cols, rows) &&
+						on_img(co.maxima[0], cols, rows) && on_img(co.maxima[1], cols, rows))
 					{
+						//Create a mask idicating where the circles overlap to extract the values from the images
+						cv::Mat co_mask = gen_circ_overlap_mask(co.P1, radius, co.P2, radius, cols, rows);
 
+						//Get the number of overlapping pixels from the mask
+						int num_overlap = cv::sum(co_mask)[0];
+
+						//Parameters describing each overlap. By index: 0 - Fraction of circle radius from the first circle's center,
+						//1 - Fraction of circle radius from the second circle's center, 2 - ratio of the first circle's pixel value
+						//to the second circle's
+						std::vector<cv::Vec3d> overlaps(num_overlap);
+
+						//Get the pixel value and distances from circle centers for pixels in the overlapping region
+						byte *b;
+						for (int i = 0, co_num = 0; i < co_mask.rows; i++)
+						{
+							b = co_mask.ptr<byte>(i);
+							for (int j = 0; j < co_mask.cols; j++, co_num++)
+							{
+								//If the pixel is marked as an overlapping region pixel
+								if (b[j])
+								{
+									//Get distances from the circle centres
+									double dist1, dist2;
+									dist1 = std::sqrt((j-co.P1.x)*(j-co.P1.x) + (i-co.P1.y)*(i-co.P1.y));
+									dist2 = std::sqrt((j-co.P2.x)*(j-co.P2.x) + (i-co.P2.y)*(i-co.P2.y));
+
+									//Get the values of the pixels
+									double val1 = groups[m].at<float>(i-co.P1.y-radius, j-co.P1.x-radius);
+									double val2 = groups[n].at<float>(i-co.P2.y-radius, j-co.P2.x-radius);
+
+									overlaps[co_num] = cv::Vec3d(dist1/radius, dist2/radius, val1/val2);
+								}
+							}
+						}
+
+						//Append the overlapping pixel information to the collation
+						overlap_px_info.insert(overlap_px_info.end(), overlaps.begin(), overlaps.end());
 					}
 				}
 			}
 		}
 
-		return overlaps;
+		for (int i = 0; i < overlap_px_info.size(); i++)
+		{
+			std::cout << overlap_px_info[i][2] << std::endl;
+		}
+		std::getchar();
+
+		//Fit cubic Bezier curve to the radial profile using least squares minimisation
+		std::vector<double> cubic_Bezier;
+
+		return cubic_Bezier;
 	}
 
 	/*Calculates the center of and the 2 points closest to and furthest away from the center of the overlapping regions 
 	**of 2 spots
 	**Inputs:
 	**spot_pos: cv::Point2d, Position of located spot in the aligned diffraction pattern
-	**rel_pos: std::vector<std::vector<int>> &, Relative positions of images
+	**rel_pos: std::vector<std::vector<int>> &, Relative positions of images to first image
 	**col_max: const int &, Maximum column difference between spot positions
 	**row_max: const int &, Maximum row difference between spot positions
 	**radius: const int, Radius of the spots
 	**m: const int, Index of one of the images to compate
 	**n: const int, Index of the other image to compate
+	**cols: const int, Number of columns in the image
+	**rows: const int, Number of rows in the image
 	**Returns:
 	**circ_overlap, Structure describing the region where the circles overlap
 	*/
-	circ_overlap get_overlap_extrema(cv::Point2d &spot_pos, std::vector<std::vector<int>> &rel_pos, 
-		const int &col_max, const int &row_max, const int radius, const int m, const int n)
+	circ_overlap get_overlap(cv::Point2d &spot_pos, std::vector<std::vector<int>> &rel_pos,	const int &col_max,
+		const int &row_max, const int radius, const int m, const int n, const int cols, const int rows)
 	{
 		//Get the positions of the spots in each image
 		circ_overlap co;
@@ -356,20 +355,71 @@ namespace ba
 
 			//Calculate the positions at minimal distances from the overlap center
 			std::vector<cv::Point2d> minima(2);
-			minima[1] = co.P1 + (1.0 - radius/dist) * (co.P2 - co.P1);
-			minima[2] = co.P2 - (1.0 - radius/dist) * (co.P2 - co.P1);
+			minima[0] = co.P1 + (1.0 - radius/dist) * (co.P2 - co.P1);
+			minima[1] = co.P2 - (1.0 - radius/dist) * (co.P2 - co.P1);
 			co.minima = minima;
 
 			//Calculate the positions at maximal distances from the overlap center
 			std::vector<cv::Point2d> maxima(2);
 			double delta = 0.5 * std::sqrt( (dist + 2*radius) * dist * dist * (2*radius - dist) );
-			maxima[3] = co.center + cv::Point2d( delta * (co.P1.y - co.P2.y) / (dist*dist), 
+			maxima[0] = co.center + cv::Point2d( delta * (co.P1.y - co.P2.y) / (dist*dist), 
 				-delta * (co.P1.x - co.P2.x) / (dist*dist));
-			maxima[4] = co.center + cv::Point2d( -delta * (co.P1.y - co.P2.y) / (dist*dist), 
+			maxima[1] = co.center + cv::Point2d( -delta * (co.P1.y - co.P2.y) / (dist*dist), 
 				delta * (co.P1.x - co.P2.x) / (dist*dist));
 			co.maxima = maxima;
 		}
 
 		return co;
+	}
+
+	/*Boolean indicating whether or not a point lies on an image
+	**Inputs
+	**cols: const int, Number of columns in the image
+	**rows: const int, Number of rows in the image
+	**point: cv::Point2d &, Double precision point in (column, row) format
+	**Returns:
+	**bool, If true, the point is on the image
+	*/
+	bool on_img(cv::Point2d &point, const int cols, const int rows)
+	{
+		return point.x >= 0 && point.y >= 0 && point.x < cols && point.y < rows;
+	}
+
+	/*Boolean indicating whether or not a point lies on an image
+	**Inputs
+	**img: cv::Mat &, Image to check if the point is on
+	**point: cv::Point2d &, Double precision point in (column, row) format
+	**Returns:
+	**bool, If true, the point is on the image
+	*/
+	bool on_img(cv::Mat &img, cv::Point2d &point)
+	{
+		return point.x >= 0 && point.y >= 0 && point.x < img.cols && point.y < img.rows;
+	}
+
+	/*Generate a mask where the overlapping region between 2 circles is marked by ones
+	**Inputs:
+	**P1: cv::Point2d, Center of one of the circles
+	**r1: const int &, Radius of one of the circles
+	**P2: cv::Point2d, Center of the other circle
+	**r2: const int &, Radius of the other circle
+	**cols: const int, Number of columns in the mask
+	**rows: const int, Number of rows in the mask
+	**Returns:
+	**cv::Mat, 8 bit image where the overlapping region is marked with ones
+	*/
+	cv::Mat gen_circ_overlap_mask(cv::Point2d P1, const int r1, cv::Point2d P2, const int r2, const int cols,
+		const int rows)
+	{
+		//Create separate masks to draw the circles on
+		cv::Mat circle1 = cv::Mat(rows, cols, CV_8UC1, cv::Scalar(0));
+		cv::Mat circle2 = cv::Mat(rows, cols, CV_8UC1, cv::Scalar(0));
+
+		//Draw the circles on the masks
+		cv::circle(circle1, P1, r1+1, cv::Scalar(1), -1, 8, 0);
+		cv::circle(circle2, P2, r2+1, cv::Scalar(1), -1, 8, 0);
+
+		//The overlapping region is where both circles are marked
+		return circle1 & circle2;
 	}
 }

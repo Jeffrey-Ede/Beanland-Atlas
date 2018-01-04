@@ -4,13 +4,14 @@
 #include <includes.h>
 
 #include <commensuration_utility.h>
+//#include "engine.h"
 
 namespace ba
 {
-	/*Commensurate the individual images so that the Beanland atlas can be constructed
+	/*Calculate the condenser lens profile using the overlapping regions of spots
 	**Inputs:
-	**mats: std::vector<cv::Mat> &, Individual floating point images to extract spots from
-	**spot_pos: cv::Point2d, Positions of located spot in the aligned diffraction pattern
+	**mats: std::vector<cv::Mat> &, Individual floating point images that have been stereographically corrected to extract spots from
+	**spot_pos: cv::Point2d, Position of located spot in the aligned diffraction pattern
 	**rel_pos: std::vector<std::vector<int>> &, Relative positions of images
 	**col_max: int, Maximum column difference between spot positions
 	**row_max: int, Maximum row difference between spot positions
@@ -61,18 +62,6 @@ namespace ba
 	void accumulate_circle(cv::Mat &mat, const int &col, const int &row, const int &rad, cv::Mat &acc, const int &acc_col,
 		const int &acc_row);
 
-	/*Commensurate the images using homographic perspective warps, homomorphic warps and intensity rescaling
-	**Input:
-	**commensuration: std::vector<cv::Mat>> &, Preprocessed Bragg peaks. Consecutive Bragg peaks in the same position have been averaged
-	**and they have been Gaussian blurred to remove unwanted high frequency noise
-	**rel_pos: std::vector<std::vector<int>> &, Relative positions of the spots
-	**grouped_idx: std::vector<std::vector<int>> &, Spots where they are grouped if they are consecutively in the same position
-	**circ_mask: cv::Mat &, Mask indicating the spot pixels
-	**max_dst: const float &, The maximum distance between 2 instances of a spot for the overlap between them to be considered
-	*/
-	void commensuration_perspective_warp(std::vector<cv::Mat> &commensuration, std::vector<std::vector<int>> &rel_pos, cv::Mat &circ_mask, 
-		std::vector<std::vector<int>> &grouped_idx, const float &max_dist);
-
 	/*Calculate an initial estimate for the dark field decoupled Bragg profile using the preprocessed Bragg peaks. This function is redundant.
 	**It remains in case I need to generate data from it for my thesis, etc. in the future
 	**Input:
@@ -93,4 +82,71 @@ namespace ba
 		cv::Point P1, P2; //Positions of the circle centres
 	};
 	typedef circ_overlap_param circ_overlap;
+
+	/*Calculates the center of and the 2 points closest to and furthest away from the center of the overlapping regions 
+	**of 2 spots
+	**Inputs:
+	**spot_pos: cv::Point2d, Position of located spot in the aligned diffraction pattern
+	**rel_pos: std::vector<std::vector<int>> &, Relative positions of images to first image
+	**col_max: const int &, Maximum column difference between spot positions
+	**row_max: const int &, Maximum row difference between spot positions
+	**radius: const int, Radius of the spots
+	**m: const int, Index of one of the images to compate
+	**n: const int, Index of the other image to compate
+	**cols: const int, Number of columns in the image
+	**rows: const int, Number of rows in the image
+	**Returns:
+	**circ_overlap, Structure describing the region where the circles overlap
+	*/
+	circ_overlap get_overlap(cv::Point2d &spot_pos, std::vector<std::vector<int>> &rel_pos,	const int &col_max,
+		const int &row_max, const int radius, const int m, const int n, const int cols, const int rows);
+
+	/*Boolean indicating whether or not a point lies on an image
+	**Inputs
+	**img: cv::Mat &, Image to check if the point is on
+	**point: cv::Point2d &, Double precision point in (column, row) format
+	**Returns:
+	**bool, If true, the point is on the image
+	*/
+	bool on_img(cv::Mat &img, cv::Point2d &point);
+
+	/*Boolean indicating whether or not a point lies on an image
+	**Inputs
+	**cols: const int, Number of columns in the image
+	**rows: const int, Number of rows in the image
+	**point: cv::Point2d &, Double precision point in (column, row) format
+	**Returns:
+	**bool, If true, the point is on the image
+	*/
+	bool on_img(cv::Point2d &point, const int cols, const int rows);
+
+	/*Generate a mask where the overlapping region between 2 circles is marked by ones
+	**Inputs:
+	**P1: cv::Point2d, Center of one of the circles
+	**r1: const int &, Radius of one of the circles
+	**P2: cv::Point2d, Center of the other circle
+	**r2: const int &, Radius of the other circle
+	**cols: const int, Number of columns in the mask
+	**rows: const int, Number of rows in the mask
+	**Returns:
+	**cv::Mat, 8 bit image where the overlapping region is marked with ones
+	*/
+	cv::Mat gen_circ_overlap_mask(cv::Point2d P1, const int r1, cv::Point2d P2, const int r2, const int cols,
+		const int rows);
+
+	/*Use the unique overlaps of each group of spots to determine the condenser lens profile
+	**Inputs:
+	**spot_pos: cv::Point2d, Position of located spot in the aligned diffraction pattern
+	**rel_pos: std::vector<std::vector<int>> &, Relative positions of images
+	**radius: const int, Radius of the spots
+	**col_max: const int, Maximum column difference between spot positions
+	**row_max: const int, Maximum row difference between spot positions
+	**cols: const int, Number of columns in the image
+	**rows: const int, Number of rows in the image
+	**Returns:
+	**std::vector<double>, Radial condenser lens profile
+	*/
+	std::vector<double> get_condenser_lens_profile(std::vector<cv::Mat> &groups, cv::Point2d &spot_pos,
+		std::vector<std::vector<int>> &rel_pos, std::vector<std::vector<int>> &grouped_idx, const int radius, 
+		const int col_max, const int row_max, const int cols, const int rows);
 }

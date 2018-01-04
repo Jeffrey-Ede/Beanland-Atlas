@@ -8,13 +8,6 @@
 
 namespace ba
 {
-	enum {
-		REL_SHIFT_WIS_NONE, //No symmetry point or it is not pragmatic/possible to information about the symmetry point
-		REL_SHIFT_WIS_INTERNAL_MIR0, //Mirror flip is perpendicular to radially outwards direction
-		REL_SHIFT_WIS_INTERNAL_MIR1, //Mirror flip is in the radially outwards direction
-		REL_SHIFT_WIS_INTERNAL_ROT //Rotation about point in the image
-	};
-
 	//Minimum fraction of the maximum mean Pearson normalised product moment correlation coefficient that a mean Pearson coefficient can be for
 	//it's symmetry to be registered as present. A more sophisticated metric will be devised later
     #define FRAC_FOR_SYM 0.5

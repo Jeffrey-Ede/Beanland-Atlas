@@ -3,7 +3,7 @@
 #include <defines.h>
 #include <includes.h>
 
-#include <beanland_commensuration_utility.h>
+#include <commensuration_utility.h>
 #include <kernel_launchers.h>
 #include <utility.h>
 

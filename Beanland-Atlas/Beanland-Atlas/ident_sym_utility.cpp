@@ -335,7 +335,7 @@ namespace ba
 	cv::Mat rotate_CV(cv::Mat src, float angle)
 	{
 		//Center of rotation
-		cv::Point2f pt(src.cols/2., src.rows/2.);
+		cv::Point2f pt(0.5*(src.cols-1.0f), 0.5*(src.rows-1.0f));
 
 		//Rotation matrix
 		cv::Mat rot = getRotationMatrix2D(pt, angle, 1.0);

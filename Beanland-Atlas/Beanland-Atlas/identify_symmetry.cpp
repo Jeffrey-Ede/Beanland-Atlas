@@ -137,6 +137,7 @@ namespace ba
 			rot_to_align.size(), rot_to_align);
 
 		atlas_sym a;
+		a.x = 1;
 		return a;
 	}
 

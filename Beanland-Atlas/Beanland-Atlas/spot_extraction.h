@@ -19,7 +19,7 @@ namespace ba
 	**std::vector<cv::Mat>, Regions of k space surveys by the spots
 	*/
 	std::vector<cv::Mat> create_spot_maps(std::vector<cv::Mat> &mats, std::vector<cv::Point> &spot_pos, std::vector<std::vector<int>> &rel_pos,
-		const int radius, const int ns_radius, const int inpainting_method = cv::INPAINT_NS);
+		cv::Mat &acc, const int radius, const int ns_radius, const int inpainting_method = cv::INPAINT_NS);
 
 	/*Subtract the bacground from micrographs by masking the spots, infilling the masked image and then subtracting the infilled
 	**image from the original

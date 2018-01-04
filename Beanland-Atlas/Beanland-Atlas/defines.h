@@ -1,6 +1,5 @@
 #pragma once
 
-
 //Enable use of older OpenCL APIs
 #define CL_USE_DEPRECATED_OPENCL_2_0_APIS
 #define __CL_ENABLE_EXCEPTIONS

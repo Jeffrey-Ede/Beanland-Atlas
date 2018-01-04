@@ -1,7 +1,7 @@
 #pragma once
 
-#include <includes.h>
 #include <defines.h>
+#include <includes.h>
 
 #include <Eigen/Eigenvalues>
 #include <ident_sym_utility.h>
