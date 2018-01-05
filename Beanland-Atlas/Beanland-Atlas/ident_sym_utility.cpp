@@ -272,7 +272,7 @@ namespace ba
 			}
 		}
 
-		display_CV(img(cv::Rect(max_row, max_col, max_rows, max_cols)));
+		//display_CV(img(cv::Rect(max_row, max_col, max_rows, max_cols)));
 
 		//return cv::Rect(max_col, max_row, max_cols, max_rows);
 		return cv::Rect(max_row, max_col, max_rows, max_cols);

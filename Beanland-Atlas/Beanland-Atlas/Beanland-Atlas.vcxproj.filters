@@ -22,6 +22,9 @@
     <Filter Include="Header Files">
       <UniqueIdentifier>{fe02c061-0eca-4a48-aa1f-04b87afa8313}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Matlab">
+      <UniqueIdentifier>{e2894646-7f2a-43eb-a3e8-ae2f1d332cd7}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="beanland_atlas.cpp">
@@ -201,6 +204,9 @@
     </None>
     <None Include="gauss_kernel_padded.cl">
       <Filter>kernels</Filter>
+    </None>
+    <None Include="condenser_cubic_Bezier.m">
+      <Filter>Matlab</Filter>
     </None>
   </ItemGroup>
 </Project>

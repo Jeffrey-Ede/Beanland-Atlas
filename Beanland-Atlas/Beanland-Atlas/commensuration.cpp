@@ -298,7 +298,7 @@ namespace ba
 									double val1 = groups[m].at<float>(i-co.P1.y-radius, j-co.P1.x-radius);
 									double val2 = groups[n].at<float>(i-co.P2.y-radius, j-co.P2.x-radius);
 
-									overlaps[co_num] = cv::Vec3d(dist1/radius, dist2/radius, val1/val2);
+									overlaps[co_num] = cv::Vec3d(dist1, dist2, val1/val2);
 								}
 							}
 						}

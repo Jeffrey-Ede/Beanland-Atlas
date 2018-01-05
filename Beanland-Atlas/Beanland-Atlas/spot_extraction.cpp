@@ -147,7 +147,8 @@ namespace ba
 				for (int n = 0; n < indv_num_mappers[k].cols; n++) 
 				{
 					//Divide pixels contributed to by the number of contributing pixels
-					if (s[n]) {
+					if (s[n]) 
+					{
 						r[n] /= s[n];
 					}
 				}
