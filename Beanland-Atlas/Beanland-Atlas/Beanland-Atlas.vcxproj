@@ -30,6 +30,7 @@
     <ClCompile Include="circ_size_upper_bound.cpp" />
     <ClCompile Include="commensuration_ellipses.cpp" />
     <ClCompile Include="correct_distortions.cpp" />
+    <ClCompile Include="data_to_matlab.cpp" />
     <ClCompile Include="developer_helper_func.cpp" />
     <ClCompile Include="get_spot_positions.cpp" />
     <ClCompile Include="identify_symmetry.cpp" />
@@ -57,6 +58,7 @@
     <ClInclude Include="circ_size_upper_bound.h" />
     <ClInclude Include="commensuration_ellipses.h" />
     <ClInclude Include="correct_distortions.h" />
+    <ClInclude Include="data_to_matlab.h" />
     <ClInclude Include="defines.h" />
     <ClInclude Include="developer_helper_func.h" />
     <ClInclude Include="developer_utility.hpp" />
@@ -169,7 +171,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>D:\Beanland-Atlas\Beanland-Atlas\Beanland-Atlas;$(OPENCV_DIR)\include;C:\Program Files (x86)\AMD APP SDK\3.0\include;D:\fftw-3.3.5-dll64-1;D:\boost_compute\compute\include;D:\Program Files\ArrayFire\v3\include;D:\opencv\opencv\build\include\opencv;D:\opencv\opencv\build\include\opencv2;D:\Beanland-Atlas\Beanland-Atlas\Symmetry;D:\Eigen\eigen-eigen-5a0156e40feb;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\Beanland-Atlas\Beanland-Atlas\Beanland-Atlas;$(OPENCV_DIR)\include;C:\Program Files (x86)\AMD APP SDK\3.0\include;D:\fftw-3.3.5-dll64-1;D:\boost_compute\compute\include;D:\Program Files\ArrayFire\v3\include;D:\opencv\opencv\build\include\opencv;D:\opencv\opencv\build\include\opencv2;D:\Beanland-Atlas\Beanland-Atlas\Symmetry;D:\Eigen\eigen-eigen-5a0156e40feb;C:\Program Files\MATLAB\R2017a\extern\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>

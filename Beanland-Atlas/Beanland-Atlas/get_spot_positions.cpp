@@ -175,7 +175,7 @@ namespace ba
 		}
 
 		//Discard spots that are not at least a specified distance from the peripheries of the image
-		positions = discard_outer_spots(on_latt_spots, cols, rows, discard_outer == -1 ? initial_radius : discard_outer);
+		//on_latt_spots = discard_outer_spots(on_latt_spots, cols, rows, discard_outer == -1 ? initial_radius : discard_outer);
 
 		//Estimate the parameters decribing the sample-to-detector sphere
 		samp_to_detect_sphere = get_sample_to_detector_sphere(on_latt_spots, xcorr, discard_outer == -1 || discard_outer >= initial_radius ? 0 : initial_radius,

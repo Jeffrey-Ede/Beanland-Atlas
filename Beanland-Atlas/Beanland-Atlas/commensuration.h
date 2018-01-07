@@ -4,7 +4,7 @@
 #include <includes.h>
 
 #include <commensuration_utility.h>
-//#include "engine.h"
+#include "engine.h"
 
 namespace ba
 {
@@ -41,12 +41,12 @@ namespace ba
 	**radius: const int &, Radius of the spot
 	**diam: const int &, Diameter of the spot
 	**gauss_size: const int &, Size of the Gaussian blurring kernel applied during the last preprocessing step to remove unwanted noise
-	**Returns:
-	**std::vector<cv::Mat>, Preprocessed Bragg peaks, ready for dark field decoupled profile extraction
+	**blur_not_consec: std::vector<cv::Mat> &, Output preprocessed Bragg peaks, ready for dark field decoupled profile extraction
+	**is_in_img: std::vector<bool> &, Output to mark true when the spot is in the image so that indices can be grouped
 	*/
-	std::vector<cv::Mat> grouping_preproc(std::vector<cv::Mat> &mats, std::vector<std::vector<int>> &grouped_idx, 
-		cv::Point2d &spot_pos, std::vector<std::vector<int>> &rel_pos, const int &col_max, const int &row_max, const int &radius,
-		const int &diam, const int &gauss_size);
+	void grouping_preproc(std::vector<cv::Mat> &mats, std::vector<std::vector<int>> &grouped_idx, cv::Point2d &spot_pos, 
+		std::vector<std::vector<int>> &rel_pos, const int &col_max, const int &row_max, const int &radius,
+		const int &diam, const int &gauss_size, std::vector<cv::Mat> &blur_not_consec, std::vector<bool> &is_in_img);
 
 	/*Extracts a circle of data from an OpenCV mat and accumulates it in another mat. It is assumed that the dimensions specified for
 	**the accumulator will allow the full circle-sized extraction to be accumulated
@@ -80,6 +80,7 @@ namespace ba
 		std::vector<cv::Point2d> minima; //Positions of minimal distance from the center on each arc
 		std::vector<cv::Point2d> maxima; //Positions of maximal distance from the center on each arc
 		cv::Point P1, P2; //Positions of the circle centres
+		std::vector<cv::Point> bounding_rect; //2 corners of the rectangle fully containing the extrema
 	};
 	typedef circ_overlap_param circ_overlap;
 
@@ -104,21 +105,21 @@ namespace ba
 	/*Boolean indicating whether or not a point lies on an image
 	**Inputs
 	**img: cv::Mat &, Image to check if the point is on
-	**point: cv::Point2d &, Double precision point in (column, row) format
+	**point: cv::Point &, Point to be checked
 	**Returns:
 	**bool, If true, the point is on the image
 	*/
-	bool on_img(cv::Mat &img, cv::Point2d &point);
+	bool on_img(cv::Mat &img, cv::Point &point);
 
 	/*Boolean indicating whether or not a point lies on an image
 	**Inputs
 	**cols: const int, Number of columns in the image
 	**rows: const int, Number of rows in the image
-	**point: cv::Point2d &, Double precision point in (column, row) format
+	**point: cv::Point &, Point to be checked
 	**Returns:
 	**bool, If true, the point is on the image
 	*/
-	bool on_img(cv::Point2d &point, const int cols, const int rows);
+	bool on_img(cv::Point &point, const int cols, const int rows);
 
 	/*Generate a mask where the overlapping region between 2 circles is marked by ones
 	**Inputs:
@@ -136,17 +137,29 @@ namespace ba
 
 	/*Use the unique overlaps of each group of spots to determine the condenser lens profile
 	**Inputs:
+	**groups: std::vector<cv::Mat> &, Preprocessed Bragg peaks, ready for dark field decoupled profile extraction
 	**spot_pos: cv::Point2d, Position of located spot in the aligned diffraction pattern
 	**rel_pos: std::vector<std::vector<int>> &, Relative positions of images
+	**grouped_idx: std::vector<std::vector<int>> &, Groups of consecutive image indices where the spots are all in the same position
+	**is_in_img: std::vector<bool> &, True when the spot is in the image so that indices can be grouped
 	**radius: const int, Radius of the spots
 	**col_max: const int, Maximum column difference between spot positions
 	**row_max: const int, Maximum row difference between spot positions
 	**cols: const int, Number of columns in the image
 	**rows: const int, Number of rows in the image
 	**Returns:
-	**std::vector<double>, Radial condenser lens profile
+	**cv::Mat, Condenser lens profile
 	*/
-	std::vector<double> get_condenser_lens_profile(std::vector<cv::Mat> &groups, cv::Point2d &spot_pos,
-		std::vector<std::vector<int>> &rel_pos, std::vector<std::vector<int>> &grouped_idx, const int radius, 
-		const int col_max, const int row_max, const int cols, const int rows);
+	cv::Mat get_condenser_lens_profile(std::vector<cv::Mat> &groups, cv::Point2d &spot_pos,
+		std::vector<std::vector<int>> &rel_pos, std::vector<std::vector<int>> &grouped_idx, std::vector<bool> &is_in_img,
+		const int radius, const int col_max, const int row_max, const int cols, const int rows);
+
+	/*Overload the << operator to print circ_overlap structures
+	**Inputs:
+	**os: std::ostream &, Reference to the operating system,
+	**co: const circ_overlap &, Overlapping circle region structure
+	**Returns:
+	**std::ostream &, Reference to the operating system
+	*/
+	std::ostream & operator<<(std::ostream & os, const circ_overlap & co);
 }

@@ -220,7 +220,7 @@ namespace ba
 		}
 
 		//display_CV(create_raw_atlas(surveys, spot_pos, radius, cols_diff, rows_diff), 1e-3);
-
+		
 		return surveys;
 	}
 

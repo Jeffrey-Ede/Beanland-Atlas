@@ -29,6 +29,11 @@ namespace ba
 		grouping_preproc(mats, grouped_idx, spot_pos, rel_pos, col_max, row_max, radius, 
 			diam, BRAGG_PROF_PREPROC_GAUSS, groups, is_in_img);
 
+		for (int i = 0; i < groups.size(); i++)
+		{
+			display_CV(groups[i]);
+		}
+
 		//Get the condenser lens profile
 		cv::Mat profile = get_condenser_lens_profile(groups, spot_pos, rel_pos, grouped_idx, is_in_img, radius, 
 			col_max, row_max, mats[0].cols, mats[0].rows);

@@ -15,6 +15,8 @@ ub = [r, 1, 1, 1, 1];
 %Fit the data
 param = lsqcurvefit(fun, x0, [xdata1 xdata2], ydata, lb, ub);
 
+param = get_ratio(x0, [xdata1 xdata2], r);
+
 %Use the parameters to calculate the circular, angle-independent condenser
 %lens profile
 profile = zeros(2*r+1, 2*r+1);

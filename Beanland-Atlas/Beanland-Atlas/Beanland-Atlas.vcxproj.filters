@@ -22,7 +22,7 @@
     <Filter Include="Header Files">
       <UniqueIdentifier>{fe02c061-0eca-4a48-aa1f-04b87afa8313}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Matlab">
+    <Filter Include="MATLAB">
       <UniqueIdentifier>{e2894646-7f2a-43eb-a3e8-ae2f1d332cd7}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
@@ -100,6 +100,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="commensuration_utility.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="data_to_matlab.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -191,6 +194,9 @@
     <ClInclude Include="commensuration_utility.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="data_to_matlab.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="create_annulus.cl">
@@ -206,7 +212,7 @@
       <Filter>kernels</Filter>
     </None>
     <None Include="condenser_cubic_Bezier.m">
-      <Filter>Matlab</Filter>
+      <Filter>MATLAB</Filter>
     </None>
   </ItemGroup>
 </Project>
