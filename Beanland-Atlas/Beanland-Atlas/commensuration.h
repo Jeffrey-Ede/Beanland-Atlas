@@ -5,6 +5,7 @@
 
 #include <commensuration_utility.h>
 #include "engine.h"
+#include <utility.hpp>
 
 namespace ba
 {
@@ -40,13 +41,13 @@ namespace ba
 	**row_max: const int &, Maximum row difference between spot positions
 	**radius: const int &, Radius of the spot
 	**diam: const int &, Diameter of the spot
-	**gauss_size: const int &, Size of the Gaussian blurring kernel applied during the last preprocessing step to remove unwanted noise
-	**blur_not_consec: std::vector<cv::Mat> &, Output preprocessed Bragg peaks, ready for dark field decoupled profile extraction
+	**groups: std::vector<cv::Mat> &, Output preprocessed Bragg peaks, ready for dark field decoupled profile extraction
+	**group_pos: std::vector<cv::Point> &, Positions of top left corners of circles' bounding squares
 	**is_in_img: std::vector<bool> &, Output to mark true when the spot is in the image so that indices can be grouped
 	*/
 	void grouping_preproc(std::vector<cv::Mat> &mats, std::vector<std::vector<int>> &grouped_idx, cv::Point2d &spot_pos, 
 		std::vector<std::vector<int>> &rel_pos, const int &col_max, const int &row_max, const int &radius,
-		const int &diam, const int &gauss_size, std::vector<cv::Mat> &blur_not_consec, std::vector<bool> &is_in_img);
+		const int &diam, std::vector<cv::Mat> &groups, std::vector<cv::Point> &group_pos, std::vector<bool> &is_in_img);
 
 	/*Extracts a circle of data from an OpenCV mat and accumulates it in another mat. It is assumed that the dimensions specified for
 	**the accumulator will allow the full circle-sized extraction to be accumulated
@@ -105,21 +106,21 @@ namespace ba
 	/*Boolean indicating whether or not a point lies on an image
 	**Inputs
 	**img: cv::Mat &, Image to check if the point is on
-	**point: cv::Point &, Point to be checked
+	**point: cv::Point, Point to be checked
 	**Returns:
 	**bool, If true, the point is on the image
 	*/
-	bool on_img(cv::Mat &img, cv::Point &point);
+	bool on_img(cv::Mat &img, cv::Point point);
 
 	/*Boolean indicating whether or not a point lies on an image
 	**Inputs
 	**cols: const int, Number of columns in the image
 	**rows: const int, Number of rows in the image
-	**point: cv::Point &, Point to be checked
+	**point: cv::Point, Point to be checked
 	**Returns:
 	**bool, If true, the point is on the image
 	*/
-	bool on_img(cv::Point &point, const int cols, const int rows);
+	bool on_img(cv::Point point, const int cols, const int rows);
 
 	/*Generate a mask where the overlapping region between 2 circles is marked by ones
 	**Inputs:
@@ -129,15 +130,17 @@ namespace ba
 	**r2: const int &, Radius of the other circle
 	**cols: const int, Number of columns in the mask
 	**rows: const int, Number of rows in the mask
+	**val: const byte, value to set the mask elements. Defaults to 1
 	**Returns:
 	**cv::Mat, 8 bit image where the overlapping region is marked with ones
 	*/
 	cv::Mat gen_circ_overlap_mask(cv::Point2d P1, const int r1, cv::Point2d P2, const int r2, const int cols,
-		const int rows);
+		const int rows, const byte val = 1);
 
 	/*Use the unique overlaps of each group of spots to determine the condenser lens profile
 	**Inputs:
 	**groups: std::vector<cv::Mat> &, Preprocessed Bragg peaks, ready for dark field decoupled profile extraction
+	**group_pos: std::vector<cv::Point> &, Positions of top left corners of circles' bounding squares
 	**spot_pos: cv::Point2d, Position of located spot in the aligned diffraction pattern
 	**rel_pos: std::vector<std::vector<int>> &, Relative positions of images
 	**grouped_idx: std::vector<std::vector<int>> &, Groups of consecutive image indices where the spots are all in the same position
@@ -150,7 +153,7 @@ namespace ba
 	**Returns:
 	**cv::Mat, Condenser lens profile
 	*/
-	cv::Mat get_condenser_lens_profile(std::vector<cv::Mat> &groups, cv::Point2d &spot_pos,
+	cv::Mat get_condenser_lens_profile(std::vector<cv::Mat> &groups, std::vector<cv::Point> &group_pos, cv::Point2d &spot_pos,
 		std::vector<std::vector<int>> &rel_pos, std::vector<std::vector<int>> &grouped_idx, std::vector<bool> &is_in_img,
 		const int radius, const int col_max, const int row_max, const int cols, const int rows);
 
@@ -162,4 +165,14 @@ namespace ba
 	**std::ostream &, Reference to the operating system
 	*/
 	std::ostream & operator<<(std::ostream & os, const circ_overlap & co);
+
+	/*Boolean indicating whether or not a point lies on an image
+	**Inputs
+	**img: cv::Mat &, Image to check if the point is on
+	**col: const int, Column of point to be checked
+	**row: const int, Row of point to be checked
+	**Returns:
+	**bool, If true, the point is on the image
+	*/
+	bool on_img(cv::Mat &img, const int col, const int row);
 }

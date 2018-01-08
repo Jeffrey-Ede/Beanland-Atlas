@@ -84,4 +84,17 @@ namespace ba
 
 		merge(planes, out);
 	}
+
+	/*Get value at a location in an image. If the location is outside the image, move the index so that it is inside
+	**Inputs:
+	**img: cv::Mat &, Image the point is restricted to be in
+	**col: const int, Column index of the point
+	**row: const int, Row index of the point
+	**val: T &, Reference to a variable to store the value in. This must be of the same type as the matrix
+	*/
+	template <typename T> void lim_at(cv::Mat &img, const int col, const int row, T &val)
+	{
+		val = img.at<T>(row < img.rows ? (row >= 0 ? row : 0) : img.rows-1, 
+			col < img.cols ? (col >= 0 ? col : 0) : img.cols-1);
+	}
 }

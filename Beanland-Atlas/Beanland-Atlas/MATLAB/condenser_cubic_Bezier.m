@@ -1,6 +1,6 @@
 function [ profile ] = condenser_cubic_Bezier( xdata1, xdata2, ydata, r)
-%Use regression to fit a cubic Bezier curve to an intensity profile
-%overlapping with itself
+%Fit a symmetric, monotonically decreasing cubic Bezier curve to an intensity
+%profile overlapping with itself
 
 %Ratio of 2 Bezier curves
 fun = @(param,xdata)get_ratio(param, [xdata1 xdata2], r);
@@ -15,12 +15,10 @@ ub = [r, 1, 1, 1, 1];
 %Fit the data
 param = lsqcurvefit(fun, x0, [xdata1 xdata2], ydata, lb, ub);
 
-param = get_ratio(x0, [xdata1 xdata2], r);
-
 %Use the parameters to calculate the circular, angle-independent condenser
 %lens profile
 profile = zeros(2*r+1, 2*r+1);
-for i = 0:(r)
+for i = 0:r
     for j = 0:min(floor(sqrt(r*r-i*i)), i)
         %Distance from the circle center
         dist = sqrt(i*i+j*j);
@@ -58,7 +56,7 @@ for i = 1:numel(cubic_roots)
 end
 end
 
-function [y] = get_y(x, r, x1, a2, b1, b2, b3)
+function [ y ] = get_y(x, r, x1, a2, b1, b2, b3)
 %Get the x ordinate corresponding to a2
 x2 = x1 + a2*(r-x1);
 
@@ -68,14 +66,14 @@ t = get_t(x, x1, x2, r);
 %Get the gradient of the lower bounding line
 m = (b3 - 1.0) / r;
 
-%y ordninates of the unkown Bezier control points
+%y ordninates of the unknown Bezier control points
 y1 = (1-b1)*m*x1 + 1.0;
 y2 = b2*y1 + (1-b2)*(m*x2 + 1.0);
 
 y = (1-t)^3 + 3*(1-t)^2*t*y1 + 3*(1-t)*t^2*y2 + t^3*b3;
 end
 
-function [ratio] = get_ratio(param, xdata, r)
+function [ ratio ] = get_ratio(param, xdata, r)
 %Get the ratios of y value at the first x position to the second
 [h, ~] = size(xdata);
 ratio = zeros(h, 1);
