@@ -2,11 +2,11 @@ function [ profile ] = condenser_cubic_Bezier( xdata1, xdata2, ydata, r)
 %Fit a symmetric, monotonically decreasing cubic Bezier curve to an intensity
 %profile overlapping with itself
 
+%Typecase the radius to a double for lsqcurvefit()
+r_d = typecast(r, double)
+
 %Ratio of 2 Bezier curves
 fun = @(param,xdata)get_ratio(param, [xdata1 xdata2], r);
-
-%Typecase the radius to a double for lsqcurvefit()
-r_d = cast(r, 'double');
 
 %Initial estimate of the fitting parameters
 x0 = [0.5*r_d, 0.5, 0.5, 0.5, 0.5];

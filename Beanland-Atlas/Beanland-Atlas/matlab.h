@@ -6,5 +6,5 @@
 
 namespace ba
 {
-    #define SHARED_SESSION "MATLAB_SHARED"
+    #define MATLAB_SHARED "MATLAB_SHARED"
 }

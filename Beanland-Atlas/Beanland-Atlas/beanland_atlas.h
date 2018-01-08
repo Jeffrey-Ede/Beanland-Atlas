@@ -18,6 +18,7 @@
 #include <identify_symmetry.h>
 #include <img_rel_pos.h>
 #include <kernel_launchers.h>
+#include <matlab.h>
 #include <postprocessing.h>
 #include <preprocessing.h>
 #include <refine_mir_pos.h>

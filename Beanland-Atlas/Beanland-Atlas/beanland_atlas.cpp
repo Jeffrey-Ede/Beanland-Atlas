@@ -26,6 +26,14 @@ int main()
 	cl::Device device = devices[0];
 	cl::CommandQueue queue(context, device);
 
+	//Start the MATLAB engine
+	std::unique_ptr<matlab::engine::MATLABEngine> matlabPtr = matlab::engine::startMATLAB();
+
+	//Establish a shared MATLAB session
+	matlab::data::ArrayFactory factory;
+	auto success = matlabPtr->
+		feval(matlab::engine::convertUTF8StringToUTF16String("share_matlab_engine"), factory.createCharArray(MATLAB_SHARED));
+
 	//Read in the image stack
 	std::vector<cv::Mat> mats;
 	imreadmulti(inputImagePath, mats, CV_LOAD_IMAGE_UNCHANGED);
@@ -130,6 +138,9 @@ int main()
 	clReleaseKernel(circle_creator);
 	clReleaseCommandQueue(af_queue);
 	clReleaseContext(af_context);
+
+	//Terminate the MATLAB engine
+	matlab::engine::terminateEngineClient();
 
 	return 0;
 }
