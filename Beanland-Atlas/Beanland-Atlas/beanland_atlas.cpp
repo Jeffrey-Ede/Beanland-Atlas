@@ -20,6 +20,12 @@ int main()
 	omp_set_num_threads(NUM_THREADS);
 	omp_set_nested(1); //Enable nested parallelism
 
+	//Create OpenCL context and queue for GPU acceleration 
+	cl::Context context(CL_DEVICE_TYPE_GPU);
+	std::vector<cl::Device> devices = context.getInfo<CL_CONTEXT_DEVICES>();
+	cl::Device device = devices[0];
+	cl::CommandQueue queue(context, device);
+
 	//Read in the image stack
 	std::vector<cv::Mat> mats;
 	imreadmulti(inputImagePath, mats, CV_LOAD_IMAGE_UNCHANGED);
@@ -28,12 +34,6 @@ int main()
 	preprocess(mats, PREPROC_MED_FILT_SIZE);
 
 	//cv::Mat rot = in_plane_rotate(mats[0], 0.1, 0);
-
-	//Create OpenCL context and queue for GPU acceleration 
-	cl::Context context(CL_DEVICE_TYPE_GPU);
-	std::vector<cl::Device> devices = context.getInfo<CL_CONTEXT_DEVICES>();
-	cl::Device device = devices[0];
-	cl::CommandQueue queue(context, device);
 	
 	//Instruct ArrayFire to use the OpenCL. First, create a device from the current OpenCL device + context + queue
 	afcl::addDevice(device(), context(), queue());
@@ -87,9 +87,6 @@ int main()
 	af_fft2_r2c(&annulus_fft_c, best_annulus.get(), 1.0f, mats_rows_af, mats_cols_af);
 	af::array annulus_fft = recur_conv(gauss_fft*af::array(annulus_fft_c), order);
 
-	//Precalculate the Hann window, ready for repeated application
-	cv::Mat hann_window_LUT = create_hann_window(mats[0].rows, mats[0].cols, NUM_THREADS);
-
 	//Create circle creating kernel
 	cl_kernel circle_creator = create_kernel(circle_source, circle_kernel, af_context, af_device_id);
 
@@ -103,7 +100,7 @@ int main()
 	af::array circle_fft = gauss_fft*af::array(circle_c);
 
 	//Find alignment of successive images
-	std::vector<std::array<float, 5>> rel_pos = img_rel_pos(mats, hann_window_LUT, annulus_fft, circle_fft, mats_rows_af, mats_cols_af);
+	std::vector<std::array<float, 5>> rel_pos = img_rel_pos(mats, annulus_fft, circle_fft, mats_rows_af, mats_cols_af);
 
 	//Refine the relative position combinations to get the positions relative to the first image
 	//Index 0 - rows, Index 1 - cols

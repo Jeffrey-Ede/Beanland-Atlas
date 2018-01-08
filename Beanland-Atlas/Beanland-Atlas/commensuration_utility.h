@@ -1,6 +1,5 @@
 #pragma once
 
-#include <defines.h>
 #include <includes.h>
 
 #include <get_spot_positions.h>

@@ -7,17 +7,15 @@ namespace ba
 	**mats: std::vector<cv::Mat> &, Individual floating point images that have been stereographically corrected to extract spots from
 	**spot_pos: cv::Point2d, Position of located spot in the aligned diffraction pattern
 	**rel_pos: std::vector<std::vector<int>> &, Relative positions of images
-	**col_max: int, Maximum column difference between spot positions
-	**row_max: int, Maximum row difference between spot positions
+	**col_max: const int, Maximum column difference between spot positions
+	**row_max: const int, Maximum row difference between spot positions
 	**radius: const int, Radius about the spot locations to extract pixels from
 	**Returns:
 	**std::vector<cv::Mat>, Dynamical diffraction effect decoupled Bragg profile
 	*/
 	std::vector<cv::Mat> condenser_profile(std::vector<cv::Mat> &mats, cv::Point2d &spot_pos, std::vector<std::vector<int>> &rel_pos,
-		int col_max, int row_max, int radius)
+		const int col_max, const int row_max, const int radius)
 	{
-		std::cout << "In condenser_profile()" << std::endl;
-
 		//Find the non-consecutively same position spots and record the indices of multiple spots with the same positions
 		std::vector<std::vector<int>> grouped_idx = consec_same_pos_spots(rel_pos);
 
@@ -298,15 +296,10 @@ namespace ba
 											val1 = groups[m].at<float>(i-group_pos[m].y, j-group_pos[m].x);
 											val2 = groups[n].at<float>(i-group_pos[n].y, j-group_pos[n].x);
 
-											std::cout << i-group_pos[m].y << ", " << j-group_pos[m].x << ", " << val1 << std::endl;
-											std::cout << i-group_pos[n].y << ", " << j-group_pos[n].x << ", " << val2 << std::endl;
-
 											overlaps[co_num++] = cv::Vec3d(dist1, dist2, val1/val2);
 										}
 									}
 								}
-
-								std::cout << "********************" << std::endl;
 
 								//Append the overlapping pixel information to the collation
 								overlap_px_info.insert(overlap_px_info.end(), overlaps.begin(), overlaps.end());
@@ -323,17 +316,58 @@ namespace ba
 			}
 		}
 
-		std::cout << "here..." << std::endl;
+		//Restructure the data to 3 vectors that can be passed to MATLAB
+		std::vector<double> dist1(overlap_px_info.size());
+		std::vector<double> dist2(overlap_px_info.size());
+		std::vector<double> ratio(overlap_px_info.size());
 		for (int i = 0; i < overlap_px_info.size(); i++)
 		{
-			std::cout << i << ": " << overlap_px_info[i][0] << ", "  << overlap_px_info[i][1] << " | " << overlap_px_info[i][2] << std::endl;
+			dist1[i] = overlap_px_info[i][0];
+			dist2[i] = overlap_px_info[i][1];
+			ratio[i] = overlap_px_info[i][2];
 		}
+
+		//////////////////////////////
+		//Initialise the MATLAB engine
+		std::unique_ptr<matlab::engine::MATLABEngine> matlabPtr = matlab::engine::startMATLAB();
+		matlab::data::ArrayFactory factory;
+
+		// Create a vector of input arguments
+		std::vector<matlab::data::Array> args({
+			factory.createArray<double>({ 1, 10 }, { 4, 8, 6, -1, -2, -3, -1, 3, 4, 5 }),
+			factory.createScalar<int32_t>(3),
+			factory.createCharArray("Endpoints"),
+			factory.createCharArray("discard")
+		});
+
+		// Call MATLAB function 
+		matlab::data::TypedArray<double> const result = matlabPtr->
+			feval(matlab::engine::convertUTF8StringToUTF16String("movsum"), args);
+
+		// Display results    
+		int i = 0;
+		for (auto r : result) {
+			std::cout << "results[" << i++ << "] = " << r << std::endl;
+		}
+		/////////////////////////////
+
+		////Pass data to MATLAB to calculate the cubic Bezier profile
+		//md::TypedArray<float> const profile = matlabPtr->feval(
+		//	me::convertUTF8StringToUTF16String("condenser_cubic_Bezier"), //Function name
+		//	factory.createArray( { overlap_px_info.size(), 1 }, dist1.begin(), dist1.end() ), //1st distances set
+		//	factory.createArray( { overlap_px_info.size(), 1 }, dist2.begin(), dist2.end() ), //2nd distances set
+		//	factory.createArray( { overlap_px_info.size(), 1 }, ratio.begin(), ratio.end() ), //Intensity ratios
+		//	factory.createScalar<int32_t>(radius)); //Radius
+
+		////Convert the generated profile to an OpenCV mat
+		cv::Mat bezier_profile = cv::Mat(rows, cols, CV_32FC1);
+		//for (auto val : profile)
+		//{
+		//	std::cout << val << std::endl;
+		//}
 		std::getchar();
 
-		//Fit cubic Bezier curve to the radial profile using least squares minimisation
-		cv::Mat cubic_Bezier;
-
-		return cubic_Bezier;
+		return bezier_profile;
 	}
 
 	/*Calculates the center of and the 2 points closest to and furthest away from the center of the overlapping regions 

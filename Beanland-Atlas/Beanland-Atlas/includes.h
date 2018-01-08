@@ -1,5 +1,7 @@
 #pragma once
 
+#include <defines.h>
+
 //OpenCL
 #include <CL/cl.hpp>
 
@@ -48,7 +50,7 @@
 #include <limits>
 
 //Gradient based symmetry detection
-//#include <symmetry_func.h> //The algorithm is too slow
+//#include <symmetry_func.h> //This algorithm is too slow
 
 //Solve systems of equations
 #include <Eigen/Dense>
@@ -68,7 +70,7 @@ static const char* gauss_kernel_ext_source = "D:/Beanland-Atlas/Beanland-Atlas/B
 static const char* freq_spectrum1D_source = "D:/Beanland-Atlas/Beanland-Atlas/Beanland-Atlas/freq_spectrum1D.cl"; //Convert 2D r2c Fourier spectrum into 1D spetrum
 static const char* circle_source = "D:/Beanland-Atlas/Beanland-Atlas/Beanland-Atlas/create_circle.cl"; //Create padded circle
 
-																									   //Names of kernels
+//Names of kernels
 static const char* gauss_kernel_ext_kernel = "gauss_kernel_extended"; //Create padded annulus
 static const char* freq_spectrum1D_kernel = "freq_spectrum1D"; //Create padded Gaussian blurring kernel
 static const char* annulus_kernel = "create_annulus"; //Convert 2D r2c Fourier spectrum into 1D spetrum

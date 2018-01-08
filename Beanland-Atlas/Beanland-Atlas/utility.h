@@ -1,6 +1,5 @@
 #pragma once
 
-#include <defines.h>
 #include <includes.h>
 
 #include "utility.hpp"

@@ -5,7 +5,6 @@ namespace ba
 	/*Calculate the relative positions between images needed to align them.
 	**Inputs:
 	**mats: cv::Mat &, Images
-	**hann_LUT: cv::Mat &, Precalculated look up table to apply Hann window function with
 	**annulus_fft: af::array &, Fourier transform of Gaussian blurred annulus that has been recursively convolved with itself to convolve the gradiated
 	**image with
 	**circle_fft: af::array &, Fourier transform of Gaussian blurred circle to convolve gradiated image with to remove the annular cross correlation halo
@@ -15,7 +14,7 @@ namespace ba
 	**std::vector<std::array<float, 5>>, Positions of each image relative to the first. The third element of the cv::Vec3f holds the value
 	**of the maximum phase correlation between successive images
 	*/
-	std::vector<std::array<float, 5>> img_rel_pos(std::vector<cv::Mat> &mats, cv::Mat &hann_LUT, af::array &annulus_fft, af::array &circle_fft,
+	std::vector<std::array<float, 5>> img_rel_pos(std::vector<cv::Mat> &mats, af::array &annulus_fft, af::array &circle_fft,
 		int mats_rows_af, int mats_cols_af)
 	{
 		//Assign memory to store relative image positions and their phase correlation weightings

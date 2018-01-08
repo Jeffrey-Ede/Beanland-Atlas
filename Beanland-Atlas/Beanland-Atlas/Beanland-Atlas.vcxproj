@@ -30,7 +30,6 @@
     <ClCompile Include="circ_size_upper_bound.cpp" />
     <ClCompile Include="commensuration_ellipses.cpp" />
     <ClCompile Include="correct_distortions.cpp" />
-    <ClCompile Include="data_to_matlab.cpp" />
     <ClCompile Include="developer_helper_func.cpp" />
     <ClCompile Include="get_spot_positions.cpp" />
     <ClCompile Include="identify_symmetry.cpp" />
@@ -58,7 +57,6 @@
     <ClInclude Include="circ_size_upper_bound.h" />
     <ClInclude Include="commensuration_ellipses.h" />
     <ClInclude Include="correct_distortions.h" />
-    <ClInclude Include="data_to_matlab.h" />
     <ClInclude Include="defines.h" />
     <ClInclude Include="developer_helper_func.h" />
     <ClInclude Include="developer_utility.hpp" />
@@ -68,6 +66,7 @@
     <ClInclude Include="img_rel_pos.h" />
     <ClInclude Include="includes.h" />
     <ClInclude Include="kernel_launchers.h" />
+    <ClInclude Include="matlab.h" />
     <ClInclude Include="postprocessing.h" />
     <ClInclude Include="preprocessing.h" />
     <ClInclude Include="refine_mir_pos.h" />
@@ -171,13 +170,13 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>D:\Beanland-Atlas\Beanland-Atlas\Beanland-Atlas;$(OPENCV_DIR)\include;C:\Program Files (x86)\AMD APP SDK\3.0\include;D:\fftw-3.3.5-dll64-1;D:\boost_compute\compute\include;D:\Program Files\ArrayFire\v3\include;D:\opencv\opencv\build\include\opencv;D:\opencv\opencv\build\include\opencv2;D:\Beanland-Atlas\Beanland-Atlas\Symmetry;D:\Eigen\eigen-eigen-5a0156e40feb;C:\Program Files\MATLAB\R2017a\extern\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\Beanland-Atlas\Beanland-Atlas\Beanland-Atlas;$(OPENCV_DIR)\include;C:\Program Files (x86)\AMD APP SDK\3.0\include;D:\fftw-3.3.5-dll64-1;D:\boost_compute\compute\include;D:\Program Files\ArrayFire\v3\include;D:\opencv\opencv\build\include\opencv;D:\opencv\opencv\build\include\opencv2;D:\Beanland-Atlas\Beanland-Atlas\Symmetry;D:\Eigen\eigen-eigen-5a0156e40feb;D:\Program Files\MATLAB\R2017b\extern\include;D:\Beanland-Atlas\Beanland-Atlas\Beanland-Atlas\MATLAB;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>C:\Program Files (x86)\AMD APP SDK\3.0\lib\x86_64;$(OPENCV_DIR)\x64\vc14\lib\;D:\fftw-3.3.5-dll64-1;D:\Program Files\ArrayFire\v3\lib;D:\Beanland-Atlas\Beanland-Atlas\x64\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>opencv_world330.lib;opencv_world330d.lib;OpenCL.lib;libfftw3-3.lib;libfftw3f-3.lib;libfftw3l-3.lib;afopencl.lib;af.lib;Symmetry.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\Program Files (x86)\AMD APP SDK\3.0\lib\x86_64;$(OPENCV_DIR)\x64\vc14\lib\;D:\fftw-3.3.5-dll64-1;D:\Program Files\ArrayFire\v3\lib;D:\Beanland-Atlas\Beanland-Atlas\x64\Release;D:\Program Files\MATLAB\R2017b\extern\lib\win64\microsoft;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>opencv_world330.lib;opencv_world330d.lib;OpenCL.lib;libfftw3-3.lib;libfftw3f-3.lib;libfftw3l-3.lib;afopencl.lib;af.lib;Symmetry.lib;libeng.lib;libmx.lib;libmat.lib;libMatlabDataArray.lib;libMatlabEngine.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <ProjectReference>
       <UseLibraryDependencyInputs>true</UseLibraryDependencyInputs>

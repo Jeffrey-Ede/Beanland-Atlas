@@ -102,9 +102,6 @@
     <ClCompile Include="commensuration_utility.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="data_to_matlab.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="beanland_atlas.h">
@@ -194,7 +191,7 @@
     <ClInclude Include="commensuration_utility.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="data_to_matlab.h">
+    <ClInclude Include="matlab.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

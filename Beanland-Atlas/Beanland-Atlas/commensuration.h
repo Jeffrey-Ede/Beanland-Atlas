@@ -1,27 +1,36 @@
 #pragma once
 
-#include <defines.h>
 #include <includes.h>
 
 #include <commensuration_utility.h>
-#include "engine.h"
-#include <utility.hpp>
+#include <matlab.h> //Matlab-specific includes
 
 namespace ba
 {
+	//Custom data structure to hold overlapping circle region parameters
+	struct circ_overlap_param {
+		bool overlap; //Set to true if the circles overlap
+		cv::Point2d center; //Center of the overlapping region
+		std::vector<cv::Point2d> minima; //Positions of minimal distance from the center on each arc
+		std::vector<cv::Point2d> maxima; //Positions of maximal distance from the center on each arc
+		cv::Point P1, P2; //Positions of the circle centres
+		std::vector<cv::Point> bounding_rect; //2 corners of the rectangle fully containing the extrema
+	};
+	typedef circ_overlap_param circ_overlap;
+
 	/*Calculate the condenser lens profile using the overlapping regions of spots
 	**Inputs:
 	**mats: std::vector<cv::Mat> &, Individual floating point images that have been stereographically corrected to extract spots from
 	**spot_pos: cv::Point2d, Position of located spot in the aligned diffraction pattern
 	**rel_pos: std::vector<std::vector<int>> &, Relative positions of images
-	**col_max: int, Maximum column difference between spot positions
-	**row_max: int, Maximum row difference between spot positions
+	**col_max: const int, Maximum column difference between spot positions
+	**row_max: const int, Maximum row difference between spot positions
 	**radius: const int, Radius about the spot locations to extract pixels from
 	**Returns:
 	**std::vector<cv::Mat>, Dynamical diffraction effect decoupled Bragg profile
 	*/
 	std::vector<cv::Mat> condenser_profile(std::vector<cv::Mat> &mats, cv::Point2d &spot_pos, std::vector<std::vector<int>> &rel_pos,
-		int col_max, int row_max, int radius);
+		const int col_max, const int row_max, const int radius);
 
 	/*Identify groups of consecutive spots that all have the same position
 	**Input:
@@ -73,17 +82,6 @@ namespace ba
 	**cv::Mat, Dark field decouple Bragg profile of the accumulation
 	*/
 	cv::Mat get_acc_bragg_profile(std::vector<cv::Mat> &blur_not_consec, cv::Mat &circ_mask);
-
-	//Custom data structure to hold overlapping circle region parameters
-	struct circ_overlap_param {
-		bool overlap; //Set to true if the circles overlap
-		cv::Point2d center; //Center of the overlapping region
-		std::vector<cv::Point2d> minima; //Positions of minimal distance from the center on each arc
-		std::vector<cv::Point2d> maxima; //Positions of maximal distance from the center on each arc
-		cv::Point P1, P2; //Positions of the circle centres
-		std::vector<cv::Point> bounding_rect; //2 corners of the rectangle fully containing the extrema
-	};
-	typedef circ_overlap_param circ_overlap;
 
 	/*Calculates the center of and the 2 points closest to and furthest away from the center of the overlapping regions 
 	**of 2 spots
