@@ -1,12 +1,15 @@
-function [ profile ] = condenser_cubic_Bezier( xdata1, xdata2, ydata, r)
+function [ profile ] = bragg_cubic_Bezier( xdata1, xdata2, ydata, r, tol, max_iter)
 %Fit a symmetric, monotonically decreasing cubic Bezier curve to an intensity
 %profile overlapping with itself
 
-%Ratio of 2 Bezier curves
-fun = @(param,xdata)get_ratio(param, [xdata1 xdata2], r);
-
-%Typecase the radius to a double for lsqcurvefit()
+%Cast to double precision for lsqcurvefit()
+xdata1 = double(xdata1);
+xdata2 = double(xdata2);
+ydata = double(ydata);
 r_d = cast(r, 'double');
+
+%Ratio of 2 Bezier curves
+fun = @(param,xdata)get_ratio(param, [xdata1 xdata2], r_d);
 
 %Initial estimate of the fitting parameters
 x0 = [0.5*r_d, 0.5, 0.5, 0.5, 0.5];
@@ -16,18 +19,20 @@ lb = [0.0, 0.0, 0.0, 0.0, 0.0];
 ub = [r_d, 1.0, 1.0, 1.0, 1.0];
 
 %Fit the data
-param = lsqcurvefit(fun, x0, [xdata1 xdata2], ydata, lb, ub);
+options = optimoptions(@lsqcurvefit, 'FunctionTolerance', tol, 'MaxIterations', ...
+    max_iter, 'Display', 'off');
+param = lsqcurvefit(fun, x0, [xdata1 xdata2], ydata, lb, ub, options);
 
 %Use the parameters to calculate the circular, angle-independent condenser
 %lens profile
 profile = zeros(2*r+1, 2*r+1);
 for i = 0:r
-    for j = 0:min(floor(sqrt(r*r-i*i)), i)
+    for j = 0:min(floor(sqrt(double(r*r-i*i))), double(i))
         %Distance from the circle center
-        dist = sqrt(i*i+j*j);
+        dist = sqrt(double(i*i+j*j));
 
         %Get the profile value
-        y = get_y(dist, r, param(1), param(2), param(3), param(4), param(5));
+        y = get_y(dist, r_d, param(1), param(2), param(3), param(4), param(5));
 
         %Set the symmetrically equivalent element values
         profile(r+i+1, r+j+1) = y;
@@ -51,11 +56,29 @@ cubic_roots = roots([(r+3*x1-3*x2) (3*x2-6*x1) (3*x1) (-x)]);
 cubic_roots = cubic_roots(imag(cubic_roots) == 0);
 
 %The solution is the non-imaginary root within the relevant x range
+t = 1E10; %A large number
 for i = 1:numel(cubic_roots)
-   if 0 <= cubic_roots(i) && cubic_roots(i) <= 1.0
+   if 0 <= cubic_roots(i) && cubic_roots(i) <= 1.00
        t = cubic_roots(i);
        break;
    end
+end
+
+%Ensure that t is assigned, preventing problems caused by rounding errors
+if t == 1E10
+    d = cubic_roots(1) - 0.5;
+    if numel(cubic_roots) > 1
+        for i = 2:numel(cubic_roots)
+           if abs(cubic_roots(i) - 0.5) < abs(d)
+               d = cubic_roots(i) - 0.5;
+           end
+        end
+    end
+    if d >= 0
+        t = 1.0;
+    else
+        t = 0.0;
+    end
 end
 end
 

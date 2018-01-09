@@ -7,6 +7,15 @@
 
 namespace ba
 {
+	//Approximate maximum number of data points to pass to the least squares fitting function
+    #define MAX_NLLEASTSQ_DATA 1'000
+
+	//Tolerance to use when least squares fitting a cubic Bezier
+    #define LS_TOL 1e-4
+
+	//Maximum number of iterations when least squares fitting a cubic Bezier
+    #define LS_MAX_ITER 75
+
 	//Custom data structure to hold overlapping circle region parameters
 	struct circ_overlap_param {
 		bool overlap; //Set to true if the circles overlap

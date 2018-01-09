@@ -247,11 +247,12 @@ namespace ba
 		std::vector<cv::Vec3d> overlap_px_info;
 
 		//Get the spots that are fully in images
-		for (int k = 0, m = 0; k < grouped_idx.size(); k++)
+		long int px_tot = 0;
+		for (int k = 0, m = 0, counter = 0; k < grouped_idx.size() && px_tot < MAX_NLLEASTSQ_DATA; k++)
 		{
 			if (is_in_img[k])
 			{
-				for (int l = k+1, n = m+1; l < grouped_idx.size(); l++)
+				for (int l = k+1, n = m+1; l < grouped_idx.size() && px_tot < MAX_NLLEASTSQ_DATA; l++)
 				{
 					if (is_in_img[l])
 					{
@@ -270,6 +271,7 @@ namespace ba
 
 								//Get the number of overlapping pixels from the mask
 								int num_overlap = cv::countNonZero(co_mask);
+								px_tot += num_overlap;
 
 								//Parameters describing each overlap. By index: 0 - Fraction of circle radius from the first circle's center,
 								//1 - Fraction of circle radius from the second circle's center, 2 - ratio of the first circle's pixel value
@@ -308,6 +310,7 @@ namespace ba
 
 						//Go to th next group
 						n++;
+						
 					}
 				}
 
@@ -332,43 +335,32 @@ namespace ba
 
 		std::unique_ptr<matlab::engine::MATLABEngine> matlabPtr = matlab::engine::connectMATLAB();
 
-		//// Create a vector of input arguments
-		//std::vector<matlab::data::Array> args({
-		//	factory.createArray<double>({ 1, 10 }, { 4, 8, 6, -1, -2, -3, -1, 3, 4, 5 }),
-		//	factory.createScalar<int32_t>(3),
-		//	factory.createCharArray("Endpoints"),
-		//	factory.createCharArray("discard")
-		//});
-
-		//// Call MATLAB function 
-		//matlab::data::TypedArray<double> const result = matlabPtr->
-		//	feval(matlab::engine::convertUTF8StringToUTF16String("movsum"), args);
-
-		//// Display results    
-		//int i = 0;
-		//for (auto r : result) {
-		//	std::cout << "results[" << i++ << "] = " << r << std::endl;
-		//}
-
 		//Package data for the cubic Bezier profile calculator
 		std::vector<matlab::data::Array> args({
 			factory.createArray( { overlap_px_info.size(), 1 }, dist1.begin(), dist1.end() ), //1st distances set
 			factory.createArray( { overlap_px_info.size(), 1 }, dist2.begin(), dist2.end() ), //2nd distances set
 			factory.createArray( { overlap_px_info.size(), 1 }, ratio.begin(), ratio.end() ), //Intensity ratios
-			factory.createScalar<int32_t>(radius)
+			factory.createScalar<int32_t>(radius),
+			factory.createScalar<double>(LS_TOL),
+			factory.createScalar<int32_t>(LS_MAX_ITER)
 		});
 
 		//Pass data to MATLAB to calculate the cubic Bezier profile
-		matlab::data::TypedArray<float> const profile = matlabPtr->feval(
-			matlab::engine::convertUTF8StringToUTF16String("condenser_cubic_Bezier"), args);
+		matlab::data::TypedArray<double> const profile = matlabPtr->feval(
+			matlab::engine::convertUTF8StringToUTF16String("bragg_cubic_Bezier"), args);
 
-		////Convert the generated profile to an OpenCV mat
-		cv::Mat bezier_profile = cv::Mat(rows, cols, CV_32FC1);
-		for (auto val : profile)
+		//Convert profile to OpenCV mat It is completely symmetrtic so transpositional filling doesn't matter
+		int diam = 2*radius+1;
+		cv::Mat bezier_profile = cv::Mat(diam, diam, CV_32FC1);
 		{
-			std::cout << val << std::endl;
+			int k = 0;
+			for (auto val : profile)
+			{
+				std::cout << val << std::endl;
+				bezier_profile.at<float>( k/diam, k%diam ) = (float)val;
+				k++;
+			}
 		}
-		std::getchar();
 
 		return bezier_profile;
 	}
