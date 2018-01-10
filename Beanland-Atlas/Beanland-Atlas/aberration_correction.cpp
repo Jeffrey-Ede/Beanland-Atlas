@@ -1,15 +1,16 @@
-//#include <aberration_correction.h>
-//
-//namespace ba
-//{
-//	/*Use symmetry to correct atlas aberration
-//	**Inputs:
-//	**
-//	**Returns:
-//	**
-//	*/
-//	cv::Mat correct_aberrations(cv::Mat raw_atlas)
-//	{
-//		cv::Mat corrected_atlas;
-//	}
-//}
+#include <aberration_correction.h>
+
+namespace ba
+{
+	///*Get the aberrations that can be corrected for each of the images
+	//**Inputs:
+	//**
+	//**Returns:
+	//**
+	//*/
+	//cv::Mat get_aberrations(std::vector<cv::Mat> &mats);
+	//{
+
+
+	//}
+}

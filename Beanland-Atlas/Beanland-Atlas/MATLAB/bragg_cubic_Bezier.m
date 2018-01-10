@@ -6,7 +6,7 @@ function [ profile ] = bragg_cubic_Bezier( xdata1, xdata2, ydata, r, tol, max_it
 xdata1 = double(xdata1);
 xdata2 = double(xdata2);
 ydata = double(ydata);
-r_d = cast(r, 'double');
+r_d = double(r);
 
 %Ratio of 2 Bezier curves
 fun = @(param,xdata)get_ratio(param, [xdata1 xdata2], r_d);
@@ -74,7 +74,8 @@ if t == 1E10
            end
         end
     end
-    if d >= 0
+    %Assign t the value of the limit it passed due to rounding errors
+    if d >= 0.5
         t = 1.0;
     else
         t = 0.0;

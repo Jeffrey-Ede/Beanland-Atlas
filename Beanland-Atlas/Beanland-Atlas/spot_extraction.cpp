@@ -69,7 +69,7 @@ namespace ba
 		{
 			spot_posd[i] = cv::Point2d(spot_pos[i].x, spot_pos[i].y);
 		}
-		std::vector<cv::Mat> condenser_lens_profile = condenser_profile(mats, spot_posd[1], rel_pos, col_max, row_max, 
+		std::vector<cv::Mat> condenser_lens_profile = bragg_envelope(mats, spot_posd[1], rel_pos, col_max, row_max, 
 			radius);
 
 		//Get the ellipses described by each spot so that they can be homomorphically corrected

@@ -38,7 +38,7 @@ namespace ba
 	**Returns:
 	**std::vector<cv::Mat>, Dynamical diffraction effect decoupled Bragg profile
 	*/
-	std::vector<cv::Mat> condenser_profile(std::vector<cv::Mat> &mats, cv::Point2d &spot_pos, std::vector<std::vector<int>> &rel_pos,
+	std::vector<cv::Mat> bragg_envelope(std::vector<cv::Mat> &mats, cv::Point2d &spot_pos, std::vector<std::vector<int>> &rel_pos,
 		const int col_max, const int row_max, const int radius);
 
 	/*Identify groups of consecutive spots that all have the same position
@@ -160,9 +160,9 @@ namespace ba
 	**Returns:
 	**cv::Mat, Condenser lens profile
 	*/
-	cv::Mat get_condenser_lens_profile(std::vector<cv::Mat> &groups, std::vector<cv::Point> &group_pos, cv::Point2d &spot_pos,
+	cv::Mat get_bragg_envelope(std::vector<cv::Mat> &groups, std::vector<cv::Point> &group_pos, cv::Point2d &spot_pos,
 		std::vector<std::vector<int>> &rel_pos, std::vector<std::vector<int>> &grouped_idx, std::vector<bool> &is_in_img,
-		const int radius, const int col_max, const int row_max, const int cols, const int rows);
+		const int radius, const int col_max, const int row_max, const int cols, const int rows, const int diam);
 
 	/*Overload the << operator to print circ_overlap structures
 	**Inputs:

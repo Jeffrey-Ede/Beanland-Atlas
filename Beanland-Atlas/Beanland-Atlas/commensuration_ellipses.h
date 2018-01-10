@@ -4,6 +4,7 @@
 
 #include <Eigen/Eigenvalues>
 #include <ident_sym_utility.h>
+#include <matlab.h> //Matlab-specific includes
 
 namespace ba
 {
@@ -17,6 +18,15 @@ namespace ba
     #define HYPER_RENORM_DEFAULT_SCALE 1 //Scale of the ellipe. 1 is arbitrary. Choosing a better value will reduce numberical errors
     #define HYPER_RENORM_DEFAULT_THRESH 0.9 //Cosine of angle between eigenvectors divided by ratio of higher sized to smaller for conclusion of iterations
     #define HYPER_RENORM_DEFAULT_ITER 15 //Maximum number of iterations
+
+	//Custom data structure to hold ellipse parameters
+	struct ellipse_param {
+		bool is_ellipse;
+		cv::Point2d center;
+		std::vector<cv::Point2d> extrema;
+		double a, b, angle;
+	};
+	typedef ellipse_param ellipse;
 
 	/*Get ellipses describing each spot from their Scharr filtrates. Ellipses are checked using heuristic arguments:
 	**ellipse shapes vary smoothly with time and ellipse shaps must be compatible with a projection of an array of
@@ -43,16 +53,18 @@ namespace ba
 	/*Use weighted sums of squared differences to calculate the sizes of the ellipses from an image's Scharr filtrate
 	**Inputs:
 	**img: cv::Mat &, Image to find the size of ellipses at the estimated positions in
-	**spot_pos: std::vector<cv::Point>, Positions of located spots in the image
+	**spot_pos: std::vector<cv::Point>, Positions of spots in the image
 	**est_rad: std::vector<cv::Vec3f> &, Two radii to look for the ellipse between
 	**est_frac: const float, Proportion of highest Scharr filtrate values to use when initially estimating the ellipse
-	**ellipses: std::vector<std::vector<std::vector<cv::Point>>> &, Positions of the minima and maximal extensions of spot ellipses.
+	**ellipses: std::vector<ellipse> &, Positions of the minima and maximal extensions of spot ellipses.
 	**The ellipses are decribed in terms of 3 points, clockwise from the top left as it makes it easy to use them to perform 
-	**homomorphic warps. The nesting is each spot in the order of their positions in the positions vector, set of 3 points
+	**homomorphic warps, if necessary. The nesting is each spot in the order of their positions in the positions vector, set of 3 points
 	**(1 is extra) desctribing the ellipse, in that order
+	**ellipse_thresh_frac: const float, Proportion of Schaar filtrate in the region use to get an initial estimage of the ellipse
+	**to use
 	*/
 	void get_ellipses(cv::Mat &img, std::vector<cv::Point> spot_pos, std::vector<cv::Vec3f> est_rad, const float est_frac,
-		std::vector<std::vector<cv::Point>> &ellipses, const float ellipse_thresh_frac = ELLIPSE_THRESH_FRAC);
+		std::vector<ellipse> &ellipses, const float ellipse_thresh_frac = ELLIPSE_THRESH_FRAC);
 
 	/*Create annular mask
 	**Inputs:
@@ -92,27 +104,19 @@ namespace ba
 	**A0 to A5 when the data is fit to the equation A0*x*x + 2*A1*x*y + A2*y*y + 2*f0*(A3*x + A4*y) + f0*f0*A5 = 0, in
 	**that order
 	**Inputs:
-	**mask: cv::Mat &, Data points to be used are non-zeros
-	**weights: cv::Mat &, Weights of the individual data points
+	**mask: cv::Mat &, 8-bit mask. Data points to be used are non-zeros
+	**weights: cv::Mat &, 32-bit mask. Weights of the individual data points
 	**f0: const double, Approximate size of the ellipse. This is arbitrary, but choosing a value close
 	**to the correct size reduces numerical errors
-	**thresh: const float, Iterations will be concluded if the cosine of the angle between successive eigenvectors divided
-	**by the amplitude ratio (larger divided by the smaller) is larger than the threshold
+	**thresh: const double, Iterations will be concluded if the cosine of the angle between successive eigenvectors divided
+	**by the amplitude ratio (larger divided by the smaller) is smaller than the threshold
 	**max_iter: const int, The maximum number of iterations to perform. If this limit is reached, the last iteration's conic
 	**coefficients will be returned
 	**Returns:
 	**std::vector<double>, Coefficients of the conic equation
 	*/
 	std::vector<double> hyper_renorm_conic(cv::Mat &mask, cv::Mat weights, const double f0 = HYPER_RENORM_DEFAULT_SCALE,
-		const float thresh = HYPER_RENORM_DEFAULT_THRESH, const int max_iter = HYPER_RENORM_DEFAULT_ITER);
-
-	//Custom data structure to hold ellipse parameters
-	struct ellipse_param {
-		cv::Point2d center;
-		std::vector<cv::Point2d> extrema;
-		double a, b, angle;
-	};
-	typedef ellipse_param ellipse;
+		const double thresh = HYPER_RENORM_DEFAULT_THRESH, const int max_iter = HYPER_RENORM_DEFAULT_ITER);
 
 	/*Calculate the center and 4 extremal points of an ellipse (at maximum and minimum distances from the center) from
 	**the coefficients of the conic equation A*x*x + B*x*y + Cy*y + D*x + E*y + F = 0

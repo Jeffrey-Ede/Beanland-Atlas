@@ -2,9 +2,12 @@
 
 namespace ba
 {
-	/*Calculate the condenser lens profile using the overlapping regions of spots
+
+
+	/*Calculate the dynamical diffraction effected decoupled Bragg profile using the overlapping regions of spots
 	**Inputs:
-	**mats: std::vector<cv::Mat> &, Individual floating point images that have been stereographically corrected to extract spots from
+	**mats: std::vector<cv::Mat> &, Individual floating point images that have been stereographically corrected to extract
+	**spots from
 	**spot_pos: cv::Point2d, Position of located spot in the aligned diffraction pattern
 	**rel_pos: std::vector<std::vector<int>> &, Relative positions of images
 	**col_max: const int, Maximum column difference between spot positions
@@ -13,7 +16,7 @@ namespace ba
 	**Returns:
 	**std::vector<cv::Mat>, Dynamical diffraction effect decoupled Bragg profile
 	*/
-	std::vector<cv::Mat> condenser_profile(std::vector<cv::Mat> &mats, cv::Point2d &spot_pos, std::vector<std::vector<int>> &rel_pos,
+	std::vector<cv::Mat> bragg_envelope(std::vector<cv::Mat> &mats, cv::Point2d &spot_pos, std::vector<std::vector<int>> &rel_pos,
 		const int col_max, const int row_max, const int radius)
 	{
 		//Find the non-consecutively same position spots and record the indices of multiple spots with the same positions
@@ -27,8 +30,8 @@ namespace ba
 		grouping_preproc(mats, grouped_idx, spot_pos, rel_pos, col_max, row_max, radius, diam, groups, group_pos, is_in_img);
 
 		//Get the condenser lens profile
-		cv::Mat profile = get_condenser_lens_profile(groups, group_pos, spot_pos, rel_pos, grouped_idx, is_in_img, radius, 
-			col_max, row_max, mats[0].cols, mats[0].rows);
+		cv::Mat profile = get_bragg_envelope(groups, group_pos, spot_pos, rel_pos, grouped_idx, is_in_img, radius, 
+			col_max, row_max, mats[0].cols, mats[0].rows, diam);
 
 		std::vector<cv::Mat> something;
 		return something;
@@ -239,9 +242,9 @@ namespace ba
 	**Returns:
 	**cv::Mat, Condenser lens profile
 	*/
-	cv::Mat get_condenser_lens_profile(std::vector<cv::Mat> &groups, std::vector<cv::Point> &group_pos, cv::Point2d &spot_pos,
+	cv::Mat get_bragg_envelope(std::vector<cv::Mat> &groups, std::vector<cv::Point> &group_pos, cv::Point2d &spot_pos,
 		std::vector<std::vector<int>> &rel_pos, std::vector<std::vector<int>> &grouped_idx, std::vector<bool> &is_in_img,
-		const int radius, const int col_max, const int row_max, const int cols, const int rows)
+		const int radius, const int col_max, const int row_max, const int cols, const int rows, const int diam)
 	{
 		//Information from overlapping circle pixels needed to determine the condenser lens profile
 		std::vector<cv::Vec3d> overlap_px_info;
@@ -332,7 +335,6 @@ namespace ba
 
 		//Initialise the MATLAB engine
 		matlab::data::ArrayFactory factory;
-
 		std::unique_ptr<matlab::engine::MATLABEngine> matlabPtr = matlab::engine::connectMATLAB();
 
 		//Package data for the cubic Bezier profile calculator
@@ -350,13 +352,11 @@ namespace ba
 			matlab::engine::convertUTF8StringToUTF16String("bragg_cubic_Bezier"), args);
 
 		//Convert profile to OpenCV mat It is completely symmetrtic so transpositional filling doesn't matter
-		int diam = 2*radius+1;
 		cv::Mat bezier_profile = cv::Mat(diam, diam, CV_32FC1);
 		{
 			int k = 0;
 			for (auto val : profile)
 			{
-				std::cout << val << std::endl;
 				bezier_profile.at<float>( k/diam, k%diam ) = (float)val;
 				k++;
 			}
