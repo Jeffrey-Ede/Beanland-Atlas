@@ -2,6 +2,48 @@
 
 namespace ba
 {
+	/*Utility function that builds a named kernel from source code. Will print errors if there are problems compiling it
+	**Inputs:
+	**kernel_sourceFile: const char*, File containing kernel source code
+	**kernel_name: const char*, Name of kernel to be built
+	**af_context: cl_context, Context to create kernel in
+	**af_device_id: cl_device_id, Device to run kernel on
+	**Returns:
+	**cl_kernel, Build kernel ready for arguments to be passed to it
+	*/
+	cl_kernel create_kernel(const char* kernel_sourceFile, const char* kernel_name, cl_context af_context, cl_device_id af_device_id)
+	{
+		//Read the program source
+		std::ifstream sourceFile(kernel_sourceFile);
+		std::string sourceCode(std::istreambuf_iterator<char>(sourceFile), (std::istreambuf_iterator<char>()));
+		const char * source = sourceCode.c_str();
+
+		//Create program
+		int status = CL_SUCCESS;
+		cl_program program = clCreateProgramWithSource(af_context, 1, &source, NULL, &status);
+
+		//Build the program
+		if (clBuildProgram(program, 1, &af_device_id, "", NULL, NULL) != CL_SUCCESS) {
+
+			//Print the source code
+			std::cout << source << std::endl;
+
+			//Print the buildlog if the kernel fails to compile
+			char buffer[10240];
+			clGetProgramBuildInfo(program, af_device_id, CL_PROGRAM_BUILD_LOG, sizeof(buffer), buffer, NULL);
+			fprintf(stderr, "CL Compilation failed:\n%s", buffer);
+			abort();
+		}
+
+		//Create kernel
+		cl_kernel kernel = clCreateKernel(program, kernel_name, &status);
+
+		//Free OpenCL resources
+		clReleaseProgram(program);
+
+		return kernel;
+	}
+
 	/*Create extended Gaussian to blur images with to remove high frequency components.
 	**Inputs:
 	**rows: int, Number of columnss in input matrices. ArrayFire matrices are transposed so this is the number of rows of the ArrayFire

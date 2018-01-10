@@ -211,5 +211,11 @@
     <None Include="condenser_cubic_Bezier.m">
       <Filter>MATLAB</Filter>
     </None>
+    <None Include="MATLAB\hyper_renorm_conic.m">
+      <Filter>MATLAB</Filter>
+    </None>
+    <None Include="MATLAB\share_matlab_engine.m">
+      <Filter>MATLAB</Filter>
+    </None>
   </ItemGroup>
 </Project>

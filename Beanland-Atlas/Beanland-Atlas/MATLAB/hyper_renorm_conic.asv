@@ -13,8 +13,8 @@ epsilon(5) = f0*f0;
 epsilons = cell(nnz_px, 1);
 
 V0 = zeros(6, 6);
-V0(3, 3) = 4*f0*f0;
-V0(4, 4) = 4*f0*f0;
+V0(3, 3) = 4.0*f0*f0;
+V0(4, 4) = 4.0*f0*f0;
 
 M = zeros(6, 6);
 N = zeros(6, 6);
@@ -32,10 +32,10 @@ for y = 1:h
         if data(y, x)
             %Create and store epsilon matrices for future calculations
             epsilon(0) = x*x;
-            epsilon(1) = 2*y*x;
+            epsilon(1) = 2.0*y*x;
             epsilon(2) = y*y;
-            epsilon(3) = 2*f0*x;
-            epsilon(4) = 2*f0*y;
+            epsilon(3) = 2.0*f0*x;
+            epsilon(4) = 2.0*f0*y;
             epsilons{k} = epsilon;
             
             %Accumulate it into the hyper-renormalisation matrix with a
@@ -55,12 +55,15 @@ norm_weights = weights / sum_weights;
 
 %Get the eigenvalues and eigenvectors of the matrix
 [eig_vects, eig_val] = eigs(M, 5, 'largestreal');
+eig_vects = real(eig_vects); %Guard against numerical errors
+eig_val = real(eig_val); %Guard against numerical errors
 
 %Calculate the psuedoinverse of M of truncated rank 5
-M5 = eig_vects(:, 1)*eig_vects(:, 1) / eig_val(1, 1);
-for i = 2:5
-   M5 = M5 + eig_vects(:, i)*eig_vects(:, i) / eig_val(i, i);
-end
+M5 = eig_vects(:, 1)*eig_vects(:, 1) / eig_val(1, 1) + ...
+    eig_vects(:, 2)*eig_vects(:, 2) / eig_val(2, 2) + ...
+    eig_vects(:, 3)*eig_vects(:, 3) / eig_val(3, 3) + ...
+    eig_vects(:, 4)*eig_vects(:, 4) / eig_val(4, 4) + ...
+    eig_vects(:, 5)*eig_vects(:, 5) / eig_val(5, 5);
 
 %Construct the matrix N
 k = 0;
@@ -69,28 +72,28 @@ for y = 1:h
     for x = 1:w
         if data(y, x)
             %Calculate the elements of V0 that vary
-            V0(0, 0) = 4*x*x;
-            V0(0, 1) = 4*x*y;
-            V0(0, 3) = 4*f0*x;
-            V0(1, 0) = 4*x*y;
-            V0(1, 1) = 4*(x*x + y*y);
-            V0(1, 2) = 4*x*y;
-            V0(1, 3) = 4*f0*y;
-            V0(1, 4) = 4*f0*x;
-            V0(2, 1) = 4*x*y;
-            V0(2, 2) = 4*y*y;
-            V0(2, 4) = 4*f0*y;
-            V0(3, 0) = 4*f0*x;
-            V0(3, 1) = 4*f0*y;
-            V0(4, 1) = 4*f0*x;
-            V0(4, 2) = 4*f0*y;
+            V0(0, 0) = 4.0*x*x;
+            V0(0, 1) = 4.0*x*y;
+            V0(0, 3) = 4.0*f0*x;
+            V0(1, 0) = 4.0*x*y;
+            V0(1, 1) = 4.0*(x*x + y*y);
+            V0(1, 2) = 4.0*x*y;
+            V0(1, 3) = 4.0*f0*y;
+            V0(1, 4) = 4.0*f0*x;
+            V0(2, 1) = 4.0*x*y;
+            V0(2, 2) = 4.0*y*y;
+            V0(2, 4) = 4.0*f0*y;
+            V0(3, 0) = 4.0*f0*x;
+            V0(3, 1) = 4.0*f0*y;
+            V0(4, 1) = 4.0*f0*x;
+            V0(4, 2) = 4.0*f0*y;
             
             %Store the value so that it doesn't have to be recalculated
             V{k} = V0;
             
             %Accumulate weighted contribution to N
             N = N + norm_weights(y, x) * ( V{k} + 2*sym(epsilons{k}*e) - ...
-            (1.0 / double(nnz_px)) * (dot(epsilon, (M5*epsilons{k})) * V{k} + ...
+            (1.0 / double(nnz_px)) * (dot(epsilons{k}, (M5*epsilons{k})) * V{k} + ...
             2.0 * sym( V{k} * M5 * epsilons{k} * epsilons{k}.' ) ) );
             
             k = k+1;
@@ -115,14 +118,18 @@ while theta_sim(theta, theta_prev) > req_theta_sim && iter < max_iter
     N = zeros(6, 6);
     
     %Construct the matrix M and calculate the new weights
-    new_weights = cell(nnz_px, 1);
+    W = cell(nnz_px, 1);
     k = 0;
     for y = 1:h
         for x = 1:w
             if data(y, x)
+                %Calculate the new weight using the eigenvector and the
+                %noise susceptibility
+                W{k} = 1.0 / dot(theta, V{k}*theta);
+                
                 %Accumulate contributions to the hyper-renormalisation matrix with a
                 %weight of 1.0
-                M = M + epsilon * epsilon.';
+                M = M + W{k} * epsilons{k} * epsilons{k}.';
 
                 k = k+1;
             end
@@ -133,10 +140,11 @@ while theta_sim(theta, theta_prev) > req_theta_sim && iter < max_iter
     [eig_vects, eig_val] = eigs(M, 5, 'largestreal');
 
     %Calculate the psuedoinverse of M of truncated rank 5
-    M5 = eig_vects(:, 1)*eig_vects(:, 1) / eig_val(1, 1);
-    for i = 2:5
-       M5 = M5 + eig_vects(:, i)*eig_vects(:, i) / eig_val(i, i);
-    end
+    M5 = eig_vects(:, 1)*eig_vects(:, 1) / eig_val(1, 1) + ...
+        eig_vects(:, 2)*eig_vects(:, 2) / eig_val(2, 2) + ...
+        eig_vects(:, 3)*eig_vects(:, 3) / eig_val(3, 3) + ...
+        eig_vects(:, 4)*eig_vects(:, 4) / eig_val(4, 4) + ...
+        eig_vects(:, 5)*eig_vects(:, 5) / eig_val(5, 5);
 
     %Construct the matrix N
     k = 0;
@@ -144,8 +152,8 @@ while theta_sim(theta, theta_prev) > req_theta_sim && iter < max_iter
         for x = 1:w
             if data(y, x)
                 %Accumulate weighted contribution to N
-                N = N + norm_weights(y, x) * ( V{k} + 2*sym(epsilons{k}*e) - ...
-                (1.0 / double(nnz_px)) * (dot(epsilon, (M5*epsilons{k})) * V{k} + ...
+                N = N + norm_weights(y, x) * W{k} * ( V{k} + 2*sym(epsilons{k}*e) - ...
+                (1.0 / double(nnz_px)) * (W{k} * dot(epsilons{k}, (M5*epsilons{k})) * V{k} + ...
                 2.0 * sym( V{k} * M5 * epsilons{k} * epsilons{k}.' ) ) );
 
                 k = k+1;

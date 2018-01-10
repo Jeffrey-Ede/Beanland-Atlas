@@ -1,6 +1,6 @@
 function [ conic_coeff ] = hyper_renorm_conic( data, weights, f0, req_theta_sim, max_iter)
 %Use weighted hyper renormalisation to fit a conic to data points of
-%varying intensity
+%varying weight
 
 sym = @(mat)0.5*(mat+mat.');
 
@@ -55,6 +55,8 @@ norm_weights = weights / sum_weights;
 
 %Get the eigenvalues and eigenvectors of the matrix
 [eig_vects, eig_val] = eigs(M, 5, 'largestreal');
+eig_vects = real(eig_vects); %Guard against numerical errors
+eig_val = real(eig_val); %Guard against numerical errors
 
 %Calculate the psuedoinverse of M of truncated rank 5
 M5 = eig_vects(:, 1)*eig_vects(:, 1) / eig_val(1, 1) + ...
