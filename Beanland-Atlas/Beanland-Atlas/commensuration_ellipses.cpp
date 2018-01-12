@@ -71,15 +71,14 @@ namespace ba
 	**to use
 	*/
 	void get_ellipses(cv::Mat &img, std::vector<cv::Point> spot_pos, std::vector<cv::Vec3f> est_rad, const float est_frac,
-		std::vector<ellipse> &ellipses, const float ellipse_thresh_frac)
+		std::vector<std::vector<double>> &ellipses, const float ellipse_thresh_frac)
 	{
 		//Calculate the amplitude of the image's Scharr filtrate
 		cv::Mat scharr;
 		scharr_amp(img, scharr);
 
-		ellipses = std::vector<ellipse>(spot_pos.size());
-
-		//For each ellipse on the image 
+		//Get the 5 degrees of freedom describing each ellipse on the image
+		ellipses = std::vector<std::vector<double>>(spot_pos.size());
 		for (int i = 0; i < spot_pos.size(); i++)
 		{
 			//Extract the region where the ellipse is located
@@ -89,15 +88,59 @@ namespace ba
 
 			//Refine the mask using k-means clustering to create a mask identifying the pixels of high gradiation
 			cv::Mat mask;
-			kmeans_mask(img, mask, 2, 1, annulus_mask);
+			kmeans_mask(annulus, mask, 2, 1, annulus_mask);
 
 			//Use weighted hyper-renormalisation to fit a conic to the data
 			std::vector<double> ellipse = hyper_renorm_ellipse(mask, annulus, 0.5*(est_rad[i][0]+est_rad[i][1]));
 
-			//Median filter 
+			//Calculate the distances of points from the ellipse
+			std::vector<double> dists;
+			dists_from_ellipse(annulus_mask, annulus, ellipse, dists);
 
-			//Store the ellipse parameters
-			ellipses[i] = ellipse_points_from_conic(ellipse);
+			//Get the weights corresponding to the distances
+			int nnz_px = cv::countNonZero(annulus_mask);
+			std::vector<double> weights;
+			img_2D_to_1D(annulus, weights, annulus_mask);
+
+			//Use weighted k-means clustering to cluster intensity-weighted distances from the initial ellipse estimate
+			//into 3 groups
+			std::vector<std::vector<double>> dists_packaged(1, dists);
+			std::vector<std::vector<double>> centers;
+			std::vector<int> labels;
+			weighted_kmeans(dists_packaged, weights, 3, centers, labels);
+
+			//Identify the low and high centers
+			std::vector<double> center_vals(3);
+			center_vals[0] = centers[0][0]; center_vals[1] = centers[1][0]; center_vals[2] = centers[2][0];
+			std::sort(center_vals.begin(), center_vals.end());
+			double llim = center_vals[0];
+			double ulim = center_vals[2];
+
+			//Identify all pixels between the low and high distance center values
+			cv::Mat refined_mask = cv::Mat(annulus_mask.size(), CV_8UC1, cv::Scalar(0));
+			byte *p, *q;
+			for (int y = 0, k = 0; y < annulus_mask.rows; y++)
+			{
+				p = annulus_mask.ptr<byte>(y);
+				q = refined_mask.ptr<byte>(y);
+				for (int x = 0; x < annulus_mask.cols; x++)
+				{
+					//If the value is on the mask...
+					if (p[x])
+					{
+						//...check if the distance is within the range
+						if (centers[labels[k]][0] >= llim && centers[labels[k]][0] <= ulim)
+						{
+							q[x] = 1;
+						}
+
+						k++;
+					}
+				}
+			}
+
+			//Repeat the weighted hyper-renormalisation using the refined mask
+			ellipses[i] = hyper_renorm_ellipse(refined_mask, annulus, 0.5*(est_rad[i][0]+est_rad[i][1]));
 		}
 	}
 
@@ -300,7 +343,7 @@ namespace ba
 		matlab::data::TypedArray<double> const el = matlabPtr->feval(
 			matlab::engine::convertUTF8StringToUTF16String("hyper_renorm_ellipse"), args);
 
-		//Return the conic coefficients in an easy-to-use vector
+		//Return the ellipse parameters in an easy-to-use vector
 		std::vector<double> ellipse_param(5);
 		{
 			int k = 0;
@@ -310,10 +353,6 @@ namespace ba
 				k++;
 			}
 		}
-
-		//Minus 1 from x and y positions because C++ indexing starts from 0 where MATLAB indexing starts from 1
-		ellipse_param[0]--;
-		ellipse_param[1]--;
 
 		return ellipse_param;
 	}
@@ -488,5 +527,133 @@ namespace ba
 		}
 	}
 
-	float dist_from_ellipse()
+	/*Perform weighted k-means clustering using a MATLAB script
+	**Inputs:
+	**data: std::vector<std::vector<double>> &, Data set to apply weighted k-means clustering to. The data set for each variable
+	**should be the same size. The inner vector is the values for a particular varaible
+	**weights: std::vector<double> &, Weights to apply when k-means clustering
+	**k: const int, Number of clusters
+	**centers: std::vector<std::vector<double>> &, Centroid locations
+	**labels: std::vector<int> &, Cluster each data point is in
+	*/
+	void weighted_kmeans(std::vector<std::vector<double>> &data, std::vector<double> &weights, const int k, 
+		std::vector<std::vector<double>> &centers, std::vector<int> &labels)
+	{
+		//Initialise the MATLAB engine
+		matlab::data::ArrayFactory factory;
+		std::unique_ptr<matlab::engine::MATLABEngine> matlabPtr = matlab::engine::connectMATLAB();
+
+		//If the data set has multiple variables, rearrange them so that they can be packaged for MATLAB
+		std::vector<double> data1D;
+		if (data.size() > 1)
+		{
+			data1D = std::vector<double>(data.size()*data[0].size());
+			for (int i = 0, k = 0; i < data.size(); i++)
+			{
+				for (int j = 0; data[0].size(); j++)
+				{
+					data1D[k] = data[i][j];
+				}
+			}
+		}
+		else
+		{
+			data1D = data[0];
+		}
+
+		//Package data for the cubic Bezier profile calculator
+		std::vector<matlab::data::Array> args({
+			factory.createArray( { data[0].size(), data.size() }, data1D.begin(), data1D.end() ), //Data to cluster
+			factory.createScalar<int32_t>(k), //Number of clusters
+			factory.createCharArray("weight"), //Specify that clustering is to be weighted
+			factory.createArray( { data[0].size(), 1 }, weights.begin(), weights.end() ) //Weights
+		});
+
+		//Pass data to MATLAB to calculate the cubic Bezier profile
+		const size_t num_arg_ret = 3;
+		std::vector<matlab::data::Array> const cluster_info = matlabPtr->feval(
+			matlab::engine::convertUTF8StringToUTF16String("fkmeans"), num_arg_ret, args);
+
+		//Repackage the returned values into convenient-to-use vectors
+		labels = std::vector<int>(data.size());
+		{
+			for (int i = 0; i < data.size(); i++)
+			{
+				labels[i] = cluster_info[0][i];
+			}
+		}
+		centers = std::vector<std::vector<double>>(k);
+		{
+			for (int i = 0; i < k; i++)
+			{
+				for (int j = 0; j < data[0].size(); j++)
+				{
+					centers[i][j] = cluster_info[1][i*k + j];
+				}
+			}
+		}
+	}
+
+	/*Get distances of points from an ellipse moving across columns in each row in that order
+	**Inputs:
+	**mask: cv::Mat &, 8-bit mask whose non-zero values indicate the positions of points
+	**img: cv::Mat &, Image to record the values of at the positions marked on the mask
+	**param: std::vector<double> &, Parameters describing an ellipse. By index: 0 - x position, 1 - y position, 2 - major
+	**axis, 3 - minor axis, 4 - Angle between the major axis and the x axis
+	**dists: std::vector<double> &, Output distances from the ellipse,
+	**accuracy: const double, Accuracy to find distances from ellipses to
+	*/
+	void dists_from_ellipse(cv::Mat &mask, cv::Mat &img, std::vector<double> &param, std::vector<double> &dists,
+		const double accuracy)
+	{
+		//Initialise the MATLAB engine
+		matlab::data::ArrayFactory factory;
+		std::unique_ptr<matlab::engine::MATLABEngine> matlabPtr = matlab::engine::connectMATLAB();
+
+		//If the data set has multiple variables, rearrange them so that they can be packaged for MATLAB
+		int nnz_px = cv::countNonZero(mask);
+		std::vector<double> x(nnz_px); //1D set of mask point positions
+		std::vector<double> y(nnz_px);
+		byte *b;
+		for (int i = 0, k = 0; i < mask.rows; i++)
+		{
+			b = mask.ptr<byte>(i);
+			for (int j = 0; j < mask.cols; j++)
+			{
+				//Record the positions of points on the mask
+				if (b[j])
+				{
+					x[k] = (double)j;
+					y[k] = (double)i;
+					
+					k++;
+				}
+			}
+		}
+
+		//Package data for the cubic Bezier profile calculator
+		std::vector<matlab::data::Array> args({
+			factory.createArray( { nnz_px, 1 }, x.begin(), x.end() ), //x positions of points
+			factory.createArray( { nnz_px, 1 }, y.begin(), y.end() ), //y positions of points
+			factory.createScalar<double>(param[3]), 
+			factory.createScalar<double>(param[2]),
+			factory.createScalar<double>(param[0]),
+			factory.createScalar<double>(param[1]),
+			factory.createScalar<double>(param[4]),
+			factory.createScalar<double>(accuracy)
+		});
+
+		//Pass data to MATLAB to calculate the cubic Bezier profile
+		matlab::data::Array const dists_info = matlabPtr->feval(
+			matlab::engine::convertUTF8StringToUTF16String("dist_points_to_ellipse"), args);
+
+		//Repackage the returned values into a convenient-to-use vector
+		dists = std::vector<double>(nnz_px);
+		{
+			for (int i = 0; i < nnz_px; i++)
+			{
+				dists[i] = dists_info[i];
+			}
+		}
+	}
 }

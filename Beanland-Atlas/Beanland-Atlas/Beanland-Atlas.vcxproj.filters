@@ -217,5 +217,14 @@
     <None Include="MATLAB\hyper_renorm_ellipse.m">
       <Filter>MATLAB</Filter>
     </None>
+    <None Include="MATLAB\fkmeans.m">
+      <Filter>MATLAB</Filter>
+    </None>
+    <None Include="MATLAB\distancePointToEllipse.m">
+      <Filter>MATLAB</Filter>
+    </None>
+    <None Include="MATLAB\dists_points_to_ellipse.m">
+      <Filter>MATLAB</Filter>
+    </None>
   </ItemGroup>
 </Project>

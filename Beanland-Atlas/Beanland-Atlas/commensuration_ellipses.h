@@ -5,6 +5,7 @@
 #include <aberration_correction.h>
 #include <ident_sym_utility.h>
 #include <matlab.h> //Matlab-specific includes
+#include <utility.hpp>
 
 namespace ba
 {
@@ -18,6 +19,9 @@ namespace ba
     #define HYPER_RENORM_DEFAULT_SCALE 1 //Scale of the ellipe. 1 is arbitrary. Choosing a better value will reduce numberical errors
     #define HYPER_RENORM_DEFAULT_THRESH 0.9 //Cosine of angle between eigenvectors divided by ratio of higher sized to smaller for conclusion of iterations
     #define HYPER_RENORM_DEFAULT_ITER 15 //Maximum number of iterations
+
+	//Accuracy to find distances from ellipses as a fraction of the pixel size
+    #define DISTS_FROM_EL_ACC 0.1
 
 	//Custom data structure to hold ellipse parameters
 	struct ellipse_param {
@@ -64,7 +68,7 @@ namespace ba
 	**to use
 	*/
 	void get_ellipses(cv::Mat &img, std::vector<cv::Point> spot_pos, std::vector<cv::Vec3f> est_rad, const float est_frac,
-		std::vector<ellipse> &ellipses, const float ellipse_thresh_frac = ELLIPSE_THRESH_FRAC);
+		std::vector<std::vector<double>> &ellipses, const float ellipse_thresh_frac = ELLIPSE_THRESH_FRAC);
 
 	/*Create annular mask
 	**Inputs:
@@ -146,6 +150,29 @@ namespace ba
 	**Returns:
 	**double, +/- 1.0: +1 means that elongation is in the same direction as decreasing intensity
 	*/
-	double inv_sqr_inciding_sign(cv::Mat img, std::vector<ellipse> &ellipses, const float fear, 
-		cv::Vec2d &dir);
+	double inv_sqr_inciding_sign(cv::Mat img, std::vector<ellipse> &ellipses, const float fear, cv::Vec2d &dir);
+
+	/*Perform weighted k-means clustering using a MATLAB script
+	**Inputs:
+	**data: std::vector<std::vector<double>> &, Data set to apply weighted k-means clustering to. The data set for each variable
+	**should be the same size. The inner vector is the values for a particular varaible
+	**weights: std::vector<double> &, Weights to apply when k-means clustering
+	**k: const int, Number of clusters
+	**centers: std::vector<std::vector<double>> &, Centroid locations
+	**labels: std::vector<int> &, Cluster each data point is in
+	*/
+	void weighted_kmeans(std::vector<std::vector<double>> &data, std::vector<double> &weights, const int k, 
+		std::vector<std::vector<double>> &centers, std::vector<int> &labels);
+
+	/*Get distances of points from an ellipse moving across columns in each row in that order
+	**Inputs:
+	**mask: cv::Mat &, 8-bit mask whose non-zero values indicate the positions of points
+	**img: cv::Mat &, Image to record the values of at the positions marked on the mask
+	**param: std::vector<double> &, Parameters describing an ellipse. By index: 0 - x position, 1 - y position, 2 - major
+	**axis, 3 - minor axis, 4 - Angle between the major axis and the x axis
+	**dists: std::vector<double> &, Output distances from the ellipse,
+	**accuracy: const double, Accuracy to find distances from ellipses to
+	*/
+	void dists_from_ellipse(cv::Mat &mask, cv::Mat &img, std::vector<double> &param, std::vector<double> &dists,
+		const double accuracy = DISTS_FROM_EL_ACC);
 }

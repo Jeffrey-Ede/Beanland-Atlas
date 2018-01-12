@@ -50,7 +50,7 @@ function data = hyper_renorm_ellipse(X1, X2, weights, F0, maxIters, convThresh)
 % License: visit the GitHub repository for the original code at
 % https://github.com/ChasNelson1990/Hyper-renormalisation-for-Ellipse-Fitting
 
-%Reformat coordinates, X1 and X2, of points into a single-matrix format
+%%Reformat coordinates, X1 and X2, of points into a single-matrix format
 X = [X1 X2];
 
 %% Inputs

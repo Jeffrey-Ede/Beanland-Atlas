@@ -107,4 +107,60 @@ namespace ba
 	{
 		return std::find(container.begin(), container.end(), thing) != container.end();
 	}
+
+	/*Convert a 2D image to a 1D array by moving across its columns and rows, in that order, and recording the values of 
+	**pixels corresponding to non-zero values on the mask
+	**Inputs:
+	**img: cv::Mat &, 32-bit Image to convert from 2D to 1D
+	**img1D: std::vector<typename T>, Vector to store the 1D version of the image
+	**mask: cv::Mat &, 8-bit mask whose non-zero pixels indicate pixels to record in the 1D vector
+	*/
+	template <typename T> void img_2D_to_1D(cv::Mat &img, std::vector<T> &img1D, cv::Mat &mask = cv::Mat())
+	{
+		if (mask.empty())
+		{
+			//Assign memory to hold the 1D image
+			img1D = std::vector<T>(img.rows*img.cols);
+
+			//Iterate over the image, recording the pixel
+			float *p;
+			byte *b;
+			for (int i = 0, k = 0; i < mask.rows; i++)
+			{
+				b = mask.ptr<byte>(i);
+				p = img.ptr<float>(i);
+				for (int j = 0; j < mask.cols; j++, k++)
+				{
+					img1D[k] = (T)p[j];
+				}
+			}
+		}
+		else
+		{
+			//Get number of pixels to place in the 1D vector
+			nnz_px = cv::countNonZero(mask);
+
+			//Assign memory to hold the 1D image
+			img1D = std::vector<T>(nnz_px);
+
+			//Iterate over the image, recording the pixel
+			float *p;
+			byte *b;
+			for (int i = 0, k = 0; i < mask.rows; i++)
+			{
+				b = mask.ptr<byte>(i);
+				p = img.ptr<float>(i);
+				for (int j = 0; j < mask.cols; j++)
+				{
+					//Check if the pixel is indicated to be recorded by the mask
+					if (b[j])
+					{
+						img1D[k] = (T)p[j];
+
+						k++;
+					}
+				}
+			}
+		}
+	}
 }
