@@ -83,7 +83,7 @@
     <None Include="create_circle.cl" />
     <None Include="freq_spectrum1D.cl" />
     <None Include="gauss_kernel_padded.cl" />
-    <None Include="MATLAB\hyper_renorm_conic.m" />
+    <None Include="MATLAB\hyper_renorm_ellipse.m" />
     <None Include="MATLAB\share_matlab_engine.m" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

@@ -97,4 +97,14 @@ namespace ba
 		val = img.at<T>(row < img.rows ? (row >= 0 ? row : 0) : img.rows-1, 
 			col < img.cols ? (col >= 0 ? col : 0) : img.cols-1);
 	}
+
+	/*Check if a container contains an object
+	**Inputs:
+	**container: std::vector<typename S> &, The container
+	**thing: typename T &, The thing to check if the container contains
+	*/
+	template <typename S, typename T> bool contains(std::vector<S> &container, T &thing)
+	{
+		return std::find(container.begin(), container.end(), thing) != container.end();
+	}
 }

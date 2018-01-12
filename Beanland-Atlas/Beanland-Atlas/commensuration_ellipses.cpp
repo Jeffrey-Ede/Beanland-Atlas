@@ -83,15 +83,21 @@ namespace ba
 		for (int i = 0; i < spot_pos.size(); i++)
 		{
 			//Extract the region where the ellipse is located
-			cv::Mat mask, annulus;
-			create_annular_mask(mask, 2*est_rad[i][1]+1, est_rad[i][0], est_rad[i][1]);
-			get_mask_values( img, annulus, mask, cv::Point2i( spot_pos[i].y-est_rad[i][1], spot_pos[i].y-est_rad[i][1] ) );
+			cv::Mat annulus_mask, annulus;
+			create_annular_mask(annulus_mask, 2*est_rad[i][1]+1, est_rad[i][0], est_rad[i][1]);
+			get_mask_values( img, annulus, annulus_mask, cv::Point2i( spot_pos[i].y-est_rad[i][1], spot_pos[i].y-est_rad[i][1] ) );
+
+			//Refine the mask using k-means clustering to create a mask identifying the pixels of high gradiation
+			cv::Mat mask;
+			kmeans_mask(img, mask, 2, 1, annulus_mask);
 
 			//Use weighted hyper-renormalisation to fit a conic to the data
-			std::vector<double> conic = hyper_renorm_conic(mask, annulus, 0.5*(est_rad[i][0]+est_rad[i][1]));
+			std::vector<double> ellipse = hyper_renorm_ellipse(mask, annulus, 0.5*(est_rad[i][0]+est_rad[i][1]));
+
+			//Median filter 
 
 			//Store the ellipse parameters
-			ellipses[i] = ellipse_points_from_conic(conic);
+			ellipses[i] = ellipse_points_from_conic(ellipse);
 		}
 	}
 
@@ -234,8 +240,8 @@ namespace ba
 	}
 
 	/*Weight the fit an ellipse to a noisy set of data using hyper-renormalisation. The function generates the coefficients
-	**A0 to A5 when the data is fit to the equation A0*x*x + 2*A1*x*y + A2*y*y + 2*f0*(A3*x + A4*y) + f0*f0*A5 = 0, in
-	**that order
+	**A0 to A5 when the data is fit to the equation A0*x*x + 2*A1*x*y + A2*y*y + 2*f0*(A3*x + A4*y) + f0*f0*A5 = 0 and uses
+	**them to fit an ellipse to the data
 	**Inputs:
 	**mask: cv::Mat &, 8-bit mask. Data points to be used are non-zeros
 	**weights: cv::Mat &, 32-bit mask. Weights of the individual data points
@@ -248,54 +254,68 @@ namespace ba
 	**Returns:
 	**std::vector<double>, Coefficients of the conic equation
 	*/
-	std::vector<double> hyper_renorm_conic(cv::Mat &mask, cv::Mat weights, const double f0, const double thresh, 
+	std::vector<double> hyper_renorm_ellipse(cv::Mat &mask, cv::Mat weights, const double f0, const double thresh, 
 		const int max_iter)
 	{
 		//Initialise the MATLAB engine
 		matlab::data::ArrayFactory factory;
 		std::unique_ptr<matlab::engine::MATLABEngine> matlabPtr = matlab::engine::connectMATLAB();
 
-		//Package the mask and weights into vectors so that they can be passed to MATLAB
-		std::vector<byte> mask_vect(mask.rows*mask.cols);
-		std::vector<double> weights_vect(mask.rows*mask.cols);
+		//Package the mask positions and weights into vectors so that they can be passed to MATLAB
+		size_t nnz_px = cv::countNonZero(mask);
+		std::vector<double> x(nnz_px); //x position
+		std::vector<double> y(nnz_px); //y position
+		std::vector<double> w(nnz_px); //Weight
 		byte *p;
 		float *q;
 		for (int i = 0, k = 0; i < mask.rows; i++)
 		{
 			p = mask.ptr<byte>(i);
 			q = weights.ptr<float>(i);
-			for (int j = 0; j < mask.cols; j++, k++)
+			for (int j = 0; j < mask.cols; j++)
 			{
-				mask_vect[k] = p[j];
-				weights_vect[k] = (double)q[j];
+				//Prepare the data for points marked on the mask
+				if (p[j])
+				{
+					x[k] = (double)j;
+					y[k] = (double)i;
+					w[k] = (double)q[j];
+
+					k++;
+				}
 			}
 		}
 
 		//Package data for the cubic Bezier profile calculator
 		std::vector<matlab::data::Array> args({
-			factory.createArray( { (size_t)mask.rows, (size_t)mask.cols }, mask_vect.begin(), mask_vect.end() ), //Points to fit
-			factory.createArray( { (size_t)mask.rows, (size_t)mask.cols }, weights_vect.begin(), weights_vect.end() ), //Point weights
+			factory.createArray( { nnz_px, 1 }, x.begin(), x.end() ), //Point x positions
+			factory.createArray( { nnz_px, 1 }, y.begin(), y.end() ), //Point y positions
+			factory.createArray( { nnz_px, 1 }, w.begin(), w.end() ), //Point weights
 			factory.createScalar<double>(f0), //Size scale
-			factory.createScalar<double>(thresh), //Minimum desired similarity of parameters from successive iterations
-			factory.createScalar<int32_t>(max_iter) //Maximum number of iterations
+			factory.createScalar<int32_t>(max_iter), //Maximum number of iterations
+			factory.createScalar<double>(thresh) //Minimum desired similarity of parameters from successive iterations
 		});
 
 		//Pass data to MATLAB to calculate the cubic Bezier profile
-		matlab::data::TypedArray<double> const conic = matlabPtr->feval(
-			matlab::engine::convertUTF8StringToUTF16String("hyper_renorm_conic"), args);
+		matlab::data::TypedArray<double> const el = matlabPtr->feval(
+			matlab::engine::convertUTF8StringToUTF16String("hyper_renorm_ellipse"), args);
 
 		//Return the conic coefficients in an easy-to-use vector
-		std::vector<double> conic_coeff(6);
+		std::vector<double> ellipse_param(5);
 		{
 			int k = 0;
-			for (auto val : conic)
+			for (auto val : el)
 			{
-				conic_coeff[k] = val;
+				ellipse_param[k] = val;
 				k++;
 			}
 		}
 
-		return conic_coeff;
+		//Minus 1 from x and y positions because C++ indexing starts from 0 where MATLAB indexing starts from 1
+		ellipse_param[0]--;
+		ellipse_param[1]--;
+
+		return ellipse_param;
 	}
 
 	/*Calculate the center and 4 extremal points of an ellipse (at maximum and minimum distances from the center) from
@@ -467,4 +487,6 @@ namespace ba
 			return -1.0;
 		}
 	}
+
+	float dist_from_ellipse()
 }

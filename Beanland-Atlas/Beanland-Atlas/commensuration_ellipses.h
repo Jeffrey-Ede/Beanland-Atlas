@@ -2,7 +2,7 @@
 
 #include <includes.h>
 
-#include <Eigen/Eigenvalues>
+#include <aberration_correction.h>
 #include <ident_sym_utility.h>
 #include <matlab.h> //Matlab-specific includes
 
@@ -115,7 +115,7 @@ namespace ba
 	**Returns:
 	**std::vector<double>, Coefficients of the conic equation
 	*/
-	std::vector<double> hyper_renorm_conic(cv::Mat &mask, cv::Mat weights, const double f0 = HYPER_RENORM_DEFAULT_SCALE,
+	std::vector<double> hyper_renorm_ellipse(cv::Mat &mask, cv::Mat weights, const double f0 = HYPER_RENORM_DEFAULT_SCALE,
 		const double thresh = HYPER_RENORM_DEFAULT_THRESH, const int max_iter = HYPER_RENORM_DEFAULT_ITER);
 
 	/*Calculate the center and 4 extremal points of an ellipse (at maximum and minimum distances from the center) from
