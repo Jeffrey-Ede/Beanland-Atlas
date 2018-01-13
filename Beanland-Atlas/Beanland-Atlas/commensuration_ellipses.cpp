@@ -569,7 +569,7 @@ namespace ba
 			factory.createArray( { data[0].size(), 1 }, weights.begin(), weights.end() ) //Weights
 		});
 
-		//Pass data to MATLAB to calculate the cubic Bezier profile
+		//Pass data to MATLAB to calculate the weighted custerings
 		const size_t num_arg_ret = 3;
 		std::vector<matlab::data::Array> const cluster_info = matlabPtr->feval(
 			matlab::engine::convertUTF8StringToUTF16String("fkmeans"), num_arg_ret, args);
@@ -612,8 +612,7 @@ namespace ba
 
 		//If the data set has multiple variables, rearrange them so that they can be packaged for MATLAB
 		int nnz_px = cv::countNonZero(mask);
-		std::vector<double> x(nnz_px); //1D set of mask point positions
-		std::vector<double> y(nnz_px);
+		std::vector<double> x(2*nnz_px); //1D set of mask point positions
 		byte *b;
 		for (int i = 0, k = 0; i < mask.rows; i++)
 		{
@@ -623,36 +622,39 @@ namespace ba
 				//Record the positions of points on the mask
 				if (b[j])
 				{
-					x[k] = (double)j;
-					y[k] = (double)i;
-					
-					k++;
+					x[k++] = (double)j;
+					x[k++] = (double)i;
 				}
 			}
 		}
 
-		//Package data for the cubic Bezier profile calculator
+		//Package data for projection onto the ellipse
 		std::vector<matlab::data::Array> args({
-			factory.createArray( { nnz_px, 1 }, x.begin(), x.end() ), //x positions of points
-			factory.createArray( { nnz_px, 1 }, y.begin(), y.end() ), //y positions of points
-			factory.createScalar<double>(param[3]), 
-			factory.createScalar<double>(param[2]),
-			factory.createScalar<double>(param[0]),
-			factory.createScalar<double>(param[1]),
-			factory.createScalar<double>(param[4]),
-			factory.createScalar<double>(accuracy)
+			factory.createArray( { nnz_px, 2 }, x.begin(), x.end() ), //Positions of points
+			factory.createArray( { 5, 1 }, param.begin(), param.end() ) //Ellipse parameters
 		});
 
-		//Pass data to MATLAB to calculate the cubic Bezier profile
-		matlab::data::Array const dists_info = matlabPtr->feval(
-			matlab::engine::convertUTF8StringToUTF16String("dist_points_to_ellipse"), args);
+		//Pass data to MATLAB to calculate the positions of points projected onto the ellipse
+		matlab::data::Array const d = matlabPtr->feval(
+			matlab::engine::convertUTF8StringToUTF16String("project_onto_ellipse"), args);
 
-		//Repackage the returned values into a convenient-to-use vector
+		//Return distances in a convenient-to-use vector
 		dists = std::vector<double>(nnz_px);
 		{
-			for (int i = 0; i < nnz_px; i++)
+			//Get the distances between points and their projections onto the ellipse
+			double c = std::cos(param[4]);
+			double s = std::sin(param[4]);
+			for (int i = 0, k = 0; i < 2*nnz_px; i += 2, k++)
 			{
-				dists[i] = dists_info[i];
+				dists[k] = std::sqrt((d[i]-x[i])*(d[i]-x[i]) + (d[i+1]-x[i+1])*(d[i+1]-x[i+1]));
+				
+				//Make distances to points inside the ellipse negative
+				double r = d[i]*c - d[i+1]*s;
+				double z = d[i]*s + d[i+1]*c;
+				if (r*r/(param[2]*param[2]) + z*z/(param[3]*param[3]) <= 1.0)
+				{
+					dists[k] = -dists[k];
+				}
 			}
 		}
 	}

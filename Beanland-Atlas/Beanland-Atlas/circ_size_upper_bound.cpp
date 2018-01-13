@@ -2,7 +2,7 @@
 
 namespace ba
 {
-	/*Calculate upper bound for the size of circles in an image. This is done by convolving images with a gaussian low pass filter in the
+	/*Calculate upper bound for the size of circles in an image. This is done by convolving images with a Gaussian low pass filter in the
 	**Fourier domain. The amplitudes of freq radii are then caclulated for the processed image. These are rebinned to get a histogram with
 	**equally spaced histogram bins. This process is repeated until the improvement in the autocorrelation of the bins no longer significantly
 	**increases as additional images are processed. The error-weighted centroid of the 1D spectrum is then used to generate an upper bound for

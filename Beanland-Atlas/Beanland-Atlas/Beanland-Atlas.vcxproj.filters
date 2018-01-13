@@ -226,5 +226,8 @@
     <None Include="MATLAB\dists_points_to_ellipse.m">
       <Filter>MATLAB</Filter>
     </None>
+    <None Include="MATLAB\project_onto_ellipse.m">
+      <Filter>MATLAB</Filter>
+    </None>
   </ItemGroup>
 </Project>
