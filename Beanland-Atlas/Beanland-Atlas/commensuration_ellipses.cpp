@@ -24,7 +24,6 @@ namespace ba
 	{
 		//Use the Scharr filtrate of the aligned diffraction patterns to estimate the ellipses
 		std::vector<std::vector<cv::Point>> acc_ellipses;
-		//ellipse_sizes(acc, spot_pos, acc_ellipses);
 
 		//Use the aligned image Scharr filtrate to get approximate information about the ellipses
 		cv::Mat scharr;
@@ -78,9 +77,13 @@ namespace ba
 			cv::minMaxLoc(radial_scharr, NULL, &max, NULL, &maxLoc);
 			int max_pos = maxLoc.y;
 
+			std::cout << radial_scharr << std::endl;
+
 			//k-means cluster the radial intensities into high and low values
 			cv::Mat mask;
 			kmeans_mask(radial_scharr, mask, 2, 0); //The low intensity values will be marked with non-zeros
+
+			std::cout << mask << std::endl;
 
 			//Find the extent of the maximum by fitting linear lines to the lower intensity values on either side of it
 			int l = 0, u = rad_ulim - rad_llim;
@@ -146,9 +149,11 @@ namespace ba
 					}
 				}
 			}
+			std::cout << l << ", " << u << std::endl;
+			std::getchar();
 
 			//Record the lower and upper radial intercepts to constrain the range of radii to look for the ellipse in
-			annulus_radii[i] = cv::Vec2f(l, u);
+			annulus_radii[i] = cv::Vec2f(rad_llim+l, rad_llim+u);
 		}
 
 		//Get the positions of spots in each image
@@ -757,7 +762,7 @@ namespace ba
 		std::unique_ptr<matlab::engine::MATLABEngine> matlabPtr = matlab::engine::connectMATLAB();
 
 		//If the data set has multiple variables, rearrange them so that they can be packaged for MATLAB
-		int nnz_px = cv::countNonZero(mask);
+		size_t nnz_px = cv::countNonZero(mask);
 		std::vector<double> x(2*nnz_px); //1D set of mask point positions
 		byte *b;
 		for (int i = 0, k = 0; i < mask.rows; i++)
@@ -781,8 +786,9 @@ namespace ba
 		});
 
 		//Pass data to MATLAB to calculate the positions of points projected onto the ellipse
-		matlab::data::Array const d = matlabPtr->feval(
+		matlab::data::TypedArray<double> const d = matlabPtr->feval(
 			matlab::engine::convertUTF8StringToUTF16String("project_onto_ellipse"), args);
+
 
 		//Return distances in a convenient-to-use vector
 		dists = std::vector<double>(nnz_px);

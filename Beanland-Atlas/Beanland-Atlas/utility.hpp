@@ -138,7 +138,7 @@ namespace ba
 		else
 		{
 			//Get number of pixels to place in the 1D vector
-			nnz_px = cv::countNonZero(mask);
+			int nnz_px = cv::countNonZero(mask);
 
 			//Assign memory to hold the 1D image
 			img1D = std::vector<T>(nnz_px);

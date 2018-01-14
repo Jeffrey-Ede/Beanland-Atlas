@@ -1,9 +1,14 @@
 #pragma once
 
+#include <commensuration_ellipses.h>
 #include <includes.h>
 
 namespace ba
 {
+	//Multiples of the central spot's radius that the spot radii are expected to be between
+    #define EL_LLIM_FRAC 0.4 //Lower bound
+    #define EL_ULIM_FRAC 1.3 //Upper bound
+
 	/*Combine the k spaces mapped out by spots in each of the images create maps of the whole k space navigated by that spot.
 	**Individual maps are summed together. The total map is then divided by the number of spot k space maps contributing to 
 	**each px in the total map. These maps are then combined into an atlas

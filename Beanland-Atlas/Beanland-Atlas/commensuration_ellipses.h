@@ -36,14 +36,19 @@ namespace ba
 	**Inputs:
 	**mats: std::vector<cv::Mat> &, Individual images to extract spots from
 	**spot_pos: std::vector<cv::Point> &, Positions of located spots in aligned diffraction pattern
-	**ellipses: std::vector<std::vector<std::vector<cv::Point>>> &, Positions of the minima and maximal extensions of spot ellipses.
-	**The ellipses are decribed in terms of 3 points, clockwise from the top left as it makes it easy to use them to perform 
-	**homomorphic warps. The nesting is each image, each spot in the order of their positions in the positions vector, set of
-	**3 points (1 is extra) desctribing the ellipse, in that order
+	**rel_pos: std::vector<std::vector<int>> &, Relative positions of images to first image
+	**col_max: const int &, Maximum column difference between spot positions
+	**row_max: const int &, Maximum row difference between spot positions
+	**ellipses: std::vector<std::vector<std::vector<double>>> &, For each image, for each spot that an ellipse can be fitted 
+	**to, a set of 5 parameters describing an ellipse. By index: 0 - x position, 1 - y position, 2 - major axis, 3 - minor axis,
+	**4 - Angle between the major axis and the x axis
 	**acc: cv::Mat &, Average of the aligned diffraction patterns
+	**rad_llim: const int, Lower limit for spot radii to consider.
+	**rad_ulim: const int, Upper limit for spot radii to consider. SHould be at least 1 higher than the lower limit
 	*/
-	void get_spot_ellipses(std::vector<cv::Mat> &mats, std::vector<cv::Point> &spot_pos, cv::Mat &acc, 
-		std::vector<std::vector<std::vector<cv::Point>>> &ellipses);
+	void get_spot_ellipses(std::vector<cv::Mat> &mats, std::vector<cv::Point> &spot_pos, std::vector<std::vector<int>> &rel_pos,
+		const int &col_max,	const int &row_max,	cv::Mat &acc, std::vector<std::vector<std::vector<double>>> &ellipses,
+		const int rad_llim, const int rad_ulim);
 
 	/*Amplitude of image's Scharr filtrate
 	**Inputs:
