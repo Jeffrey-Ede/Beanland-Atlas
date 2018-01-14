@@ -3,6 +3,7 @@
 #include <includes.h>
 
 #include <aberration_correction.h>
+#include <commensuration.h>
 #include <ident_sym_utility.h>
 #include <matlab.h> //Matlab-specific includes
 #include <utility.hpp>
@@ -11,9 +12,6 @@ namespace ba
 {
 	//Number of bins to use when calculating histogram to determine the which threshold to apply to gradient-based symmetry space
     #define THRESH_PROP_HIST_SIZE 100 
-
-	//Proportion of Schaar filtrate in the region use to get an initial estimage of the ellipse to use
-    #define ELLIPSE_THRESH_FRAC 0.4
 
 	//Hyper-renormalisation ellipse fitting defaults
     #define HYPER_RENORM_DEFAULT_SCALE 1 //Scale of the ellipe. 1 is arbitrary. Choosing a better value will reduce numberical errors
@@ -58,17 +56,13 @@ namespace ba
 	**Inputs:
 	**img: cv::Mat &, Image to find the size of ellipses at the estimated positions in
 	**spot_pos: std::vector<cv::Point>, Positions of spots in the image
-	**est_rad: std::vector<cv::Vec3f> &, Two radii to look for the ellipse between
-	**est_frac: const float, Proportion of highest Scharr filtrate values to use when initially estimating the ellipse
-	**ellipses: std::vector<ellipse> &, Positions of the minima and maximal extensions of spot ellipses.
-	**The ellipses are decribed in terms of 3 points, clockwise from the top left as it makes it easy to use them to perform 
-	**homomorphic warps, if necessary. The nesting is each spot in the order of their positions in the positions vector, set of 3 points
-	**(1 is extra) desctribing the ellipse, in that order
-	**ellipse_thresh_frac: const float, Proportion of Schaar filtrate in the region use to get an initial estimage of the ellipse
-	**to use
+	**est_rad: std::vector<cv::Vec2f> &, Two radii to look for the ellipse between
+	**ellipses: std::vector<std::vector<std::vector<double>>> &, For each spot that an ellipse can be fitted to, a set of
+	**5 parameters describing an ellipse. By index: 0 - x position, 1 - y position, 2 - major axis, 3 - minor axis, 4 - Angle
+	**between the major axis and the x axis
 	*/
-	void get_ellipses(cv::Mat &img, std::vector<cv::Point> spot_pos, std::vector<cv::Vec3f> est_rad, const float est_frac,
-		std::vector<std::vector<double>> &ellipses, const float ellipse_thresh_frac = ELLIPSE_THRESH_FRAC);
+	void get_ellipses(cv::Mat &img, std::vector<cv::Point> spot_pos, std::vector<cv::Vec2f> est_rad,
+		std::vector<std::vector<double>> &ellipses);
 
 	/*Create annular mask
 	**Inputs:

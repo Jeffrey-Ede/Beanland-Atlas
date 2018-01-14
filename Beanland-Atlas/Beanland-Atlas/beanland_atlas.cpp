@@ -27,7 +27,7 @@ int main()
 	cl::CommandQueue queue(context, device);
 
 	//Start the MATLAB engine
-	std::unique_ptr<matlab::engine::MATLABEngine> matlabPtr = matlab::engine::startMATLAB();
+	std::unique_ptr<matlab::engine::MATLABEngine> matlabPtr = matlab::engine::connectMATLAB();
 
 	//Establish a shared MATLAB session
 	matlab::data::ArrayFactory factory;

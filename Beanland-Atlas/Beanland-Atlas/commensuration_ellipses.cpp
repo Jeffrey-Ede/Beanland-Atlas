@@ -8,25 +8,171 @@ namespace ba
 	**Inputs:
 	**mats: std::vector<cv::Mat> &, Individual images to extract spots from
 	**spot_pos: std::vector<cv::Point> &, Positions of located spots in aligned diffraction pattern
-	**ellipses: std::vector<std::vector<std::vector<cv::Point>>> &, Positions of the minima and maximal extensions of spot ellipses.
-	**The ellipses are decribed in terms of 3 points, clockwise from the top left as it makes it easy to use them to perform 
-	**homomorphic warps. The nesting is each image, each spot in the order of their positions in the positions vector, set of
-	**3 points desctribing the ellipse, in that order
+	**rel_pos: std::vector<std::vector<int>> &, Relative positions of images to first image
+	**col_max: const int &, Maximum column difference between spot positions
+	**row_max: const int &, Maximum row difference between spot positions
+	**ellipses: std::vector<std::vector<std::vector<double>>> &, For each image, for each spot that an ellipse can be fitted 
+	**to, a set of 5 parameters describing an ellipse. By index: 0 - x position, 1 - y position, 2 - major axis, 3 - minor axis,
+	**4 - Angle between the major axis and the x axis
 	**acc: cv::Mat &, Average of the aligned diffraction patterns
+	**rad_llim: const int, Lower limit for spot radii to consider.
+	**rad_ulim: const int, Upper limit for spot radii to consider. SHould be at least 1 higher than the lower limit
 	*/
-	void get_spot_ellipses(std::vector<cv::Mat> &mats, std::vector<cv::Point> &spot_pos, cv::Mat &acc, 
-		std::vector<std::vector<std::vector<cv::Point>>> &ellipses)
+	void get_spot_ellipses(std::vector<cv::Mat> &mats, std::vector<cv::Point> &spot_pos, std::vector<std::vector<int>> &rel_pos,
+		const int &col_max,	const int &row_max,	cv::Mat &acc, std::vector<std::vector<std::vector<double>>> &ellipses,
+		const int rad_llim, const int rad_ulim)
 	{
 		//Use the Scharr filtrate of the aligned diffraction patterns to estimate the ellipses
 		std::vector<std::vector<cv::Point>> acc_ellipses;
 		//ellipse_sizes(acc, spot_pos, acc_ellipses);
 
 		//Use the aligned image Scharr filtrate to get approximate information about the ellipses
-
 		cv::Mat scharr;
 		scharr_amp(acc, scharr);
 
+		//Create mask for drawing annuluses on
+		byte *p;
+		int mask_size = 2*rad_ulim+1;
+		cv::Mat mask = cv::Mat(mask_size, mask_size, CV_8UC1, cv::Scalar(0));
 
+		//Get the approximate sizes of the annuluses
+		std::vector<cv::Vec2f> annulus_radii(spot_pos.size());
+        #pragma omp parallel for
+		for (int i = 0; i < annulus_radii.size(); i++)
+		{
+			//Generate a radial spectrum of the Scharr filtrate centered at the point
+			cv::Mat radial_scharr = cv::Mat(rad_ulim-rad_llim+1, 1, CV_8UC1);
+			for (int r = rad_llim, k = 0; r <= rad_ulim; r++, k++)
+			{
+				//Draw the annulus on the mask
+				cv::circle(mask, spot_pos[i], r, cv::Scalar(1), 1, 1, 0);
+
+				//Count the pixels indicated by non-zero pixels on the mask
+				float sum = 0.0f;
+				int count = 0;
+				for (int m = 0; m < mask.rows; m++)
+				{
+					p = mask.ptr<byte>(m);
+					for (int n = 0; n < mask.cols; n++)
+					{
+						//Only accumulate pixels indicated by the mask
+						if (p[n])
+						{
+							sum += scharr.at<float>(m+spot_pos[i].y, n+spot_pos[i].x);
+
+							count++;
+						}
+					}
+				}
+
+				//Record the average Scharr filtrate at this radius about the point
+				radial_scharr.at<float>(k, 0) = sum / count;
+
+				//Blacken the annulus on the mask so that it can be reused
+				cv::circle(mask, spot_pos[i], r, cv::Scalar(0), 1, 1, 0);
+			}
+
+			//Position and value of maximum
+			double max;
+			cv::Point maxLoc;
+			cv::minMaxLoc(radial_scharr, NULL, &max, NULL, &maxLoc);
+			int max_pos = maxLoc.y;
+
+			//k-means cluster the radial intensities into high and low values
+			cv::Mat mask;
+			kmeans_mask(radial_scharr, mask, 2, 0); //The low intensity values will be marked with non-zeros
+
+			//Find the extent of the maximum by fitting linear lines to the lower intensity values on either side of it
+			int l = 0, u = rad_ulim - rad_llim;
+			
+			//For the lower index
+			if (max_pos > 1)
+			{
+				float min_ssd = FLT_MAX;
+				for (int lidx = max_pos - 1; lidx > 0; lidx--)
+				{
+					//Check that this is one of the low values
+					if (mask.at<byte>(lidx, 0))
+					{
+						//Get gradient and intercept of the line
+						float m = (max_pos - lidx) / (max - radial_scharr.at<float>(lidx, 0));
+						float c = max - m*max_pos;
+						
+						//Find the sum of squared differences from the line
+						float ssd = 0.0f;
+						for (int n = lidx+1; n < max_pos; n++)
+						{
+							ssd += (radial_scharr.at<float>(n, 0) - m*n - c)*(radial_scharr.at<float>(n, 0) - m*n - c);
+						}
+
+						//Divide the sum of squared differences by the degrees of freedom and check if it is a new minimum
+						ssd /= max_pos - lidx - 1;
+						if (ssd < min_ssd)
+						{
+							min_ssd = ssd;
+							l = lidx;
+						}
+					}
+				}
+			}
+
+			//For the upper index
+			if (max_pos < rad_ulim - rad_llim - 1)
+			{
+				float min_ssd = FLT_MAX;
+				for (int uidx = max_pos + 1; uidx < rad_ulim - rad_llim; uidx++)
+				{
+					//Check that this is one of the lower radial intensities
+					if (mask.at<byte>(uidx, 0))
+					{
+						//Get gradient and intercept of the line
+						float m = (max_pos - uidx) / (max - radial_scharr.at<float>(uidx, 0));
+						float c = max - m*max_pos;
+
+						//Find the sum of squared differences from the line
+						float ssd = 0.0f;
+						for (int n = max_pos+1; n < uidx; n++)
+						{
+							ssd += (radial_scharr.at<float>(n, 0) - m*n - c)*(radial_scharr.at<float>(n, 0) - m*n - c);
+						}
+
+						//Divide the sum of squared differences by the degrees of freedom and check if it is a new minimum
+						ssd /= uidx - max_pos - 1;
+						if (ssd < min_ssd)
+						{
+							min_ssd = ssd;
+							l = uidx;
+						}
+					}
+				}
+			}
+
+			//Record the lower and upper radial intercepts to constrain the range of radii to look for the ellipse in
+			annulus_radii[i] = cv::Vec2f(l, u);
+		}
+
+		//Get the positions of spots in each image
+		ellipses = std::vector<std::vector<std::vector<double>>>(mats.size());
+        #pragma omp parallel for
+		for (int i = 0; i < mats.size(); i++)
+		{
+			//Try to fit an ellipse to each spot in the image
+			std::vector<cv::Point> img_spot_pos;
+			std::vector<cv::Vec2f> img_annulus_rad;
+			for (int j = 0; j < spot_pos.size(); j++)
+			{
+				//Get the position of this spot in the image
+				cv::Point point = cv::Point(spot_pos[j].x-col_max+rel_pos[0][i], spot_pos[j].y-row_max+rel_pos[1][i]);
+
+				//Prepare vectors for spots in the image
+				if ( on_img(mats[i], point) )
+				{
+					img_spot_pos.push_back(point);
+					img_annulus_rad.push_back(annulus_radii[j]);
+				}
+			}
+			get_ellipses(mats[i], img_spot_pos, img_annulus_rad, ellipses[i]);
+		}
 	}
 
 	/*Amplitude of image's Scharr filtrate
@@ -61,17 +207,13 @@ namespace ba
 	**Inputs:
 	**img: cv::Mat &, Image to find the size of ellipses at the estimated positions in
 	**spot_pos: std::vector<cv::Point>, Positions of spots in the image
-	**est_rad: std::vector<cv::Vec3f> &, Two radii to look for the ellipse between
-	**est_frac: const float, Proportion of highest Scharr filtrate values to use when initially estimating the ellipse
-	**ellipses: std::vector<ellipse> &, Positions of the minima and maximal extensions of spot ellipses.
-	**The ellipses are decribed in terms of 3 points, clockwise from the top left as it makes it easy to use them to perform 
-	**homomorphic warps, if necessary. The nesting is each spot in the order of their positions in the positions vector, set of 3 points
-	**(1 is extra) desctribing the ellipse, in that order
-	**ellipse_thresh_frac: const float, Proportion of Schaar filtrate in the region use to get an initial estimage of the ellipse
-	**to use
+	**est_rad: std::vector<cv::Vec2f> &, Two radii to look for the ellipse between
+	**ellipses: std::vector<std::vector<std::vector<double>>> &, For each spot that an ellipse can be fitted to, a set of
+	**5 parameters describing an ellipse. By index: 0 - x position, 1 - y position, 2 - major axis, 3 - minor axis, 4 - Angle
+	**between the major axis and the x axis
 	*/
-	void get_ellipses(cv::Mat &img, std::vector<cv::Point> spot_pos, std::vector<cv::Vec3f> est_rad, const float est_frac,
-		std::vector<std::vector<double>> &ellipses, const float ellipse_thresh_frac)
+	void get_ellipses(cv::Mat &img, std::vector<cv::Point> spot_pos, std::vector<cv::Vec2f> est_rad,
+		std::vector<std::vector<double>> &ellipses)
 	{
 		//Calculate the amplitude of the image's Scharr filtrate
 		cv::Mat scharr;
@@ -79,19 +221,23 @@ namespace ba
 
 		//Get the 5 degrees of freedom describing each ellipse on the image
 		ellipses = std::vector<std::vector<double>>(spot_pos.size());
+        #pragma omp parallel for
 		for (int i = 0; i < spot_pos.size(); i++)
 		{
+			//Length scale of the ellipse
+			double f0 = 0.5*(est_rad[i][0]+est_rad[i][1]);
+
 			//Extract the region where the ellipse is located
 			cv::Mat annulus_mask, annulus;
 			create_annular_mask(annulus_mask, 2*est_rad[i][1]+1, est_rad[i][0], est_rad[i][1]);
-			get_mask_values( img, annulus, annulus_mask, cv::Point2i( spot_pos[i].y-est_rad[i][1], spot_pos[i].y-est_rad[i][1] ) );
+			get_mask_values( scharr, annulus, annulus_mask, cv::Point2i( spot_pos[i].y-est_rad[i][1], spot_pos[i].y-est_rad[i][1] ) );
 
 			//Refine the mask using k-means clustering to create a mask identifying the pixels of high gradiation
 			cv::Mat mask;
 			kmeans_mask(annulus, mask, 2, 1, annulus_mask);
 
 			//Use weighted hyper-renormalisation to fit a conic to the data
-			std::vector<double> ellipse = hyper_renorm_ellipse(mask, annulus, 0.5*(est_rad[i][0]+est_rad[i][1]));
+			std::vector<double> ellipse = hyper_renorm_ellipse(mask, annulus, f0);
 
 			//Calculate the distances of points from the ellipse
 			std::vector<double> dists;
@@ -140,7 +286,7 @@ namespace ba
 			}
 
 			//Repeat the weighted hyper-renormalisation using the refined mask
-			ellipses[i] = hyper_renorm_ellipse(refined_mask, annulus, 0.5*(est_rad[i][0]+est_rad[i][1]));
+			ellipses[i] = hyper_renorm_ellipse(refined_mask, annulus, f0);
 		}
 	}
 

@@ -110,16 +110,24 @@ namespace ba
 			dst = cv::Mat(img.size(), CV_8UC1);
 
 			//Make a 1D copy of the image for k-means clustering
-			cv::Mat img1D = cv::Mat(img.rows*img.cols, 1, CV_32FC1);
-			float *p;
-            #pragma omp parallel for
-			for( int y = 0; y < img.rows; y++ )
+			cv::Mat img1D;
+			if (img.cols > 1)
 			{
-				p = img.ptr<float>(y);
-				for( int x = 0; x < img.cols; x++ )
-				{ 
-					img1D.at<float>(y + x*img.rows) = p[x];
+				img1D= cv::Mat(img.rows*img.cols, 1, CV_32FC1);
+				float *p;
+                #pragma omp parallel for
+				for( int y = 0; y < img.rows; y++ )
+				{
+					p = img.ptr<float>(y);
+					for( int x = 0; x < img.cols; x++ )
+					{ 
+						img1D.at<float>(y + x*img.rows) = p[x];
+					}
 				}
+			}
+			else
+			{
+				img1D = img;
 			}
 
 			//Perform k-means clustering
