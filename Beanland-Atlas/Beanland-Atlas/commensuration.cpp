@@ -2,8 +2,6 @@
 
 namespace ba
 {
-
-
 	/*Calculate the dynamical diffraction effected decoupled Bragg profile using the overlapping regions of spots
 	**Inputs:
 	**mats: std::vector<cv::Mat> &, Individual floating point images that have been stereographically corrected to extract
@@ -29,7 +27,11 @@ namespace ba
 		std::vector<bool> is_in_img;
 		grouping_preproc(mats, grouped_idx, spot_pos, rel_pos, col_max, row_max, radius, diam, groups, group_pos, is_in_img);
 
-		//Get the condenser lens profile
+		//Affinely transform overlapping regions of the spots to calculate the distortion field
+		cv::Mat distortion_field = get_distortion_field(groups, group_pos, spot_pos, rel_pos, grouped_idx, is_in_img, radius, 
+			col_max, row_max, mats[0].cols, mats[0].rows, diam);
+
+		//Get the dynamical diffraction effect decoupled profile
 		cv::Mat profile = get_bragg_envelope(groups, group_pos, spot_pos, rel_pos, grouped_idx, is_in_img, radius, 
 			col_max, row_max, mats[0].cols, mats[0].rows, diam);
 
@@ -313,7 +315,6 @@ namespace ba
 
 						//Go to th next group
 						n++;
-						
 					}
 				}
 

@@ -3,6 +3,7 @@
 #include <includes.h>
 
 #include <commensuration_utility.h>
+#include <distortion_correction.h>
 #include <matlab.h> //Matlab-specific includes
 
 namespace ba

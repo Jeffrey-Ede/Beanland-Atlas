@@ -73,10 +73,10 @@ namespace ba
 		kmeans_mask(scharr, dst, num_clusters, clusters_to_use, cv::Mat(), max_iter, term_crit_eps);
 
 		//Erode the image to remove stray pixels
-		erode(dst, dst, cv::Mat(), cv::Point(-1,-1), num_erodes);
+		cv::erode(dst, dst, cv::Mat(), cv::Point(-1,-1), num_erodes);
 
 		//Compensate for the erosion and/or slightly pad the region around pixels of high gradiation
-		dilate(dst, dst, cv::Mat(), cv::Point(-1,-1), num_dilates);
+		cv::dilate(dst, dst, cv::Mat(), cv::Point(-1,-1), num_dilates);
 	}
 
 	/*Mark intensity groups in a single channel image using k-means clustering

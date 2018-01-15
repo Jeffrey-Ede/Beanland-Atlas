@@ -163,4 +163,35 @@ namespace ba
 			}
 		}
 	}
+
+	/*Calculate Pearson's normalised product moment correlation coefficient between 2 vectors
+	**Inputs:
+	**vect1: std::vector<typename S> &, One of the data vectors
+	**vect2: std::vector<typename T> &, The other data vector
+	**Returns:
+	**double, Pearson normalised product moment correlation coefficient between the vectors
+	*/
+	template <typename T, typename S> double pearson_corr(std::vector<S> &vect1, std::vector<T> &vect2)
+	{
+		//Sums for Pearson product moment correlation coefficient
+		double sum_xy = 0.0;
+		double sum_x = 0.0;
+		double sum_y = 0.0;
+		double sum_x2 = 0.0;
+		double sum_y2 = 0.0;
+
+		//Compare the vectors index by index
+        #pragma omp parallel for reduction(sum:sum_xy), reduction(sum:sum_x), reduction(sum:sum_y), reduction(sum:sum_x2), reduction(sum:sum_y2)
+		for (int i = 0; i < vect1.size(); i++)
+		{
+			sum_xy += vect1[i]*vect2[i];
+			sum_x += vect1[i];
+			sum_y += vect2[i];
+			sum_x2 += vect1[i]*vect1[i];
+			sum_y2 += vect2[i]*vect2[i];
+		}
+
+		return (vect1.size()*sum_xy - sum_x*sum_y) / (std::sqrt(vect1.size()*sum_x2 - sum_x*sum_x) * 
+			std::sqrt(vect1.size()*sum_y2 - sum_y*sum_y));
+	}
 }

@@ -37,14 +37,14 @@ namespace ba
 		//Get the approximate sizes of the annuluses
 		std::vector<cv::Vec2f> annulus_radii(spot_pos.size());
         #pragma omp parallel for
-		for (int i = 0; i < annulus_radii.size(); i++)
+		for (int i = 0; i < spot_pos.size(); i++)
 		{
 			//Generate a radial spectrum of the Scharr filtrate centered at the point
 			cv::Mat radial_scharr = cv::Mat(rad_ulim-rad_llim+1, 1, CV_8UC1);
 			for (int r = rad_llim, k = 0; r <= rad_ulim; r++, k++)
 			{
 				//Draw the annulus on the mask
-				cv::circle(mask, spot_pos[i], r, cv::Scalar(1), 1, 1, 0);
+				cv::circle(mask, cv::Point(rad_ulim, rad_ulim), r, cv::Scalar(1), 1, 8, 0);
 
 				//Count the pixels indicated by non-zero pixels on the mask
 				float sum = 0.0f;
@@ -68,7 +68,7 @@ namespace ba
 				radial_scharr.at<float>(k, 0) = sum / count;
 
 				//Blacken the annulus on the mask so that it can be reused
-				cv::circle(mask, spot_pos[i], r, cv::Scalar(0), 1, 1, 0);
+				cv::circle(mask, cv::Point(rad_ulim, rad_ulim), r, cv::Scalar(0), 1, 8, 0);
 			}
 
 			//Position and value of maximum

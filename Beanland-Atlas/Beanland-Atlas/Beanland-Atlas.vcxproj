@@ -31,6 +31,7 @@
     <ClCompile Include="commensuration_ellipses.cpp" />
     <ClCompile Include="correct_distortions.cpp" />
     <ClCompile Include="developer_helper_func.cpp" />
+    <ClCompile Include="distortion_correction.cpp" />
     <ClCompile Include="get_spot_positions.cpp" />
     <ClCompile Include="identify_symmetry.cpp" />
     <ClCompile Include="ident_sym_utility.cpp" />
@@ -60,6 +61,7 @@
     <ClInclude Include="defines.h" />
     <ClInclude Include="developer_helper_func.h" />
     <ClInclude Include="developer_utility.hpp" />
+    <ClInclude Include="distortion_correction.h" />
     <ClInclude Include="get_spot_positions.h" />
     <ClInclude Include="identify_symmetry.h" />
     <ClInclude Include="ident_sym_utility.h" />
