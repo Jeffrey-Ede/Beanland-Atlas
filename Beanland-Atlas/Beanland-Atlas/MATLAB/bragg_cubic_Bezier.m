@@ -1,4 +1,4 @@
-function [ profile ] = bragg_cubic_Bezier( xdata1, xdata2, ydata, r, tol, max_iter)
+function param = bragg_cubic_Bezier( xdata1, xdata2, ydata, r_d, tol, max_iter )
 %Fit a symmetric, monotonically decreasing cubic Bezier curve to an intensity
 %profile overlapping with itself
 
@@ -6,7 +6,6 @@ function [ profile ] = bragg_cubic_Bezier( xdata1, xdata2, ydata, r, tol, max_it
 xdata1 = double(xdata1);
 xdata2 = double(xdata2);
 ydata = double(ydata);
-r_d = double(r);
 
 %Ratio of 2 Bezier curves
 fun = @(param,xdata)get_ratio(param, [xdata1 xdata2], r_d);
@@ -22,30 +21,6 @@ ub = [r_d, 1.0, 1.0, 1.0, 1.0];
 options = optimoptions(@lsqcurvefit, 'FunctionTolerance', tol, 'MaxIterations', ...
     max_iter, 'Display', 'off');
 param = lsqcurvefit(fun, x0, [xdata1 xdata2], ydata, lb, ub, options);
-
-%Use the parameters to calculate the circular, angle-independent condenser
-%lens profile
-profile = zeros(2*r+1, 2*r+1);
-for i = 0:r
-    for j = 0:min(floor(sqrt(double(r*r-i*i))), double(i))
-        %Distance from the circle center
-        dist = sqrt(double(i*i+j*j));
-
-        %Get the profile value
-        y = get_y(dist, r_d, param(1), param(2), param(3), param(4), param(5));
-
-        %Set the symmetrically equivalent element values
-        profile(r+i+1, r+j+1) = y;
-        profile(r+i+1, r-j+1) = y;
-        profile(r-i+1, r+j+1) = y;
-        profile(r-i+1, r-j+1) = y;
-
-        profile(r+j+1, r+i+1) = y;
-        profile(r+j+1, r-i+1) = y;
-        profile(r-j+1, r+i+1) = y;
-        profile(r-j+1, r-i+1) = y;
-    end
-end
 end
 
 function [ t ] = get_t(x, x1, x2, r)

@@ -235,5 +235,11 @@
     <None Include="MATLAB\project_onto_ellipse.m">
       <Filter>MATLAB</Filter>
     </None>
+    <None Include="MATLAB\bezier_surf_rev.m">
+      <Filter>MATLAB</Filter>
+    </None>
+    <None Include="MATLAB\get_mirr_sym.m">
+      <Filter>MATLAB</Filter>
+    </None>
   </ItemGroup>
 </Project>

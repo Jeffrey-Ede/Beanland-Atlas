@@ -350,7 +350,7 @@ namespace ba
 
 		//Pass data to MATLAB to calculate the cubic Bezier profile
 		matlab::data::TypedArray<double> const profile = matlabPtr->feval(
-			matlab::engine::convertUTF8StringToUTF16String("bragg_cubic_Bezier"), args);
+			matlab::engine::convertUTF8StringToUTF16String("bezier_surf_rev"), args);
 
 		//Convert profile to OpenCV mat It is completely symmetrtic so transpositional filling doesn't matter
 		cv::Mat bezier_profile = cv::Mat(diam, diam, CV_32FC1);

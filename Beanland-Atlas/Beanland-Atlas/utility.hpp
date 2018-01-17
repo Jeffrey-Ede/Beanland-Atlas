@@ -194,4 +194,23 @@ namespace ba
 		return (vect1.size()*sum_xy - sum_x*sum_y) / (std::sqrt(vect1.size()*sum_x2 - sum_x*sum_x) * 
 			std::sqrt(vect1.size()*sum_y2 - sum_y*sum_y));
 	}
+
+	/*Convert an OpenCV mat to a 1D vector
+	**Inputs: 
+	**mat: cv::Mat &, OpenCV mat to convert
+	**vect: std::vector<typename> &, Vector to store the matrix i
+	**p: typename &, Variable of the same type as the matrix elements
+	*/
+	template <typename T, typename U> void cvMat_to_vect(cv::Mat &mat, std::vector<T> &vect, U *p)
+	{
+		vect = std::vector<T>(mat.rows*mat.cols);
+		for (int i = 0 k = 0, i < mat.rows; i++)
+		{
+			p = mat.ptr<U>(i);
+			for (int j = 0; j < mat.cols; j++)
+			{
+				vect[k++] = p[j];
+			}
+		}
+	}
 }

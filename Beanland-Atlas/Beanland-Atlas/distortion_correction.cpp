@@ -51,45 +51,16 @@ namespace ba
 								//Get the number of overlapping pixels from the mask
 								int num_overlap = cv::countNonZero(co_mask);
 
-								//Check that the number of overlapping pixels is greater than some minimum
-								if (num_overlap > MIN_OVERLAP_PX_NUM)
-								{
-									//Parameters describing each overlap. By index: 0 - Fraction of circle radius from the first circle's center,
-									//1 - Fraction of circle radius from the second circle's center, 2 - ratio of the first circle's pixel value
-									//to the second circle's
-									std::vector<cv::Vec3d> overlaps(num_overlap);
+								//Parameters describing each overlap. By index: 0 - Fraction of circle radius from the first circle's center,
+								//1 - Fraction of circle radius from the second circle's center, 2 - ratio of the first circle's pixel value
+								//to the second circle's
+								std::vector<cv::Vec3d> overlaps(num_overlap);
 
-									//Find the affine transform that best commensurates the overlapping spots									
-									get_best_overlap(co, co_mask, groups[m], groups[n], group_pos[m], group_pos[n]);
-
-									//Get the pixel value and distances from circle centers for pixels in the overlapping region
-									byte *b;
-									for (int i = 0, co_num = 0; i < co_mask.rows; i++)
-									{
-										b = co_mask.ptr<byte>(i);
-										for (int j = 0; j < co_mask.cols; j++)
-										{
-											//If the pixel is marked as an overlapping region pixel
-											if (b[j])
-											{
-												//Get distances from the circle centres
-												double dist1, dist2;
-												dist1 = std::sqrt((j-co.P1.x)*(j-co.P1.x) + (i-co.P1.y)*(i-co.P1.y));
-												dist2 = std::sqrt((j-co.P2.x)*(j-co.P2.x) + (i-co.P2.y)*(i-co.P2.y));
-
-												//Get the values of the pixels
-												double val1, val2;
-												val1 = groups[m].at<float>(i-group_pos[m].y, j-group_pos[m].x);
-												val2 = groups[n].at<float>(i-group_pos[n].y, j-group_pos[n].x);
-
-												overlaps[co_num++] = cv::Vec3d(dist1, dist2, val1/val2);
-											}
-										}
-									}
-
-									//Append the overlapping pixel information to the collation
-									overlap_px_info.insert(overlap_px_info.end(), overlaps.begin(), overlaps.end());
-								}
+								//Get the ratios of the overlapping protions of the image
+								cv::Mat ratios, ratios_mask; //Overlapping intensity ratios; smaller divided by larger
+								cv::Point rel_pos; //Positions of ratios and ratios_mask in groups[m]
+								get_overlap_ratios(co, co_mask, groups[m], groups[n], group_pos[m], group_pos[n], ratios, ratios_mask,
+									rel_pos);
 							}
 						}
 
@@ -146,7 +117,101 @@ namespace ba
 		return overlap_px_info;
 	}
 
-	/*Calculate the affine transform that best matches the overlapping region between 2 overlapping circles
+	/*Get the ratio of the intensity profiles where 2 spots overlap
+	**Inputs:
+	**co: circ_overlap &, Region where circles overlap
+	**mask: cv::Mat &, 8-bit mask that's non-zero values indicate where the circles overlap
+	**c1: cv::Mat &, One of the circles
+	**c2; cv::Mat &, The other circles
+	**p1: cv::Point &, Top left point of a square containing the first circle on the detector
+	**p2: cv::Point &, Top left point of a square containing the second circle on the detector
+	**max_shift: const float, Maximum shift to consider
+	**incr_shift: const float, Steps to adjust the shift by
+	**ratios: cv::Mat &, Output cropped image containing the overlap region containing the ratios of the intensity profiles.
+	**Ratios larger than 1.0 are reciprocated
+	**ratios_mask: cv::Mat &, Output mask indicating the ratios pixels containing ratios
+	**rel_pos: cv::Point &, The position of the top left corner of ratios and ratios_mask in the c1 mat
+	*/
+	void get_overlap_ratios(circ_overlap &co, cv::Mat &mask, cv::Mat &c1, cv::Mat &c2, cv::Point &p1, cv::Point &p2, 
+		cv::Mat &ratios, cv::Mat &ratios_mask, cv::Point &rel_pos)
+	{
+		//Create an image to store ratios on and a mask indicating them
+		cv::Mat pre_crop_ratios = cv::Mat(c1.size(), CV_32FC1, cv::Scalar(0.0));
+		cv::Mat pre_crop_ratios_mask = cv::Mat(c1.size(), CV_8UC1, cv::Scalar(0));
+
+		//Get the pixel value and distances from circle centers for pixels in the overlapping region
+		byte *b;
+		for (int i = 0, co_num = 0; i < mask.rows; i++)
+		{
+			b = pre_crop_ratios_mask.ptr<byte>(i);
+			for (int j = 0; j < mask.cols; j++)
+			{
+				//If the pixel is marked as an overlapping region pixel
+				if (b[j])
+				{
+					//Get the values of the pixels
+					double val1, val2;
+					val1 = c1.at<float>(i-p1.y, j-p1.x);
+					val2 = c2.at<float>(i-p2.y, j-p2.x);
+
+					pre_crop_ratios.at<float>(i-p1.y, j-p1.x) = val1 > val2 ? val2 / val1 : val1 / val2;
+				}
+			}
+		}
+
+		//Get the rectangle needed to crop the images to reduce the amound of memory needed to store them
+		cv::Rect rect = get_non_zero_mask_px_bounds(pre_crop_ratios_mask);
+
+		//Output the overlap-containing region, along with it's position in the first spot mat
+		pre_crop_ratios(rect).copyTo(ratios);
+		pre_crop_ratios_mask(rect).copyTo(ratios_mask);
+		rel_pos = cv::Point(rect.x, rect.y);
+	}
+
+	/*Create a rectangle containing the non-zero pixels in a mask that can be used to crop them from it
+	**Inputs:
+	**mask: cv::Mat &, 8-bit mask image
+	**Returns:
+	**cv::Rect, Rectangle containing the non-zero pixels in a mask
+	*/
+	cv::Rect get_non_zero_mask_px_bounds(cv::Mat &mask)
+	{
+		//Find the minimum and maximum rows and columns
+		byte *b;
+		int min_row, max_row, min_col, max_col;
+		for (int i = 0; i < mask.rows; i++)
+		{
+			b = mask.ptr<byte>(i);
+			for (int j = 0; j < mask.cols; j++)
+			{
+				//Check if the non-zero mask points are extrema
+				if (b[j])
+				{
+					if (i < min_row)
+					{
+						min_row = i;
+					}
+					if (i > max_row)
+					{
+						max_row = i;
+					}
+					if (j < min_col)
+					{
+						min_col = j;
+					}
+					if (j > max_col)
+					{
+						max_col = j;
+					}
+				}
+			}
+		}
+
+		return cv::Rect(min_col, min_row, max_col-min_col+1, max_row-min_row+1);
+	}
+
+	/*Calculate the affine transform that best matches the overlapping region between 2 overlapping circles. Not currently
+	**being used. May finish this function later
 	**co: circ_overlap &, Region where circles overlap
 	**mask: cv::Mat &, 8-bit mask that's non-zero values indicate where the circles overlap
 	**c1: cv::Mat &, One of the circles
@@ -250,8 +315,7 @@ namespace ba
 
 											double pear = pearson_corr(vals1, vals2);
 
-											//Append the overlapping pixel information to the collation
-											dist_info.insert(overlap_px_info.end(), overlaps.begin(), overlaps.end());
+											//Continue later if needed...
 										}
 									}
 								}
