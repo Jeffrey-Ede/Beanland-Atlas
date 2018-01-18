@@ -67,14 +67,14 @@ namespace ba
 		//std::vector<std::vector<std::vector<double>>> ellipses;
 		//get_spot_ellipses(mats, spot_pos, rel_pos, col_max, row_max, acc, ellipses, EL_LLIM_FRAC*radius, EL_ULIM_FRAC*radius);
 
-		////Temporary loop: convert points to point2d
-		//std::vector<cv::Point2d> spot_posd(spot_pos.size());
-		//for (int i = 0; i < spot_pos.size(); i++)
-		//{
-		//	spot_posd[i] = cv::Point2d(spot_pos[i].x, spot_pos[i].y);
-		//}
-		//std::vector<cv::Mat> condenser_lens_profile = bragg_envelope(mats, spot_posd[1], rel_pos, col_max, row_max, 
-		//	radius);
+		//Temporary loop: convert points to point2d
+		std::vector<cv::Point2d> spot_posd(spot_pos.size());
+		for (int i = 0; i < spot_pos.size(); i++)
+		{
+			spot_posd[i] = cv::Point2d(spot_pos[i].x, spot_pos[i].y);
+		}
+		std::vector<cv::Mat> envelope = bragg_envelope(mats, spot_posd[1], rel_pos, col_max, row_max, 
+			radius);
 
 		//Get the ellipses described by each spot so that they can be homomorphically corrected
 		/*std::vector<cv::Point> ellipses;

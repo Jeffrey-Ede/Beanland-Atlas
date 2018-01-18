@@ -15,18 +15,18 @@ namespace ba
 	**row_max: const int, Maximum row difference between spot positions
 	**cols: const int, Number of columns in the image
 	**rows: const int, Number of rows in the image
-	**Returns:
-	**cv::Mat, Condenser lens profile
 	*/
-	cv::Mat get_distortion_field(std::vector<cv::Mat> &groups, std::vector<cv::Point> &group_pos, cv::Point2d &spot_pos,
+	void get_aberrating_fields(std::vector<cv::Mat> &groups, std::vector<cv::Point> &group_pos, cv::Point2d &spot_pos,
 		std::vector<std::vector<int>> &rel_pos, std::vector<std::vector<int>> &grouped_idx, std::vector<bool> &is_in_img,
 		const int radius, const int col_max, const int row_max, const int cols, const int rows, const int diam)
 	{
-		//Information from overlapping circle pixels needed to determine the condenser lens profile
-		std::vector<cv::Vec3d> overlap_px_info;
+		//Initialise the MATLAB engine
+		//matlab::data::ArrayFactory factory;
+		//std::unique_ptr<matlab::engine::MATLABEngine> matlabPtr = matlab::engine::connectMATLAB();
 
 		//Get the spots that are fully in images
-		long int px_tot = 0;
+		std::vector<std::vector<double>> mirr_lines;
+		std::vector<cv::Vec2i> combinations;
 		for (int k = 0, m = 0, counter = 0; k < grouped_idx.size(); k++)
 		{
 			if (is_in_img[k])
@@ -51,16 +51,83 @@ namespace ba
 								//Get the number of overlapping pixels from the mask
 								int num_overlap = cv::countNonZero(co_mask);
 
-								//Parameters describing each overlap. By index: 0 - Fraction of circle radius from the first circle's center,
-								//1 - Fraction of circle radius from the second circle's center, 2 - ratio of the first circle's pixel value
-								//to the second circle's
-								std::vector<cv::Vec3d> overlaps(num_overlap);
+								//Check that there are enough pixels to make a meaningful estimate of the symmetry center
+								if (num_overlap > MIN_OVERLAP_PX_NUM)
+								{
+									//Parameters describing each overlap. By index: 0 - Fraction of circle radius from the first circle's center,
+									//1 - Fraction of circle radius from the second circle's center, 2 - ratio of the first circle's pixel value
+									//to the second circle's
+									std::vector<cv::Vec3d> overlaps(num_overlap);
 
-								//Get the ratios of the overlapping protions of the image
-								cv::Mat ratios, ratios_mask; //Overlapping intensity ratios; smaller divided by larger
-								cv::Point rel_pos; //Positions of ratios and ratios_mask in groups[m]
-								get_overlap_ratios(co, co_mask, groups[m], groups[n], group_pos[m], group_pos[n], ratios, ratios_mask,
-									rel_pos);
+									//Get the ratios of the overlapping protions of the image
+									cv::Mat ratios, ratios_mask; //Overlapping intensity ratios; smaller divided by larger
+									cv::Point pos; //Positions of ratios and ratios_mask in groups[m]
+									get_overlap_ratios(co_mask, groups[m], groups[n], group_pos[m], group_pos[n], ratios, ratios_mask, pos);
+
+									////Package data into vectors so that it can be packed for MATLAB by the ArrayFactory
+									//float p; //Indicates the OpenCV mat type to the templated function
+									//std::vector<double> ratios_vect;
+									//cvMat_to_vect( ratios, ratios_vect, p );
+									//
+									//std::vector<double> ratios_mask_vect;
+									//cvMat_to_vect( ratios_mask, ratios_mask_vect, p );
+
+									////Estimated axis of symmetry.
+									//std::vector<double> line1(4);
+									//line1[0] = co.maxima[0].x;
+									//line1[1] = co.maxima[0].y;
+									//line1[2] = co.maxima[1].x;
+									//line1[3] = co.maxima[1].y;
+
+									//std::vector<double> line2(4);
+									//line2[0] = co.minima[0].x;
+									//line2[1] = co.minima[0].y;
+									//line2[2] = co.minima[1].x;
+									//line2[3] = co.minima[1].y;
+
+									////Distance between estimated circle centers
+									//double dist = std::sqrt( (co.P1.x-co.P2.x)*(co.P1.x-co.P2.x) + (co.P1.y-co.P2.y)*(co.P1.y-co.P2.y) );
+
+									////Maximum magnitudes of translations and rotations that can be trialed
+									//std::vector<double> region(3);
+									//region[0] = DISTORT_MAX_REL_POS_ERR;
+									//region[1] = DISTORT_MAX_REL_POS_ERR;
+									//region[2] = std::atan( SQRT_OF_2 * DISTORT_MAX_REL_POS_ERR / dist );
+
+									//matlab::data::ArrayFactory factory;
+									//std::unique_ptr<matlab::engine::MATLABEngine> matlabPtr = matlab::engine::connectMATLAB();
+
+									////Package data for the MATLAB function
+									//std::vector<matlab::data::Array> args({
+									//	factory.createArray( { (size_t)ratios.rows, (size_t)ratios.cols }, ratios_vect.begin(), ratios_vect.end() ),
+									//	factory.createArray( { (size_t)ratios_mask.rows, (size_t)ratios_mask.cols },
+									//	    ratios_mask_vect.begin(), ratios_mask_vect.end() ),
+									//	factory.createArray( { 1 , 4 }, line1.begin(), line1.end() ),
+									//	factory.createArray( { 1 , 4 }, line2.begin(), line2.end() ),
+									//	factory.createArray( { 1 , 3 }, region.begin(), region.end() ),
+									//	factory.createScalar<double>( LS_TOL ),
+									//	factory.createScalar<int32_t>( LS_MAX_ITER )
+									//});
+
+									////Pass data to MATLAB to calculate the approximately 2mm symmery center
+									//matlab::data::TypedArray<double> const mirr_lines_info = matlabPtr->feval(
+									//	matlab::engine::convertUTF8StringToUTF16String("get_mirr_sym"), args);
+
+									//std::vector<double> lines(8);
+									//{
+									//	int k = 0;
+									//	for (auto val : mirr_lines_info)
+									//	{
+									//		lines[k++] = val;
+									//	}
+									//}
+
+									////Store information about the mirror line combination
+									//mirr_lines.push_back(lines);
+									//combinations.push_back(cv::Vec2i(m, n));
+
+									//std::getchar();
+								}
 							}
 						}
 
@@ -73,53 +140,10 @@ namespace ba
 				m++;
 			}
 		}
-
-		//Restructure the data to 3 vectors that can be passed to MATLAB
-		std::vector<double> dist1(overlap_px_info.size());
-		std::vector<double> dist2(overlap_px_info.size());
-		std::vector<double> ratio(overlap_px_info.size());
-		for (int i = 0; i < overlap_px_info.size(); i++)
-		{
-			dist1[i] = overlap_px_info[i][0];
-			dist2[i] = overlap_px_info[i][1];
-			ratio[i] = overlap_px_info[i][2];
-		}
-
-		//Initialise the MATLAB engine
-		matlab::data::ArrayFactory factory;
-		std::unique_ptr<matlab::engine::MATLABEngine> matlabPtr = matlab::engine::connectMATLAB();
-
-		//Package data for the cubic Bezier profile calculator
-		std::vector<matlab::data::Array> args({
-			factory.createArray( { overlap_px_info.size(), 1 }, dist1.begin(), dist1.end() ), //1st distances set
-			factory.createArray( { overlap_px_info.size(), 1 }, dist2.begin(), dist2.end() ), //2nd distances set
-			factory.createArray( { overlap_px_info.size(), 1 }, ratio.begin(), ratio.end() ), //Intensity ratios
-			factory.createScalar<int32_t>(radius),
-			factory.createScalar<double>(LS_TOL),
-			factory.createScalar<int32_t>(LS_MAX_ITER)
-		});
-
-		//Pass data to MATLAB to calculate the cubic Bezier profile
-		matlab::data::TypedArray<double> const profile = matlabPtr->feval(
-			matlab::engine::convertUTF8StringToUTF16String("bragg_cubic_Bezier"), args);
-
-		//Convert profile to OpenCV mat It is completely symmetrtic so transpositional filling doesn't matter
-		cv::Mat bezier_profile = cv::Mat(diam, diam, CV_32FC1);
-		{
-			int k = 0;
-			for (auto val : profile)
-			{
-				bezier_profile.at<float>( k/diam, k%diam ) = (float)val;
-				k++;
-			}
-		}
-
-		return overlap_px_info;
 	}
 
 	/*Get the ratio of the intensity profiles where 2 spots overlap
 	**Inputs:
-	**co: circ_overlap &, Region where circles overlap
 	**mask: cv::Mat &, 8-bit mask that's non-zero values indicate where the circles overlap
 	**c1: cv::Mat &, One of the circles
 	**c2; cv::Mat &, The other circles
@@ -132,18 +156,17 @@ namespace ba
 	**ratios_mask: cv::Mat &, Output mask indicating the ratios pixels containing ratios
 	**rel_pos: cv::Point &, The position of the top left corner of ratios and ratios_mask in the c1 mat
 	*/
-	void get_overlap_ratios(circ_overlap &co, cv::Mat &mask, cv::Mat &c1, cv::Mat &c2, cv::Point &p1, cv::Point &p2, 
+	void get_overlap_ratios(cv::Mat &mask, cv::Mat &c1, cv::Mat &c2, cv::Point &p1, cv::Point &p2, 
 		cv::Mat &ratios, cv::Mat &ratios_mask, cv::Point &rel_pos)
 	{
 		//Create an image to store ratios on and a mask indicating them
 		cv::Mat pre_crop_ratios = cv::Mat(c1.size(), CV_32FC1, cv::Scalar(0.0));
-		cv::Mat pre_crop_ratios_mask = cv::Mat(c1.size(), CV_8UC1, cv::Scalar(0));
 
 		//Get the pixel value and distances from circle centers for pixels in the overlapping region
 		byte *b;
 		for (int i = 0, co_num = 0; i < mask.rows; i++)
 		{
-			b = pre_crop_ratios_mask.ptr<byte>(i);
+			b = mask.ptr<byte>(i);
 			for (int j = 0; j < mask.cols; j++)
 			{
 				//If the pixel is marked as an overlapping region pixel
@@ -160,11 +183,11 @@ namespace ba
 		}
 
 		//Get the rectangle needed to crop the images to reduce the amound of memory needed to store them
-		cv::Rect rect = get_non_zero_mask_px_bounds(pre_crop_ratios_mask);
+		cv::Rect rect = get_non_zero_mask_px_bounds(mask);
 
 		//Output the overlap-containing region, along with it's position in the first spot mat
 		pre_crop_ratios(rect).copyTo(ratios);
-		pre_crop_ratios_mask(rect).copyTo(ratios_mask);
+		mask(rect).copyTo(ratios_mask);
 		rel_pos = cv::Point(rect.x, rect.y);
 	}
 
@@ -178,7 +201,7 @@ namespace ba
 	{
 		//Find the minimum and maximum rows and columns
 		byte *b;
-		int min_row, max_row, min_col, max_col;
+		int min_row = INT_MAX, max_row = 0, min_col = INT_MAX, max_col = 0;
 		for (int i = 0; i < mask.rows; i++)
 		{
 			b = mask.ptr<byte>(i);
@@ -418,5 +441,151 @@ namespace ba
 		//The overlapping region is where the circle and the affinely transformed circle are marked, within
 		//the confines of the original region to ensure that nothing has gone off the edge of the image
 		return circle1 & w & mask;
+	}
+
+	/*Get the relative positions of overlapping regions of spots using the ORB feature detector
+	**Inputs:
+	**groups: std::vector<cv::Mat> &, Preprocessed Bragg peaks, ready for dark field decoupled profile extraction
+	**group_pos: std::vector<cv::Point> &, Positions of top left corners of circles' bounding squares
+	**spot_pos: cv::Point2d, Position of located spot in the aligned diffraction pattern
+	**rel_pos: std::vector<std::vector<int>> &, Relative positions of images
+	**grouped_idx: std::vector<std::vector<int>> &, Groups of consecutive image indices where the spots are all in the same position
+	**is_in_img: std::vector<bool> &, True when the spot is in the image so that indices can be grouped
+	**radius: const int, Radius of the spots
+	**col_max: const int, Maximum column difference between spot positions
+	**row_max: const int, Maximum row difference between spot positions
+	**cols: const int, Number of columns in the image
+	**rows: const int, Number of rows in the image
+	*/
+	void overlap_rel_pos(std::vector<cv::Mat> &groups, std::vector<cv::Point> &group_pos, cv::Point2d &spot_pos,
+		std::vector<std::vector<int>> &rel_pos, std::vector<std::vector<int>> &grouped_idx, std::vector<bool> &is_in_img,
+		const int radius, const int col_max, const int row_max, const int cols, const int rows, const int diam)
+	{
+		//Calculate the length scale of features in the image
+		//FLAGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+
+		//Construct ORB feature matcher to perform ORB operations in the loop
+		cv::Ptr<cv::ORB> orb = cv::ORB::create(500, 2, 1, 0, 0, 3, cv::ORB::HARRIS_SCORE, 10);
+
+		//Get the spots that are fully in images
+		std::vector<std::vector<double>> rel_overlap_pos;
+		std::vector<cv::Vec2i> combinations;
+		for (int k = 0, m = 0, counter = 0; k < grouped_idx.size(); k++)
+		{
+			if (is_in_img[k])
+			{
+				for (int l = k+1, n = m+1; l < grouped_idx.size(); l++)
+				{
+					if (is_in_img[l])
+					{
+						//Find the overlapping region between the circles
+						circ_overlap co = get_overlap(spot_pos, rel_pos, col_max, row_max, radius, grouped_idx[m][0], grouped_idx[n][0], 
+							cols, rows);
+
+						//Check if they overlap and the overlapping region is fully in the image
+						if (co.overlap)
+						{
+							//Find if the overlapping region is entirely on the image
+							if (on_img(co.bounding_rect[0], cols, rows) && on_img(co.bounding_rect[1], cols, rows))
+							{
+								//Create a mask idicating where the circles overlap to extract the values from the images
+								cv::Mat co_mask = gen_circ_overlap_mask(co.P1, radius, co.P2, radius, cols, rows);
+
+								//Get the number of overlapping pixels from the mask
+								int num_overlap = cv::countNonZero(co_mask);
+
+								//Check that there are enough pixels to make a meaningful estimate of the symmetry center
+								if (num_overlap > MIN_OVERLAP_PX_NUM)
+								{
+									//Parameters describing each overlap. By index: 0 - Fraction of circle radius from the first circle's center,
+									//1 - Fraction of circle radius from the second circle's center, 2 - ratio of the first circle's pixel value
+									//to the second circle's
+									std::vector<cv::Vec3d> overlaps(num_overlap);
+
+									//Get the ratios of the overlapping protions of the image
+									cv::Vec2f shift; //Shift of the second image relative to the first
+									get_overlap_rel_pos(co_mask, groups[m], groups[n], group_pos[m], group_pos[n], orb, num_overlap, shift);
+								}
+							}
+						}
+
+						//Go to th next group
+						n++;
+					}
+				}
+
+				//Go to next group
+				m++;
+			}
+		}
+	}
+
+	/*Relative position of one spot overlapping with another using the ORB feature detector
+	**Inputs:
+	**mask: cv::Mat &, 8-bit mask that's non-zero values indicate where the circles overlap
+	**c1: cv::Mat &, One of the circles
+	**c2; cv::Mat &, The other circles
+	**p1: cv::Point &, Top left point of a square containing the first circle on the detector
+	**p2: cv::Point &, Top left point of a square containing the second circle on the detector
+	**max_shift: const float, Maximum shift to consider
+	**incr_shift: const float, Steps to adjust the shift by
+	**nnz: const int, Number of non-zero pixels in the mask. The number of features looked for will be based on this
+	**shift: cv::Vec2f &, Output how much the second image needs to be shifted to align it
+	*/
+	void get_overlap_rel_pos(cv::Mat &mask, cv::Mat &c1, cv::Mat &c2, cv::Point &p1, cv::Point &p2,
+		cv::Ptr<cv::ORB> &orb, const int nnz, cv::Vec2f &shift)
+	{
+		//Create an image to store ratios on and a mask indicating them
+		cv::Mat overlap1 = cv::Mat(c1.size(), CV_32FC1, cv::Scalar(0.0));
+		cv::Mat overlap2 = cv::Mat(c1.size(), CV_32FC1, cv::Scalar(0.0));
+
+		//Get the pixel value and distances from circle centers for pixels in the overlapping region
+		byte *b;
+		for (int i = 0, co_num = 0; i < mask.rows; i++)
+		{
+			b = mask.ptr<byte>(i);
+			for (int j = 0; j < mask.cols; j++)
+			{
+				//If the pixel is marked as an overlapping region pixel
+				if (b[j])
+				{
+					//Get the values of the pixels
+					double val1, val2;
+					val1 = c1.at<float>(i-p1.y, j-p1.x);
+					val2 = c2.at<float>(i-p2.y, j-p2.x);
+
+					overlap1.at<float>(i-p1.y, j-p1.x) = val1;
+					overlap2.at<float>(i-p1.y, j-p1.x) = val2;
+				}
+			}
+		}
+
+		//Make number of keypoints to look for proportional to the area
+		int num_feat = 20;//nnz / OVERLAP_REL_POS_PX_PER_KEYPOINT;
+
+		//Use the keypoints to find the relative position of one overlap to the other
+		orb->setMaxFeatures(num_feat);
+
+		//Convert images to 8 bit
+		cv::Mat norm1, norm2;
+		cv::normalize(overlap1, norm1, 0, 255, cv::NORM_MINMAX, CV_8UC1);
+		cv::normalize(overlap2, norm2, 0, 255, cv::NORM_MINMAX, CV_8UC1);
+
+		//Detect keypoints in both of the images
+		std::vector<cv::KeyPoint> keypoints1, keypoints2;
+		cv::Mat descriptors1, descriptors2;
+		orb->detectAndCompute(norm1, mask*255, keypoints1, descriptors1);
+		orb->detectAndCompute(norm2, mask*255, keypoints2, descriptors2);
+
+		//Match the features
+		std::vector<cv::DMatch> matches;
+		cv::Ptr<cv::BFMatcher> matcher = cv::BFMatcher::create( cv::NORM_HAMMING2, true );
+
+		matcher->match( descriptors1, descriptors2, matches );
+
+		cv::Mat img;
+		cv::drawMatches( norm1, keypoints1, norm2, keypoints2, matches, img );
+
+		display_CV(img);
 	}
 }

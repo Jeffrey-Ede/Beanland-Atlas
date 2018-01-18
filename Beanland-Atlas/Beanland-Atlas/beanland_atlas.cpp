@@ -26,13 +26,13 @@ int main()
 	cl::Device device = devices[0];
 	cl::CommandQueue queue(context, device);
 
-	//Start the MATLAB engine
-	std::unique_ptr<matlab::engine::MATLABEngine> matlabPtr = matlab::engine::connectMATLAB();
+	////Start the MATLAB engine
+	//std::unique_ptr<matlab::engine::MATLABEngine> matlabPtr = matlab::engine::connectMATLAB();
 
-	//Establish a shared MATLAB session
-	matlab::data::ArrayFactory factory;
-	auto success = matlabPtr->
-		feval(matlab::engine::convertUTF8StringToUTF16String("share_matlab_engine"), factory.createCharArray(MATLAB_SHARED));
+	////Establish a shared MATLAB session
+	//matlab::data::ArrayFactory factory;
+	//auto success = matlabPtr->
+	//	feval(matlab::engine::convertUTF8StringToUTF16String("share_matlab_engine"), factory.createCharArray(MATLAB_SHARED));
 
 	//Read in the image stack
 	std::vector<cv::Mat> mats;
@@ -125,7 +125,7 @@ int main()
 
 	//Combine the compendiums of maps mapped out by each spot to create maps showing the whole k spaces surveyed by each of the spots,
 	//then combine these surveys into an atlas to show the whole k space mapped out
-	std::vector<cv::Mat> surveys = create_spot_maps(mats, spot_pos, refined_pos, acc, 0.8*annulus_param[0], 
+	std::vector<cv::Mat> surveys = create_spot_maps(mats, spot_pos, refined_pos, acc, 0.9*annulus_param[0], 
 		annulus_param[0]+2*annulus_param[1], -1);
 
 	atlas_sym atlas_symmetry = identify_symmetry(surveys, spot_pos, EQUIDST_THRESH, FRAC_FOR_SYM);

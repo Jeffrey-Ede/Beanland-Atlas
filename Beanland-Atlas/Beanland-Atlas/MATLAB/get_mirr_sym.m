@@ -1,27 +1,34 @@
-function lines = get_mirr_sym(ratios, mask, line0, lower, upper, tol, max_iter)
+function shifts = get_mirr_sym(ratios, mask, line1, line2, region, tol, max_iter)
 %Get the mirror symmetry lines for a monotonically decreasing Bezier surface 
 %overlapping with its translation
+%
+%ratios: data to look for location of approximately 2mm symmetry in
+%mask: non-zero values indicate pixels containing data
+%line1: 2 points [ x1, y1, x2, y2] on one of the estimated symmetry axis
+%line2: 2 points [ x1, y1, x2, y2] on the other estimated symmetry axis
+%tol: Tolerance used by the sum of squared differences from unity
+%minimisation algorithm
+%max_iter: Maximum number of iterations of the the sum of squared differences
+%from unity minimisation algorithm
 
 %Cast to double precision for lsqcurvefit()
 xdata = double(ratios);
 
 %Adjust from C++ to MATLAB indexing
-line0 = double(line0 + 1.0);
+line1 = double(line1 + 1.0);
+line2 = double(line2 + 1.0);
 
-%Ratios of values on either side of a mirror line
-fun = @(param)get_line_ratios(param, xdata, mask, line0);
+%Functions that calculate the sums of squared differences from unity for
+%perturbations of the mirror lines
+fun1 = @(param)get_line_ratios(param, xdata, mask, line1);
+fun2 = @(param)get_line_ratios(param, xdata, mask, line2);
 
-%%Estimate mirror line parameters
-center_x = 0.5*(line0(1) + line0(3));
-center_y = 0.5*(line0(2) + line0(4));
-
-%Lines are expected to be perpendicular; however, this will not be imposed
-x0_1 = [ 0.0, center_x, center_y ];
-x0_2 = [ 0.5*pi, center_x, center_y ];
+%Expected shifts and rotation
+x0 = [ 0.0, 0.0, 0.0 ];
 
 %Lower and upper bounds
-lb = double([lower(1), lower(2), lower(3)]);
-ub = double([upper(1), upper(2), upper(3)]);
+lb = double([-region(1), -region(2), -region(3)]);
+ub = double([region(1), region(2), region(3)]);
 
 %The parameters being varied have been chosen so that there are no linear constraints
 A = [];
@@ -32,11 +39,11 @@ beq = [];
 %Fit the data
 options = optimoptions(@lsqcurvefit, 'FunctionTolerance', tol, 'MaxIterations', ...
     max_iter, 'Display', 'off');
-line1 = fmincon(fun, x0_1, A, b, Aeq, beq, lb(1:2), ub(1:2), options);
-line2 = fmincon(fun, x0_2, A, b, Aeq, beq, lb(3:4), ub(3:4), options);
+shifts1 = fmincon(fun1, x0, A, b, Aeq, beq, lb, ub, options);
+shifts2 = fmincon(fun2, x0, A, b, Aeq, beq, lb, ub, options);
 
 %Adjust from MATLAB to C++ indexing
-lines = [ (line1-1) (line2-1) ];
+shifts = [ (shifts1-1) (shifts2-1) ];
 end
 
 function [ var ] = get_line_ratios(param, xdata, mask, line0)
@@ -54,8 +61,8 @@ y2_m_y1 = line(4)-line(2);
 var = 0.0;
 count = 0.0;
 [h, w] = size(xdata);
-Y = [1:h];
-X = [1:w];
+Y = 1:h;
+X = 1:w;
 ratio = 0.0;
 for i = 1:w
     for j = 1:h
@@ -120,7 +127,6 @@ end
 %Divide the sum of squared differences by the number of degrees of freedom.
 %It is count; not count-1, as the data is being matched against an
 %expectation of unity
-var = var / count;
 end
 
 function point = mirror(x, y, x0, y0, x1, y1)

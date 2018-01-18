@@ -27,10 +27,13 @@ namespace ba
 		std::vector<bool> is_in_img;
 		grouping_preproc(mats, grouped_idx, spot_pos, rel_pos, col_max, row_max, radius, diam, groups, group_pos, is_in_img);
 
-		//Affinely transform overlapping regions of the spots to calculate the distortion field
-		cv::Mat distortion_field = get_distortion_field(groups, group_pos, spot_pos, rel_pos, grouped_idx, is_in_img, radius, 
+		overlap_rel_pos(groups, group_pos, spot_pos, rel_pos, grouped_idx, is_in_img, radius, 
 			col_max, row_max, mats[0].cols, mats[0].rows, diam);
 
+		//Affinely transform overlapping regions of the spots to calculate the distortion field
+		/*get_aberrating_fields(groups, group_pos, spot_pos, rel_pos, grouped_idx, is_in_img, radius, 
+			col_max, row_max, mats[0].cols, mats[0].rows, diam);
+*/
 		//Get the dynamical diffraction effect decoupled profile
 		cv::Mat profile = get_bragg_envelope(groups, group_pos, spot_pos, rel_pos, grouped_idx, is_in_img, radius, 
 			col_max, row_max, mats[0].cols, mats[0].rows, diam);
@@ -362,6 +365,8 @@ namespace ba
 				k++;
 			}
 		}
+
+		display_CV(bezier_profile);
 
 		return bezier_profile;
 	}

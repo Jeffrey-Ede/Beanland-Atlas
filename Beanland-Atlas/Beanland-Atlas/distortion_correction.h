@@ -11,7 +11,16 @@ namespace ba
 {
 	//Minimum number of overlapping pixels for the affine transform of an overlapping region to be used to estimate the 
 	//distortions
-    #define MIN_OVERLAP_PX_NUM 10
+    #define MIN_OVERLAP_PX_NUM 25
+
+	//Maximum expected error of relative positions found by aligning the images in px
+	#define DISTORT_MAX_REL_POS_ERR 2.0
+
+	//Number of pixels per keypoint that is looked for when determining the relative positions of overlapping pixels
+	#define OVERLAP_REL_POS_PX_PER_KEYPOINT 5
+	
+	//Scale to look for features on with the ORB detector when 
+	#define OVERLAP_REL_POS_SCALE 2 //This can be changed to be dynamically calculated at a later time
 
 	/*Use spot overlaps to determine the distortion field
 	**Inputs:
@@ -26,10 +35,8 @@ namespace ba
 	**row_max: const int, Maximum row difference between spot positions
 	**cols: const int, Number of columns in the image
 	**rows: const int, Number of rows in the image
-	**Returns:
-	**cv::Mat, Condenser lens profile
 	*/
-	cv::Mat get_distortion_field( std::vector<cv::Mat> &groups, std::vector<cv::Point> &group_pos, cv::Point2d &spot_pos,
+	void get_aberrating_fields( std::vector<cv::Mat> &groups, std::vector<cv::Point> &group_pos, cv::Point2d &spot_pos,
 		std::vector<std::vector<int>> &rel_pos, std::vector<std::vector<int>> &grouped_idx, std::vector<bool> &is_in_img,
 		const int radius, const int col_max, const int row_max, const int cols, const int rows, const int diam );
 
@@ -49,4 +56,62 @@ namespace ba
 	*/
 	cv::Mat get_affine_overlap_mask(cv::Mat &warp_mat, cv::Mat &mask, cv::Point2d P1, const int r1, cv::Point2d P2,
 		const int r2, const int cols, const int rows, const byte val = 255);
+
+	/*Create a rectangle containing the non-zero pixels in a mask that can be used to crop them from it
+	**Inputs:
+	**mask: cv::Mat &, 8-bit mask image
+	**Returns:
+	**cv::Rect, Rectangle containing the non-zero pixels in a mask
+	*/
+	cv::Rect get_non_zero_mask_px_bounds(cv::Mat &mask);
+
+	/*Get the ratio of the intensity profiles where 2 spots overlap
+	**Inputs:
+	**mask: cv::Mat &, 8-bit mask that's non-zero values indicate where the circles overlap
+	**c1: cv::Mat &, One of the circles
+	**c2; cv::Mat &, The other circles
+	**p1: cv::Point &, Top left point of a square containing the first circle on the detector
+	**p2: cv::Point &, Top left point of a square containing the second circle on the detector
+	**max_shift: const float, Maximum shift to consider
+	**incr_shift: const float, Steps to adjust the shift by
+	**ratios: cv::Mat &, Output cropped image containing the overlap region containing the ratios of the intensity profiles.
+	**Ratios larger than 1.0 are reciprocated
+	**ratios_mask: cv::Mat &, Output mask indicating the ratios pixels containing ratios
+	**rel_pos: cv::Point &, The position of the top left corner of ratios and ratios_mask in the c1 mat
+	*/
+	void get_overlap_ratios(cv::Mat &mask, cv::Mat &c1, cv::Mat &c2, cv::Point &p1, cv::Point &p2, 
+		cv::Mat &ratios, cv::Mat &ratios_mask, cv::Point &rel_pos);
+
+	/*Get the relative positions of overlapping regions of spots
+	**Inputs:
+	**groups: std::vector<cv::Mat> &, Preprocessed Bragg peaks, ready for dark field decoupled profile extraction
+	**group_pos: std::vector<cv::Point> &, Positions of top left corners of circles' bounding squares
+	**spot_pos: cv::Point2d, Position of located spot in the aligned diffraction pattern
+	**rel_pos: std::vector<std::vector<int>> &, Relative positions of images
+	**grouped_idx: std::vector<std::vector<int>> &, Groups of consecutive image indices where the spots are all in the same position
+	**is_in_img: std::vector<bool> &, True when the spot is in the image so that indices can be grouped
+	**radius: const int, Radius of the spots
+	**col_max: const int, Maximum column difference between spot positions
+	**row_max: const int, Maximum row difference between spot positions
+	**cols: const int, Number of columns in the image
+	**rows: const int, Number of rows in the image
+	*/
+	void overlap_rel_pos(std::vector<cv::Mat> &groups, std::vector<cv::Point> &group_pos, cv::Point2d &spot_pos,
+		std::vector<std::vector<int>> &rel_pos, std::vector<std::vector<int>> &grouped_idx, std::vector<bool> &is_in_img,
+		const int radius, const int col_max, const int row_max, const int cols, const int rows, const int diam);
+
+	/*Relative position of one spot overlapping with another
+	**Inputs:
+	**mask: cv::Mat &, 8-bit mask that's non-zero values indicate where the circles overlap
+	**c1: cv::Mat &, One of the circles
+	**c2; cv::Mat &, The other circles
+	**p1: cv::Point &, Top left point of a square containing the first circle on the detector
+	**p2: cv::Point &, Top left point of a square containing the second circle on the detector
+	**max_shift: const float, Maximum shift to consider
+	**incr_shift: const float, Steps to adjust the shift by
+	**nnz: const int, Number of non-zero pixels in the mask. The number of features looked for will be based on this
+	**shift: cv::Vec2f &, Output how much the second image needs to be shifted to align it
+	*/
+	void get_overlap_rel_pos(cv::Mat &mask, cv::Mat &c1, cv::Mat &c2, cv::Point &p1, cv::Point &p2,
+		cv::Ptr<cv::ORB> &orb, const int nnz, cv::Vec2f &shift);
 }

@@ -200,16 +200,31 @@ namespace ba
 	**mat: cv::Mat &, OpenCV mat to convert
 	**vect: std::vector<typename> &, Vector to store the matrix i
 	**p: typename &, Variable of the same type as the matrix elements
+	**transpose: const bool, If true, the vector is filled with transpositional data. Defaults to false
 	*/
-	template <typename T, typename U> void cvMat_to_vect(cv::Mat &mat, std::vector<T> &vect, U *p)
+	template <typename T, typename U> void cvMat_to_vect(cv::Mat &mat, std::vector<T> &vect, U &p, const bool transpose = false)
 	{
 		vect = std::vector<T>(mat.rows*mat.cols);
-		for (int i = 0 k = 0, i < mat.rows; i++)
+		if (transpose)
 		{
-			p = mat.ptr<U>(i);
-			for (int j = 0; j < mat.cols; j++)
+			for (int j = 0, k = 0; j < mat.cols; j++)
 			{
-				vect[k++] = p[j];
+				for (int i = 0; i < mat.rows; i++)
+				{
+					vect[k++] = mat.at<U>(i, j);
+				}
+			}
+		}
+		else
+		{
+			U *q;
+			for (int i = 0, k = 0; i < mat.rows; i++)
+			{
+				q = mat.ptr<U>(i);
+				for (int j = 0; j < mat.cols; j++)
+				{
+					vect[k++] = q[j];
+				}
 			}
 		}
 	}
