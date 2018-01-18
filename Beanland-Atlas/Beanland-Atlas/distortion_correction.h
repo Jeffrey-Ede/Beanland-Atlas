@@ -114,4 +114,60 @@ namespace ba
 	*/
 	void get_overlap_rel_pos(cv::Mat &mask, cv::Mat &c1, cv::Mat &c2, cv::Point &p1, cv::Point &p2,
 		cv::Ptr<cv::ORB> &orb, const int nnz, cv::Vec2f &shift);
+
+	/*Use Pearson product moment correlation coefficients to determine the relative positions of 2 overlapping regions
+	**the idea
+	**Inputs:
+	**groups: std::vector<cv::Mat> &, Preprocessed Bragg peaks, ready for dark field decoupled profile extraction
+	**group_pos: std::vector<cv::Point> &, Positions of top left corners of circles' bounding squares
+	**spot_pos: cv::Point2d, Position of located spot in the aligned diffraction pattern
+	**rel_pos: std::vector<std::vector<int>> &, Relative positions of images
+	**grouped_idx: std::vector<std::vector<int>> &, Groups of consecutive image indices where the spots are all in the same position
+	**is_in_img: std::vector<bool> &, True when the spot is in the image so that indices can be grouped
+	**radius: const int, Radius of the spots
+	**col_max: const int, Maximum column difference between spot positions
+	**row_max: const int, Maximum row difference between spot positions
+	**cols: const int, Number of columns in the image
+	**rows: const int, Number of rows in the image
+	*/
+	void pearson_overlap_register(std::vector<cv::Mat> &groups, std::vector<cv::Point> &group_pos, cv::Point2d &spot_pos,
+		std::vector<std::vector<int>> &rel_pos, std::vector<std::vector<int>> &grouped_idx, std::vector<bool> &is_in_img,
+		const int radius, const int col_max, const int row_max, const int cols, const int rows, const int diam);
+
+	/*Relative position of one spot overlapping with another using Pearson product moment correlation to register them
+	**Inputs:
+	**mask: cv::Mat &, 8-bit mask that's non-zero values indicate where the circles overlap
+	**c1: cv::Mat &, One of the circles
+	**c2; cv::Mat &, The other circles
+	**p1: cv::Point &, Top left point of a square containing the first circle on the detector
+	**p2: cv::Point &, Top left point of a square containing the second circle on the detector
+	**min_px: const int, Minimum number of pixels in a registration
+	**shift: cv::Vec2f &, Output how much the second image needs to be shifted to align it
+	**Returns:
+	**bool, If true, the image registration has been successful
+	*/
+	bool get_pearson_overlap_register(cv::Mat &mask, cv::Mat &c1, cv::Mat &c2, cv::Point &p1, cv::Point &p2, const int min_px, 
+		cv::Vec2f &shift);
+
+	/*Use Pearson product moment correlation to register 2 masked images of the same size
+	**Inputs:
+	**img1: cv::Mat &, One of the images to register
+	**img2: cv::Mat &, Image being registered against the other
+	**mask1: cv::Mat &, Indicates which pixels in the first image can be used
+	**mask2: cv::Mat &, Indicates which pixels in the second image can be used
+	**shift: cv::Vec2f &, Output registration of the second image relative to the first
+	**min_px: const int, The minimum number of pixels that the matched region must contain
+	*/
+	void masked_pearson_reg(cv::Mat &img1, cv::Mat &img2, cv::Mat &mask1, cv::Mat &mask2, cv::Vec2f &shift,
+		const int min_px);
+
+	/*Calculate Pearson's product moment correlation coefficent from 2 32-bit images at marked locations
+	**Inputs:
+	**img1: cv::Mat &, One of the images
+	**img2: cv::Mat &, The other image
+	**mask: cv::Mat &, 8-bit mask that's non-zero values indicate which pixels to use
+	**Returns:
+	**double, Pearson product moment correlation coefficient between the images
+	*/
+	float masked_pearson_corr(cv::Mat &img1, cv::Mat &img2, cv::Mat &mask);
 }

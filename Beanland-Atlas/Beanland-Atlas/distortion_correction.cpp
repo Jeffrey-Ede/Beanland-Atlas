@@ -443,7 +443,8 @@ namespace ba
 		return circle1 & w & mask;
 	}
 
-	/*Get the relative positions of overlapping regions of spots using the ORB feature detector
+	/*Get the relative positions of overlapping regions of spots using the ORB feature detector. This function was written to test
+	**the idea
 	**Inputs:
 	**groups: std::vector<cv::Mat> &, Preprocessed Bragg peaks, ready for dark field decoupled profile extraction
 	**group_pos: std::vector<cv::Point> &, Positions of top left corners of circles' bounding squares
@@ -461,9 +462,6 @@ namespace ba
 		std::vector<std::vector<int>> &rel_pos, std::vector<std::vector<int>> &grouped_idx, std::vector<bool> &is_in_img,
 		const int radius, const int col_max, const int row_max, const int cols, const int rows, const int diam)
 	{
-		//Calculate the length scale of features in the image
-		//FLAGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
-
 		//Construct ORB feature matcher to perform ORB operations in the loop
 		cv::Ptr<cv::ORB> orb = cv::ORB::create(500, 2, 1, 0, 0, 3, cv::ORB::HARRIS_SCORE, 10);
 
@@ -520,7 +518,8 @@ namespace ba
 		}
 	}
 
-	/*Relative position of one spot overlapping with another using the ORB feature detector
+	/*Relative position of one spot overlapping with another using the ORB feature detector. This function was written to test
+	**the idea
 	**Inputs:
 	**mask: cv::Mat &, 8-bit mask that's non-zero values indicate where the circles overlap
 	**c1: cv::Mat &, One of the circles
@@ -587,5 +586,239 @@ namespace ba
 		cv::drawMatches( norm1, keypoints1, norm2, keypoints2, matches, img );
 
 		display_CV(img);
+	}
+
+	/*Use Pearson product moment correlation coefficients to determine the relative positions of 2 overlapping regions
+	**Inputs:
+	**groups: std::vector<cv::Mat> &, Preprocessed Bragg peaks, ready for dark field decoupled profile extraction
+	**group_pos: std::vector<cv::Point> &, Positions of top left corners of circles' bounding squares
+	**spot_pos: cv::Point2d, Position of located spot in the aligned diffraction pattern
+	**rel_pos: std::vector<std::vector<int>> &, Relative positions of images
+	**grouped_idx: std::vector<std::vector<int>> &, Groups of consecutive image indices where the spots are all in the same position
+	**is_in_img: std::vector<bool> &, True when the spot is in the image so that indices can be grouped
+	**radius: const int, Radius of the spots
+	**col_max: const int, Maximum column difference between spot positions
+	**row_max: const int, Maximum row difference between spot positions
+	**cols: const int, Number of columns in the image
+	**rows: const int, Number of rows in the image
+	*/
+	void pearson_overlap_register(std::vector<cv::Mat> &groups, std::vector<cv::Point> &group_pos, cv::Point2d &spot_pos,
+		std::vector<std::vector<int>> &rel_pos, std::vector<std::vector<int>> &grouped_idx, std::vector<bool> &is_in_img,
+		const int radius, const int col_max, const int row_max, const int cols, const int rows, const int diam)
+	{
+		//Get the spots that are fully in images
+		std::vector<cv::Vec2f> registrations;
+		std::vector<cv::Vec2i> combinations;
+		for (int k = 0, m = 0, counter = 0; k < grouped_idx.size(); k++)
+		{
+			if (is_in_img[k])
+			{
+				for (int l = k+1, n = m+1; l < grouped_idx.size(); l++)
+				{
+					if (is_in_img[l])
+					{
+						//Find the overlapping region between the circles
+						circ_overlap co = get_overlap(spot_pos, rel_pos, col_max, row_max, radius, grouped_idx[m][0], grouped_idx[n][0], 
+							cols, rows);
+
+						//Check if they overlap and the overlapping region is fully in the image
+						if (co.overlap)
+						{
+							//Find if the overlapping region is entirely on the image
+							if (on_img(co.bounding_rect[0], cols, rows) && on_img(co.bounding_rect[1], cols, rows))
+							{
+								//Create a mask idicating where the circles overlap to extract the values from the images
+								cv::Mat co_mask = gen_circ_overlap_mask(co.P1, radius, co.P2, radius, cols, rows);
+
+								//Get the number of overlapping pixels from the mask
+								int num_overlap = cv::countNonZero(co_mask);
+
+								//Check that there are enough pixels to make a meaningful estimate of the symmetry center
+								if (num_overlap > MIN_OVERLAP_PX_NUM)
+								{
+									//Get the ratios of the overlapping protions of the image
+									cv::Vec2f shift; //Shift of the second image relative to the first
+									if ( get_pearson_overlap_register(co_mask, groups[m], groups[n], group_pos[m], group_pos[n], shift) )
+									{
+										registrations.push_back(shift);
+										combinations.push_back(cv::Vec2i(m, n));
+									}
+								}
+							}
+						}
+
+						//Go to th next group
+						n++;
+					}
+				}
+
+				//Go to next group
+				m++;
+			}
+		}
+	}
+
+	/*Relative position of one spot overlapping with another using Pearson product moment correlation to register them
+	**Inputs:
+	**mask: cv::Mat &, 8-bit mask that's non-zero values indicate where the circles overlap
+	**c1: cv::Mat &, One of the circles
+	**c2; cv::Mat &, The other circles
+	**p1: cv::Point &, Top left point of a square containing the first circle on the detector
+	**p2: cv::Point &, Top left point of a square containing the second circle on the detector
+	**min_px: const int, Minimum number of pixels in a registration
+	**shift: cv::Vec2f &, Output how much the second image needs to be shifted to align it
+	**Returns:
+	**bool, If true, the image registration has been successful
+	*/
+	bool get_pearson_overlap_register(cv::Mat &mask, cv::Mat &c1, cv::Mat &c2, cv::Point &p1, cv::Point &p2, const int min_px, 
+		cv::Vec2f &shift)
+	{
+		//Create an image to store ratios on and a mask indicating them
+		cv::Mat overlap1 = cv::Mat(c1.size(), CV_32FC1, cv::Scalar(0.0));
+		cv::Mat overlap2 = cv::Mat(c1.size(), CV_32FC1, cv::Scalar(0.0));
+
+		//Get the pixel value and distances from circle centers for pixels in the overlapping region
+		byte *b;
+		for (int i = 0, co_num = 0; i < mask.rows; i++)
+		{
+			b = mask.ptr<byte>(i);
+			for (int j = 0; j < mask.cols; j++)
+			{
+				//If the pixel is marked as an overlapping region pixel
+				if (b[j])
+				{
+					//Get the values of the pixels
+					double val1, val2;
+					val1 = c1.at<float>(i-p1.y, j-p1.x);
+					val2 = c2.at<float>(i-p2.y, j-p2.x);
+
+					overlap1.at<float>(i-p1.y, j-p1.x) = val1;
+					overlap2.at<float>(i-p1.y, j-p1.x) = val2;
+				}
+			}
+		}
+
+		//Get the rectangle needed to crop the images to reduce the amound of memory needed to store them
+		cv::Rect rect = get_non_zero_mask_px_bounds(mask);
+
+		//Output the overlap-containing region, along with it's position in the first spot mat
+		cv::Mat mini_overlap1, mini_overlap2, mini_mask;
+		overlap1(rect).copyTo(mini_overlap1);
+		overlap2(rect).copyTo(mini_overlap2);
+		mask(rect).copyTo(mini_mask);
+
+		//Find the registration of maximum Pearson correlation that contains the minimum number of pixels
+		masked_pearson_reg(mini_overlap1, mini_overlap2, mini_mask, mini_mask, shift, min_px);
+
+		//Indicate whether or not the image has successfully been registered
+		return success condition;
+	}
+
+	/*Use Pearson product moment correlation to register 2 masked images of the same size
+	**Inputs:
+	**img1: cv::Mat &, One of the images to register
+	**img2: cv::Mat &, Image being registered against the other
+	**mask1: cv::Mat &, Indicates which pixels in the first image can be used
+	**mask2: cv::Mat &, Indicates which pixels in the second image can be used
+	**shift: cv::Vec2f &, Output registration of the second image relative to the first
+	**min_px: const int, The minimum number of pixels that the matched region must contain
+	*/
+	void masked_pearson_reg(cv::Mat &img1, cv::Mat &img2, cv::Mat &mask1, cv::Mat &mask2, cv::Vec2f &shift,
+		const int min_px)
+	{
+		//Generate all possible largest overlap rectangles
+		cv::Vec2f reg;
+		float max_pear = -1.0f;
+        #pragma omp parallel for
+		for (int i = 0, m = mask1.rows-1; i < mask1.rows; i++, m--)
+		{
+			for (int j = 0, n = mask1.cols-1; j < mask1.cols; j++, n--)
+			{
+				//Create overlap rectangles
+				cv::Rect tl1 = cv::Rect(j, i, mask1.cols-j, mask1.rows-i); //Top left 1
+				cv::Rect tl2 = cv::Rect(0, 0, mask1.cols-j, mask1.rows-i); //Top left 2
+				cv::Rect br1 = cv::Rect(0, 0, n+1, m+1); //Bottom right 1
+				cv::Rect br2 = cv::Rect(n, m, n+1, m+1); //Bottom right 2
+
+				//Calculate the number of overlapping pixels for these rectangles and calculate the Peason 
+				//coefficents if these are higher than the critical number for the top left overlapping rectangle
+				cv::Mat px = mask1(tl1) & mask2(tl2);
+				if (cv::countNonZero(px) >= min_px)
+				{
+					float pear = masked_pearson_corr(img1, img2, px);
+					
+					//Check if this is the bast match
+					if (pear > max_pear)
+					{
+						max_pear = pear;
+						reg = cv::Vec2f(j, i);
+					}
+				}
+
+				//Calculate the number of overlapping pixels for these rectangles and calculate the Peason 
+				//coefficents if these are higher than the critical number for the bottom right overlapping rectangle
+				px = mask1(br1) & mask2(br2);
+				if (cv::countNonZero(px) >= min_px)
+				{
+					float pear = masked_pearson_corr(img1, img2, px);
+
+					//Check if this is the best match
+					if (pear > max_pear)
+					{
+						max_pear = pear;
+						reg = cv::Vec2f(n-mask1.cols+1, m-mask1.rows+1);
+					}
+				}
+			}
+		}
+
+		shift = reg;
+	}
+
+	/*Calculate Pearson's product moment correlation coefficent from 2 32-bit images at marked locations
+	**Inputs:
+	**img1: cv::Mat &, One of the images
+	**img2: cv::Mat &, The other image
+	**mask: cv::Mat &, 8-bit mask that's non-zero values indicate which pixels to use
+	**Returns:
+	**double, Pearson product moment correlation coefficient between the images
+	*/
+	float masked_pearson_corr(cv::Mat &img1, cv::Mat &img2, cv::Mat &mask)
+	{
+		//Sums for Pearson product moment correlation coefficient
+		float sum_xy = 0.0f;
+		float sum_x = 0.0f;
+		float sum_y = 0.0f;
+		float sum_x2 = 0.0f;
+		float sum_y2 = 0.0f;
+
+		//Reflect points across mirror line and compare them to the nearest pixel
+		int nnz = 0; //Number of pixels contributing to the calculation
+		byte *b;
+		float *p, *q;
+        #pragma omp parallel for reduction(sum:sum_xy), reduction(sum:sum_x), reduction(sum:sum_y), reduction(sum:sum_x2), reduction(sum:sum_y2)
+		for (int i = 0; i < img1.rows; i++)
+		{
+			b = mask.ptr<byte>(i);
+			p = img1.ptr<float>(i);
+			q = img2.ptr<float>(i);
+			for (int j = 0; j < img1.cols; j++)
+			{
+				//If the pixels are both not black - safegaurd against rows or columns with some black in the middle
+				if (b[j])
+				{
+					//Contribute to Pearson correlation coefficient
+					sum_xy += p[i]*q[i];
+					sum_x += p[i];
+					sum_y += q[i];
+					sum_x2 += p[i]*p[i];
+					sum_y2 += q[i]*q[i];
+
+					nnz++;
+				}
+			}
+		}
+
+		return (nnz*sum_xy - sum_x*sum_y) / (std::sqrt(nnz*sum_x2 - sum_x*sum_x) * std::sqrt(nnz*sum_y2 - sum_y*sum_y));
 	}
 }
