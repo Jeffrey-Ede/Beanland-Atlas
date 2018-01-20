@@ -105,6 +105,9 @@
     <ClCompile Include="distortion_correction.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="spot_outlines.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="beanland_atlas.h">
@@ -200,6 +203,9 @@
     <ClInclude Include="distortion_correction.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="spot_outlines.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="create_annulus.cl">
@@ -239,6 +245,12 @@
       <Filter>MATLAB</Filter>
     </None>
     <None Include="MATLAB\get_mirr_sym.m">
+      <Filter>MATLAB</Filter>
+    </None>
+    <None Include="MATLAB\fisher_pearson_confidence.m">
+      <Filter>MATLAB</Filter>
+    </None>
+    <None Include="MATLAB\pearson_r_and_p.m">
       <Filter>MATLAB</Filter>
     </None>
   </ItemGroup>

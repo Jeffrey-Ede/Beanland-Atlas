@@ -42,6 +42,7 @@
     <ClCompile Include="refine_mir_pos.cpp" />
     <ClCompile Include="repeating_max_loc.cpp" />
     <ClCompile Include="spot_extraction.cpp" />
+    <ClCompile Include="spot_outlines.cpp" />
     <ClCompile Include="template_matching.cpp" />
     <ClCompile Include="utility.cpp" />
     <ClCompile Include="window_functions.cpp" />
@@ -74,6 +75,7 @@
     <ClInclude Include="refine_mir_pos.h" />
     <ClInclude Include="repeating_max_loc.h" />
     <ClInclude Include="spot_extraction.h" />
+    <ClInclude Include="spot_outlines.h" />
     <ClInclude Include="template_matching.h" />
     <ClInclude Include="utility.h" />
     <ClInclude Include="utility.hpp" />
@@ -88,9 +90,11 @@
     <None Include="MATLAB\bezier_surf_rev.m" />
     <None Include="MATLAB\distancePointToEllipse.m" />
     <None Include="MATLAB\dists_points_to_ellipse.m" />
+    <None Include="MATLAB\fisher_pearson_confidence.m" />
     <None Include="MATLAB\fkmeans.m" />
     <None Include="MATLAB\get_mirr_sym.m" />
     <None Include="MATLAB\hyper_renorm_ellipse.m" />
+    <None Include="MATLAB\pearson_r_and_p.m" />
     <None Include="MATLAB\project_onto_ellipse.m" />
     <None Include="MATLAB\share_matlab_engine.m" />
   </ItemGroup>

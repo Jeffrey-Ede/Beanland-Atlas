@@ -27,8 +27,12 @@ namespace ba
 		std::vector<bool> is_in_img;
 		grouping_preproc(mats, grouped_idx, spot_pos, rel_pos, col_max, row_max, radius, diam, groups, group_pos, is_in_img);
 
-		overlap_rel_pos(groups, group_pos, spot_pos, rel_pos, grouped_idx, is_in_img, radius, 
+		pearson_overlap_register(groups, group_pos, spot_pos, rel_pos, grouped_idx, is_in_img, radius, 
 			col_max, row_max, mats[0].cols, mats[0].rows, diam);
+
+		/*//Machine learning-based feature extraction registration test
+		overlap_rel_pos(groups, group_pos, spot_pos, rel_pos, grouped_idx, is_in_img, radius, 
+			col_max, row_max, mats[0].cols, mats[0].rows, diam);*/
 
 		//Affinely transform overlapping regions of the spots to calculate the distortion field
 		/*get_aberrating_fields(groups, group_pos, spot_pos, rel_pos, grouped_idx, is_in_img, radius, 

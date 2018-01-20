@@ -22,6 +22,12 @@ namespace ba
 	//Scale to look for features on with the ORB detector when 
 	#define OVERLAP_REL_POS_SCALE 2 //This can be changed to be dynamically calculated at a later time
 
+	//Minimum number of pixels needed for a Pearson correlation to be valid
+    #define MIN_OVERLAP_PX_REG 10
+
+	//Confidence level required for registrations
+    #define MIN_PEAR_CONFID 0.95
+
 	/*Use spot overlaps to determine the distortion field
 	**Inputs:
 	**groups: std::vector<cv::Mat> &, Preprocessed Bragg peaks, ready for dark field decoupled profile extraction
@@ -142,12 +148,13 @@ namespace ba
 	**p1: cv::Point &, Top left point of a square containing the first circle on the detector
 	**p2: cv::Point &, Top left point of a square containing the second circle on the detector
 	**min_px: const int, Minimum number of pixels in a registration
-	**shift: cv::Vec2f &, Output how much the second image needs to be shifted to align it
+	**shift: cv::Vec3f &, Output how much the second image needs to be shifted to align it and the Pearson coefficient
+	**matlabPtr: std::unique_ptr<matlab::engine::MATLABEngine> &, MATLAB engine
 	**Returns:
-	**bool, If true, the image registration has been successful
+	**int, Number of pixels at the registration point
 	*/
-	bool get_pearson_overlap_register(cv::Mat &mask, cv::Mat &c1, cv::Mat &c2, cv::Point &p1, cv::Point &p2, const int min_px, 
-		cv::Vec2f &shift);
+	int get_pearson_overlap_register(cv::Mat &mask, cv::Mat &c1, cv::Mat &c2, cv::Point &p1, cv::Point &p2, const int min_px, 
+		cv::Vec4f &shift, std::unique_ptr<matlab::engine::MATLABEngine> &matlabPtr);
 
 	/*Use Pearson product moment correlation to register 2 masked images of the same size
 	**Inputs:
@@ -155,19 +162,47 @@ namespace ba
 	**img2: cv::Mat &, Image being registered against the other
 	**mask1: cv::Mat &, Indicates which pixels in the first image can be used
 	**mask2: cv::Mat &, Indicates which pixels in the second image can be used
-	**shift: cv::Vec2f &, Output registration of the second image relative to the first
+	**shift: cv::Vec3f &, Output registration of the second image relative to the first and Pearson coefficient
 	**min_px: const int, The minimum number of pixels that the matched region must contain
+	**matlabPtr: std::unique_ptr<matlab::engine::MATLABEngine> &, MATLAB engine
+	**Returns:
+	**int, Number of pixels at the registration point
 	*/
-	void masked_pearson_reg(cv::Mat &img1, cv::Mat &img2, cv::Mat &mask1, cv::Mat &mask2, cv::Vec2f &shift,
-		const int min_px);
+	int masked_pearson_reg(cv::Mat &img1, cv::Mat &img2, cv::Mat &mask1, cv::Mat &mask2, cv::Vec4f &shift,
+		const int min_px, std::unique_ptr<matlab::engine::MATLABEngine> &matlabPtr);
 
 	/*Calculate Pearson's product moment correlation coefficent from 2 32-bit images at marked locations
 	**Inputs:
-	**img1: cv::Mat &, One of the images
-	**img2: cv::Mat &, The other image
-	**mask: cv::Mat &, 8-bit mask that's non-zero values indicate which pixels to use
+	**img1: cv::Mat, One of the images
+	**img2: cv::Mat, The other image
+	**mask: cv::Mat, 8-bit mask that's non-zero values indicate which pixels to use
 	**Returns:
-	**double, Pearson product moment correlation coefficient between the images
+	**float, Pearson product moment correlation coefficient between the images
 	*/
-	float masked_pearson_corr(cv::Mat &img1, cv::Mat &img2, cv::Mat &mask);
+	float masked_pearson_corr(cv::Mat img1, cv::Mat img2, cv::Mat mask);
+
+	/*Use the Fisher transform to get a confidence interval for Pearson's coefficient
+	**Inputs:
+	**rho: const float, Pearson normalised product moment correlation coefficient
+	**num: const int, Number of elements in the sample
+	**confidence: Confidence to find the interval for e.g. 0.95
+	**matlabPtr: std::unique_ptr<matlab::engine::MATLABEngine> &, Optional pointer to a MATLAB engine
+	**Returns:
+	**Vec2f, Confidence interval
+	*/
+	cv::Vec2f fisher_pearson_confid(const float rho, const int num, const float confidence,
+		std::unique_ptr<matlab::engine::MATLABEngine> &matlabPtr);
+
+	/*Calculate Pearson's product moment correlation coefficent from 2 32-bit images at marked locations and the
+	**probability
+	**Inputs:
+	**img1: cv::Mat, One of the images
+	**img2: cv::Mat, The other image
+	**mask: cv::Mat, 8-bit mask that's non-zero values indicate which pixels to use
+	**matlabPtr: std::unique_ptr<matlab::engine::MATLABEngine> &, Pointer to a MATLAB engine
+	**Returns:
+	**cv::Vec2f, Pearson product moment correlation coefficient between the images and the confidence
+	*/
+	cv::Vec2f masked_pearson_corr_with_confid(cv::Mat img1, cv::Mat img2, cv::Mat mask, 
+		std::unique_ptr<matlab::engine::MATLABEngine> &matlabPtr);
 }
