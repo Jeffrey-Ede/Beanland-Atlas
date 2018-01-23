@@ -606,11 +606,8 @@ namespace ba
 		std::vector<std::vector<int>> &rel_pos, std::vector<std::vector<int>> &grouped_idx, std::vector<bool> &is_in_img,
 		const int radius, const int col_max, const int row_max, const int cols, const int rows, const int diam)
 	{
-		//Initialise MATLAB engine
-		std::unique_ptr<matlab::engine::MATLABEngine> matlabPtr = matlab::engine::connectMATLAB();
-
 		//Get the spots that are fully in images
-		std::vector<cv::Vec4f> registrations;
+		std::vector<cv::Vec3f> registrations;
 		std::vector<cv::Vec2i> combinations;
 		for (int k = 0, m = 0, counter = 0; k < grouped_idx.size(); k++)
 		{
@@ -640,29 +637,28 @@ namespace ba
 								if (num_overlap > MIN_OVERLAP_PX_NUM)
 								{
 									//Get the ratios of the overlapping protions of the image
-									cv::Vec4f shift; //Shift of the second image relative to the first
-									int num_overlap_px = get_pearson_overlap_register(co_mask, groups[m], groups[n], group_pos[m], group_pos[n], 
-										MIN_OVERLAP_PX_REG, shift, matlabPtr);
-									if ( num_overlap_px )
-									{
-										//Get the confidence interval for this pearson coefficient and sample size
-										//cv::Vec2f interval = fisher_pearson_confid(shift[2], num_overlap_px, MIN_PEAR_CONFID);
+									cv::Vec3f shift = cv::Vec3f(m, n, 0); //Shift of the second image relative to the first
+									get_pearson_overlap_register(co_mask, groups[m], groups[n], group_pos[m], group_pos[n], 
+										MIN_OVERLAP_PX_REG, cv::Vec2i(8, 8), shift);
+				
+									//Get the confidence interval for this pearson coefficient and sample size
+									//cv::Vec2f interval = fisher_pearson_confid(shift[2], num_overlap_px, MIN_PEAR_CONFID);
 
-										registrations.push_back(shift);
-										combinations.push_back(cv::Vec2i(m, n));
+									registrations.push_back(shift);
+									combinations.push_back(cv::Vec2i(m, n));
 
-										std::cout << m << ", " << "n " << ", " << shift[0] << ", " << shift[1] << ", " << shift[2] << std::endl;
-									}
+									std::cout << m << ", " << n << ", " << shift[0] << ", " << shift[1] << ", " << shift[2] << std::endl;
+									
 								}
 							}
 						}
 
-						//Go to th next group
+						//Go to the next group
 						n++;
 					}
 				}
 
-				//Go to next group
+				//Go to the next group
 				m++;
 			}
 		}
@@ -678,18 +674,16 @@ namespace ba
 	**p1: cv::Point &, Top left point of a square containing the first circle on the detector
 	**p2: cv::Point &, Top left point of a square containing the second circle on the detector
 	**min_px: const int, Minimum number of pixels in a registration
+	**max_shift: cv::Vec2i &, Maximum displacent of the images
 	**shift: cv::Vec3f &, Output how much the second image needs to be shifted to align it and the Pearson coefficient
-	**matlabPtr: std::unique_ptr<matlab::engine::MATLABEngine> &, MATLAB engine
-	**Returns:
-	**int, Number of pixels at the registration point
 	*/
-	int get_pearson_overlap_register(cv::Mat &mask, cv::Mat &c1, cv::Mat &c2, cv::Point &p1, cv::Point &p2, const int min_px, 
-		cv::Vec4f &shift, std::unique_ptr<matlab::engine::MATLABEngine> &matlabPtr)
+	void get_pearson_overlap_register(cv::Mat &mask, cv::Mat &c1, cv::Mat &c2, cv::Point &p1, cv::Point &p2, const int min_px,
+		cv::Vec2i &max_shift, cv::Vec3f &shift)
 	{
 		//Create an image to store ratios on and a mask indicating them
 		cv::Mat overlap1 = cv::Mat(c1.size(), CV_32FC1, cv::Scalar(0.0));
 		cv::Mat overlap2 = cv::Mat(c1.size(), CV_32FC1, cv::Scalar(0.0));
-		cv::Mat overlap_mask = cv::Mat(c1.size(), CV_8UC1, cv::Scalar(0.0));
+		cv::Mat overlap_mask = cv::Mat(c1.size(), CV_8UC1, cv::Scalar(0));
 
 		//Get the pixel value and distances from circle centers for pixels in the overlapping region
 		byte *b;
@@ -701,13 +695,8 @@ namespace ba
 				//If the pixel is marked as an overlapping region pixel
 				if (b[j])
 				{
-					//Get the values of the pixels
-					double val1, val2;
-					val1 = c1.at<float>(i-p1.y, j-p1.x);
-					val2 = c2.at<float>(i-p2.y, j-p2.x);
-
-					overlap1.at<float>(i-p1.y, j-p1.x) = val1;
-					overlap2.at<float>(i-p1.y, j-p1.x) = val2;
+					overlap1.at<float>(i-p1.y, j-p1.x) = c1.at<float>(i-p1.y, j-p1.x);
+					overlap2.at<float>(i-p1.y, j-p1.x) = c2.at<float>(i-p2.y, j-p2.x);
 
 					overlap_mask.at<byte>(i-p1.y, j-p1.x) = 255;
 				}
@@ -717,26 +706,24 @@ namespace ba
 		//Get the rectangle needed to crop the images to reduce the amound of memory needed to store them
 		cv::Rect rect = get_non_zero_mask_px_bounds(overlap_mask);
 
-		std::cout << "pos 4" << std::endl;
-		display_CV(overlap1);
-
 		//Output the overlap-containing region, along with it's position in the first spot mat
 		cv::Mat mini_overlap1, mini_overlap2, mini_mask;
 		overlap1(rect).copyTo(mini_overlap1);
 		overlap2(rect).copyTo(mini_overlap2);
-		mask(rect).copyTo(mini_mask);
+		overlap_mask(rect).copyTo(mini_mask);
 
-		std::cout << "pos 5" << std::endl;
-		display_CV(overlap_mask);
+		if (shift[0] == 84 && shift[1] == 154)
+		{
+			//display_CV(overlap1);
+			//display_CV(overlap2);
 
-		std::cout << "pos 3" << std::endl;
-		display_CV(mini_overlap1);
-
-		std::cout << "pos 6" << std::endl;
-		display_CV(mini_mask);
+			display_CV(mini_overlap1);
+			display_CV(mini_overlap2);
+			display_CV(mini_mask);
+		}
 
 		//Find the registration of maximum Pearson correlation that contains the minimum number of pixels
-		return masked_pearson_reg(mini_overlap1, mini_overlap2, mini_mask, mini_mask, shift, min_px, matlabPtr);
+		masked_pearson_reg(mini_overlap1, mini_overlap2, mini_mask, mini_mask, shift, min_px, max_shift);
 	}
 	
 	/*Use Pearson product moment correlation to register 2 masked images of the same size
@@ -747,102 +734,148 @@ namespace ba
 	**mask2: cv::Mat &, Indicates which pixels in the second image can be used
 	**shift: cv::Vec3f &, Output registration of the second image relative to the first and Pearson coefficient
 	**min_px: const int, The minimum number of pixels that the matched region must contain
-	**matlabPtr: std::unique_ptr<matlab::engine::MATLABEngine> &, MATLAB engine
-	**Returns:
-	**int, Number of pixels at the registration point
+	**max_shift: cv::Vec2i &, Maximum displacent of the images
 	*/
-	int masked_pearson_reg(cv::Mat &img1, cv::Mat &img2, cv::Mat &mask1, cv::Mat &mask2, cv::Vec4f &shift,
-		const int min_px, std::unique_ptr<matlab::engine::MATLABEngine> &matlabPtr)
+	void masked_pearson_reg(cv::Mat &img1, cv::Mat &img2, cv::Mat &mask1, cv::Mat &mask2, cv::Vec3f &shift,
+		const int min_px, cv::Vec2i &max_shift)
 	{
-		//Generate all possible largest overlap rectangles
-		cv::Vec4f reg;
-		int reg_num = 0;
-		reg[2] = -1.0f;
-		for (int i = 0, m = mask1.rows-1; i < mask1.rows; i++, m--)
-		{
-			for (int j = 0, n = mask1.cols-1; j < mask1.cols; j++, n--)
-			{
-				//Create overlap rectangles
-				cv::Rect tl1 = cv::Rect(j, i, mask1.cols-j, mask1.rows-i); //Top left 1
-				cv::Rect tl2 = cv::Rect(0, 0, mask1.cols-j, mask1.rows-i); //Top left 2
-				cv::Rect br1 = cv::Rect(0, 0, mask1.cols-n, mask1.rows-m); //Bottom right 1
-				cv::Rect br2 = cv::Rect(n, m, mask1.cols-n, mask1.rows-m); //Bottom right 2
+		//display_CV(img1);
+		//display_CV(img2);
+		//display_CV(mask1);
+		//display_CV(mask2);
 
-				//Calculate the number of overlapping pixels for these rectangles and calculate the Pearson 
-				//coefficents if these are higher than the critical number for the top left overlapping rectangle
-				cv::Mat px = mask1(tl1) & mask2(tl2);
+		//Restrict the registrations considered to a sensible range
+		int max_rows = std::min(max_shift[1], mask1.rows-1);
+		int max_cols = std::min(max_shift[0], mask1.cols-1);
+
+		//Construct a Pearson coefficient sea
+		cv::Mat pear = cv::Mat(2*max_rows+1, 2*max_cols+1, CV_32FC1, cv::Scalar(0.0));
+		cv::Mat min_pxs = cv::Mat(2*max_rows+1, 2*max_cols+1, CV_8UC1, cv::Scalar(0));
+
+		//Generate all possible largest overlap rectangles
+		for (int i = -max_rows, m = 0; i <= max_rows; i++, m++)
+		{
+			int i_edge = std::max(0, i);
+			int i_edge2 = std::max(0, -i);
+			int height = std::min(mask1.rows-i, i+mask1.rows);
+
+			for (int j = -max_cols, n = 0; j <= max_cols; j++, n++)
+			{
+				int j_edge = std::max(0, j);
+				int j_edge2 = std::max(0, -j);
+				int width = std::min(mask1.cols-j, j+mask1.cols);
+
+				//Create overlap rectangles
+				cv::Rect rect1 = cv::Rect( j_edge, i_edge, width, height );
+				cv::Rect rect2 = cv::Rect( j_edge2, i_edge2, width, height );
+			
+				//Create a mask indicating the overlapping masked pixels
+				cv::Mat px = mask1(rect1) & mask2(rect2);
+
 				int num_px = cv::countNonZero(px);
 				if (num_px >= min_px)
 				{
-					std::cout << "pos 2" << std::endl;
-					display_CV(img1(tl1));
-
-
-					cv::Vec2f pear = masked_pearson_corr_with_confid(img1(tl1), img2(tl2), px, matlabPtr);
-					
-					//Check if this is the bast match
-					if (pear[1] > reg[2])
+					pear.at<float>(m, n) = masked_pearson_corr(img1(rect1), img2(rect2), px);
+					if ( std::isnan( pear.at<float>(m, n) ) )
 					{
-						reg[2] = pear[1];
-						reg[3] = pear[2];
+						std::cout << j_edge << ", " << j_edge2 << ", " << i_edge << ", " << i_edge2 << ", " << width << ", " << height << std::endl;
+						display_CV( img1 );
+						display_CV( img2 );
+						
+						std::cout << img2 <<std::endl;
+						std::getchar();
+						
+						display_CV( mask1 );
+						display_CV( mask2 );
+						display_CV( px );
+						display_CV( mask1(rect1) );
+						display_CV( mask2(rect2) );
 
-						reg[0] = j;
-						reg[1] = i;
-
-						reg_num = num_px;
+						std::cout << "Extract: " << std::endl;
+						display_CV( img1(rect1) );
+						display_CV( img2(rect2) );
+						
+						std::cout << pear.at<float>(m, n) << std::endl;
+						std::getchar();
 					}
-				}
 
-				//Calculate the number of overlapping pixels for these rectangles and calculate the Pearson 
-				//coefficents if these are higher than the critical number for the bottom right overlapping rectangle
-				px = mask1(br1) & mask2(br2);
-				num_px = cv::countNonZero(px);
-				if (num_px >= min_px)
-				{
-					cv::Vec2f pear = masked_pearson_corr_with_confid(img1(br1), img2(br2), px, matlabPtr);
-
-					//Check if this is the best match
-					if (pear[1] > reg[2])
-					{
-						reg[2] = pear[1];
-						reg[3] = pear[2];
-
-						reg[0] = n-mask1.cols+1;
-						reg[1] = m-mask1.rows+1;
-
-						reg_num = num_px;
-					}
+					min_pxs.at<byte>(m, n) = 1;
 				}
 			}
 		}
 
-		shift = reg;
+		//Find the position of maximum correlation
+		double max;
+		cv::Point maxLoc;
+		cv::minMaxLoc(pear, NULL, &max, NULL, &maxLoc);
 
-		return reg_num;
+		//Get the minimum distance from the image edges of the maximum
+		int min = std::min(maxLoc.y, std::min(maxLoc.x, std::min(pear.rows-1 - maxLoc.y, pear.rows-1 - maxLoc.x)));
+
+		//Create an up to 5x5 to take the centroid of to refine the position of the maxium
+		int size = std::min(min, 2);
+		cv::Rect rect = cv::Rect(maxLoc.y-size, maxLoc.x-size, 2*size+1, 2*size+1);
+
+		float sumProductsi = 0.0f, sumProductsj = 0.0f, sumWeights = 0.0f, count = 0.0f;
+		for (int i = maxLoc.y - size; i <= maxLoc.y + size; i++)
+		{
+			for (int j = maxLoc.x - size; j <= maxLoc.x + size; j++)
+			{
+				if (min_pxs.at<byte>(i, j))
+				{
+					sumWeights += pear.at<float>(i, j);
+					count++;
+				}
+			}
+		}
+
+		float avgWeight = sumWeights / count;
+		for (int i = maxLoc.y - size; i <= maxLoc.y + size; i++)
+		{
+			for (int j = maxLoc.x - size; j <= maxLoc.x + size; j++)
+			{
+				if (min_pxs.at<byte>(i, j))
+				{
+					sumProductsi += pear.at<float>(i, j)*i;
+					sumProductsj += pear.at<float>(i, j)*j;
+				}
+				else
+				{
+					sumProductsi += avgWeight*i;
+					sumProductsj += avgWeight*j;
+				
+					sumWeights += avgWeight;
+				}
+			}
+		}
+
+		//std::cout << sumProductsj/sumWeights - max_cols << ", " << sumProductsi/sumWeights - max_rows << std::endl;
+
+		//Convert the maximum location to a shift
+		shift = cv::Vec3f(max_cols - sumProductsj/sumWeights, max_rows - sumProductsi/sumWeights, (float)max);
 	}
 
 	/*Calculate Pearson's product moment correlation coefficent from 2 32-bit images at marked locations
 	**Inputs:
-	**img1: cv::Mat, One of the images
-	**img2: cv::Mat, The other image
-	**mask: cv::Mat, 8-bit mask that's non-zero values indicate which pixels to use
+	**img1: cv::Mat &, One of the images
+	**img2: cv::Mat &, The other image
+	**mask: cv::Mat &, 8-bit mask that's non-zero values indicate which pixels to use
 	**Returns:
-	**float, Pearson product moment correlation coefficient between the images
+	**double, Pearson product moment correlation coefficient between the images
 	*/
-	float masked_pearson_corr(cv::Mat img1, cv::Mat img2, cv::Mat mask)
+	double masked_pearson_corr(cv::Mat &img1, cv::Mat &img2, cv::Mat &mask)
 	{
 		//Sums for Pearson product moment correlation coefficient
-		float sum_xy = 0.0f;
-		float sum_x = 0.0f;
-		float sum_y = 0.0f;
-		float sum_x2 = 0.0f;
-		float sum_y2 = 0.0f;
+		double sum_xy = 0.0f;
+		double sum_x = 0.0f;
+		double sum_y = 0.0f;
+		double sum_x2 = 0.0f;
+		double sum_y2 = 0.0f;
 
 		//Reflect points across mirror line and compare them to the nearest pixel
 		int nnz = 0; //Number of pixels contributing to the calculation
 		byte *b;
 		float *p, *q;
-        #pragma omp parallel for reduction(sum:sum_xy), reduction(sum:sum_x), reduction(sum:sum_y), reduction(sum:sum_x2), reduction(sum:sum_y2)
 		for (int i = 0; i < img1.rows; i++)
 		{
 			b = mask.ptr<byte>(i);
@@ -853,18 +886,24 @@ namespace ba
 				if (b[j])
 				{
 					//Contribute to Pearson correlation coefficient
-					sum_xy += p[i]*q[i];
-					sum_x += p[i];
-					sum_y += q[i];
-					sum_x2 += p[i]*p[i];
-					sum_y2 += q[i]*q[i];
+					sum_xy += p[j]*q[j];
+					sum_x += p[j];
+					sum_y += q[j];
+					sum_x2 += p[j]*p[j];
+					sum_y2 += q[j]*q[j];
 
 					nnz++;
 				}
 			}
 		}
 
-		return (nnz*sum_xy - sum_x*sum_y) / (std::sqrt(nnz*sum_x2 - sum_x*sum_x) * std::sqrt(nnz*sum_y2 - sum_y*sum_y));
+		double pear = (nnz*sum_xy - sum_x*sum_y) / (std::sqrt(nnz*sum_x2 - sum_x*sum_x) * std::sqrt(nnz*sum_y2 - sum_y*sum_y));
+		if (std::isnan(pear))
+		{
+			std::cout << nnz << ", " << sum_xy << ", " << sum_x << ", " << sum_y << ", " << sum_x2 << ", " << sum_y2 << std::endl;
+		}
+		
+		return pear;
 	}
 
 	/*Use the Fisher transform to get a confidence interval for Pearson's coefficient. Not tested: switched to MATLAB's
@@ -922,8 +961,6 @@ namespace ba
 	cv::Vec2f masked_pearson_corr_with_confid(cv::Mat img1, cv::Mat img2, cv::Mat mask, 
 		std::unique_ptr<matlab::engine::MATLABEngine> &matlabPtr)
 	{
-		std::cout << "here..." << std::endl;
-		display_CV(img1);
 		matlab::data::ArrayFactory factory;
 		if (!matlabPtr)
 		{
@@ -963,8 +1000,6 @@ namespace ba
 		matlab::data::TypedArray<double> const result = matlabPtr->
 			feval(matlab::engine::convertUTF8StringToUTF16String("pearson_r_and_p"), args);
 
-		print_vect(data1);
-
 		//Repackage the result into an easy-to-use vector
 		cv::Vec2f pear;
 		{
@@ -972,13 +1007,89 @@ namespace ba
 			for (auto val : result)
 			{
 				pear[k++] = val;
-				std::cout << pear[k-1] << std::endl;
 			}
 		}
 
 		return pear;
 	}
 
-	/*Refine registrations by considering interpolating in a 1
+	/*Take the Kronecker produce of a matrix with a patter matrix
+	**A: const cv::Mat &, The matrix
+	**B: cv::Mat &, The pattern
+	**K: cv::Mat &, Output Kronecker product
 	*/
+	void kron(const cv::Mat& A, const cv::Mat& B, cv::Mat &K)
+	{
+		CV_Assert(A.channels() == 1 && B.channels() == 1);
+
+		cv::Mat1d Ad, Bd;
+		A.convertTo(Ad, CV_64F);
+		B.convertTo(Bd, CV_64F);
+
+		cv::Mat1d Kd(Ad.rows * Bd.rows, Ad.cols * Bd.cols, 0.0);
+		for (int ra = 0; ra < Ad.rows; ++ra)
+		{
+			for (int ca = 0; ca < Ad.cols; ++ca)
+			{
+				Kd(cv::Range(ra*Bd.rows, (ra + 1)*Bd.rows), cv::Range(ca*Bd.cols, (ca + 1)*Bd.cols)) = Bd.mul(Ad(ra, ca));
+			}
+		}
+
+		Kd.convertTo(K, A.type());
+	}
+
+	/*Dilate an image by taking the Gaussian average of the non-zero neigbouring pixels
+	**Inputs
+	**img: const cv::Mat &, Image to dilate by taking the Gaussian averages of neighbouring pixels
+	**mask: const cv::Mat &, Indicates the portion of the image to dilate using the neighbouring mask pixels
+	**dst: cv::Mat &, Output dilated image
+	*/
+	void dilate_avg(const cv::Mat &img, const cv::Mat &mask, cv::Mat &dst)
+	{
+		//Make a copy of the image to dilate
+		img.copyTo(dst);
+
+		//Get the pixels added by 1 dilation
+		cv::Mat dilation;
+		cv::dilate(mask, dilation, cv::Mat(), cv::Point(-1,-1), 1);
+
+		//Get extra pixels added by dilation
+		cv::Mat extras;
+		cv::bitwise_xor(dilation, mask, extras);
+
+		cv::Mat gauss = cv::getGaussianKernel(3, 1.4, CV_32FC1);
+
+		//For each of the pixels added by the dilation, perform the dilation using the average value of their neighbours
+		byte *b;
+		for (int i = 0; i < mask.rows; i++)
+		{
+			b = extras.ptr<byte>(i);
+			for (int j = 0; j < mask.cols; j++)
+			{
+				//Count the number of neighbours and get their average
+				if (b[j])
+				{
+					//Get pixels to iterate over
+					int il = i > 0 ? i-1 : 0;
+					int iu = i < mask.rows-1 ? i+1 : mask.rows-1;
+					int jl = i > 0 ? j-1 : 0;
+					int ju = i < mask.cols-1 ? j+1 : mask.cols-1;
+
+					float sum = 0.0;
+					float sum_weights = 0.0;
+					for (int m = il, k = i > il ? 0 : 1; m < iu; m++, k++)
+					{
+						for (int n = jl, l = j > jl ? 0 : 1; n < ju; n++, l++)
+						{
+
+							sum += gauss.at<float>(k, l) * img.at<float>(m, n);
+							sum_weights += gauss.at<float>(k, l);
+						}
+					}
+
+					dst.at<float>(i, j) = sum / sum_weights;
+				}
+			}
+		}
+	}
 }

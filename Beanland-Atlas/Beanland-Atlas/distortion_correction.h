@@ -11,7 +11,7 @@ namespace ba
 {
 	//Minimum number of overlapping pixels for the affine transform of an overlapping region to be used to estimate the 
 	//distortions
-    #define MIN_OVERLAP_PX_NUM 25
+    #define MIN_OVERLAP_PX_NUM 50
 
 	//Maximum expected error of relative positions found by aligning the images in px
 	#define DISTORT_MAX_REL_POS_ERR 2.0
@@ -23,10 +23,7 @@ namespace ba
 	#define OVERLAP_REL_POS_SCALE 2 //This can be changed to be dynamically calculated at a later time
 
 	//Minimum number of pixels needed for a Pearson correlation to be valid
-    #define MIN_OVERLAP_PX_REG 10
-
-	//Confidence level required for registrations
-    #define MIN_PEAR_CONFID 0.95
+    #define MIN_OVERLAP_PX_REG 5
 
 	/*Use spot overlaps to determine the distortion field
 	**Inputs:
@@ -148,13 +145,11 @@ namespace ba
 	**p1: cv::Point &, Top left point of a square containing the first circle on the detector
 	**p2: cv::Point &, Top left point of a square containing the second circle on the detector
 	**min_px: const int, Minimum number of pixels in a registration
+	**max_shift: cv::Vec2i &, Maximum displacent of the images
 	**shift: cv::Vec3f &, Output how much the second image needs to be shifted to align it and the Pearson coefficient
-	**matlabPtr: std::unique_ptr<matlab::engine::MATLABEngine> &, MATLAB engine
-	**Returns:
-	**int, Number of pixels at the registration point
 	*/
-	int get_pearson_overlap_register(cv::Mat &mask, cv::Mat &c1, cv::Mat &c2, cv::Point &p1, cv::Point &p2, const int min_px, 
-		cv::Vec4f &shift, std::unique_ptr<matlab::engine::MATLABEngine> &matlabPtr);
+	void get_pearson_overlap_register(cv::Mat &mask, cv::Mat &c1, cv::Mat &c2, cv::Point &p1, cv::Point &p2, const int min_px,
+		cv::Vec2i &max_shift, cv::Vec3f &shift);
 
 	/*Use Pearson product moment correlation to register 2 masked images of the same size
 	**Inputs:
@@ -164,22 +159,20 @@ namespace ba
 	**mask2: cv::Mat &, Indicates which pixels in the second image can be used
 	**shift: cv::Vec3f &, Output registration of the second image relative to the first and Pearson coefficient
 	**min_px: const int, The minimum number of pixels that the matched region must contain
-	**matlabPtr: std::unique_ptr<matlab::engine::MATLABEngine> &, MATLAB engine
-	**Returns:
-	**int, Number of pixels at the registration point
+	**max_shift: cv::Vec2i &, Maximum displacent of the images
 	*/
-	int masked_pearson_reg(cv::Mat &img1, cv::Mat &img2, cv::Mat &mask1, cv::Mat &mask2, cv::Vec4f &shift,
-		const int min_px, std::unique_ptr<matlab::engine::MATLABEngine> &matlabPtr);
+	void masked_pearson_reg(cv::Mat &img1, cv::Mat &img2, cv::Mat &mask1, cv::Mat &mask2, cv::Vec3f &shift,
+		const int min_px, cv::Vec2i &max_shift);
 
 	/*Calculate Pearson's product moment correlation coefficent from 2 32-bit images at marked locations
 	**Inputs:
-	**img1: cv::Mat, One of the images
-	**img2: cv::Mat, The other image
-	**mask: cv::Mat, 8-bit mask that's non-zero values indicate which pixels to use
+	**img1: cv::Mat &, One of the images
+	**img2: cv::Mat &, The other image
+	**mask: cv::Mat &, 8-bit mask that's non-zero values indicate which pixels to use
 	**Returns:
-	**float, Pearson product moment correlation coefficient between the images
+	**double, Pearson product moment correlation coefficient between the images
 	*/
-	float masked_pearson_corr(cv::Mat img1, cv::Mat img2, cv::Mat mask);
+	double masked_pearson_corr(cv::Mat &img1, cv::Mat &img2, cv::Mat &mask);
 
 	/*Use the Fisher transform to get a confidence interval for Pearson's coefficient
 	**Inputs:
@@ -205,4 +198,19 @@ namespace ba
 	*/
 	cv::Vec2f masked_pearson_corr_with_confid(cv::Mat img1, cv::Mat img2, cv::Mat mask, 
 		std::unique_ptr<matlab::engine::MATLABEngine> &matlabPtr);
+
+	/*Take the Kronecker produce of a matrix with a patter matrix
+	**A: const cv::Mat &, The matrix
+	**B: const cv::Mat &, The pattern
+	**K: cv::Mat &, Output Kronecker product
+	*/
+	void kron( const cv::Mat &A, const cv::Mat &B, cv::Mat &K );
+
+	/*Dilate an image by taking the Gaussian average of the non-zero neigbouring pixels
+	**Inputs
+	**img: const cv::Mat &, Image to dilate by taking the Gaussian averages of neighbouring pixels
+	**mask: const cv::Mat &, Indicates the portion of the image to dilate using the neighbouring mask pixels
+	**dst: cv::Mat &, Output dilated image
+	*/
+	void dilate_avg(const cv::Mat &img, const cv::Mat &mask, cv::Mat &dst);
 }
